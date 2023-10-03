@@ -2,7 +2,7 @@ from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import distinct
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 

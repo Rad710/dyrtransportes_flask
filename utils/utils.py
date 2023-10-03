@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 from datetime import datetime
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 

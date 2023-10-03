@@ -11,7 +11,7 @@ from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos
 from utils.utils import redondear
 

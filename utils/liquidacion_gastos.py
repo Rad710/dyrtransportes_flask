@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 
 from dateutil import parser
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, LiquidacionGastos
 
 

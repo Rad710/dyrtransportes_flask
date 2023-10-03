@@ -4,7 +4,7 @@ from sqlalchemy import extract
 from dateutil import parser
 from sqlalchemy.exc import IntegrityError
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, Planillas
 
 

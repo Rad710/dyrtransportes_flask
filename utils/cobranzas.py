@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from dateutil import parser
 from decimal import Decimal
 
-from flask_app import app
+from app_util import app
 from utils.schema import db, Cobranzas
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, redondear
 
