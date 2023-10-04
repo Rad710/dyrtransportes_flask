@@ -22,7 +22,7 @@ def get_informe_dinatran(fecha_inicio, fecha_fin):
                                 SUM(precio_liquidacion * kilos_destino) as total_liquidacion 
                             FROM cobranzas
                             JOIN liquidacion_viajes ON liquidacion_viajes.id = cobranzas.id   
-                            WHERE fecha_creacion BETWEEN :fecha_inicio AND :fecha_fin 
+                            WHERE fecha_viaje BETWEEN :fecha_inicio AND :fecha_fin 
                             GROUP BY chapa""")
 
         # Execute the query with parameters
