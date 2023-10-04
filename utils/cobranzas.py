@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from dateutil import parser
 from decimal import Decimal
 
-from app_util import app
+from app_database import app
 from utils.schema import db, Cobranzas
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, redondear
 
@@ -36,7 +36,7 @@ def post_cobranza():
         return jsonify({"error": "Error al agregar nueva liquidacion"}), 500
 
     try:
-        agregar_liquidacion_viaje(id_cobranza, precio, fecha_liquidacion)
+        agregar_liquidacion_viaje(id_cobranza, 0, fecha_liquidacion)
     except IntegrityError:
         return jsonify({"error": "Error al agregar a liquidacion del chofer"}), 500
 

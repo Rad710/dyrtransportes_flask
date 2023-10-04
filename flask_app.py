@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 import shutil
 
-from app_util import app, DATABASE_PATH
+from app_database import app, DATABASE_PATH
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -13,11 +13,13 @@ import utils.liquidacion as liquidacion
 import utils.liquidacion_viajes as liquidacion_viajes
 import utils.liquidacion_gastos as liquidacion_gastos
 import utils.export as export
+import utils.statistics as statistics
+import utils.dinatran as dinatran
 
 
 @app.route('/')
 def index():
-    return "Hello. This is just an API in flask for my webpage"
+    return "Hello, World!"
 
 app.route('/planillas/', methods=['POST'])(planillas.post_planilla)
 
@@ -89,6 +91,10 @@ app.route('/liquidacion_gasto/<string:id>', methods=['DELETE'])(liquidacion_gast
 
 app.route('/exportar_liquidacion/<string:chofer>/<string:fecha>', methods=['GET'])(export.exportar_liquidacion)
 
+app.route('/statistics/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(statistics.get_statistics)
+
+app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(dinatran.get_informe_dinatran)
+
 
 # Route to return a copy of the database file
 @app.route('/database_backup', methods=['GET'])
@@ -109,6 +115,7 @@ def database_backup():
     response = Response(file_content, content_type='application/octet-stream')
     response.headers['Content-Disposition'] = f'attachment; filename={copy_file}'
     return response
+
 
 
 if __name__ == '__main__':

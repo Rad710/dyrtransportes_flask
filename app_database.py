@@ -7,7 +7,6 @@ import sys
 
 from utils.schema import db
 
-
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
