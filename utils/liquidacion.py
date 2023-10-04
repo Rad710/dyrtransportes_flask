@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import distinct
 
 from app_database import app
-from utils.schema import db, Liquidaciones
+from utils.schema import db, Liquidaciones, LiquidacionGastos
 from utils.utils import agregar_liquidacion, agregar_keywords
 
 

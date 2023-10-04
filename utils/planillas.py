@@ -5,7 +5,7 @@ from dateutil import parser
 from sqlalchemy.exc import IntegrityError
 
 from app_database import app
-from utils.schema import db, Planillas
+from utils.schema import db, Planillas, Cobranzas
 
 
 def post_planilla():
@@ -58,11 +58,16 @@ def delete_planilla(fecha):
         planilla_to_delete = Planillas.query.filter_by(fecha=fecha).first()
         # Check if the planilla exists
         if planilla_to_delete:
+            cobranzas_to_delete = Cobranzas.query.filter_by(fecha_creacion=fecha).all()
+
+            for cobranza in cobranzas_to_delete:
+                db.session.delete(cobranza)
+
             # Delete the planilla
             db.session.delete(planilla_to_delete)
             db.session.commit()
 
-            return jsonify({"message": "Planilla eliminada exitosamente"}), 200
+            return jsonify({"message": "Planilla y Cobranzas eliminada exitosamente"}), 200
         else:
             return jsonify({"error": "Planilla no encontrada"}), 404
 

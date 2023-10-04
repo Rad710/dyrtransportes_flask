@@ -599,6 +599,9 @@ def exportar_liquidacion(chofer, fecha):
         cell.border = thin_border
         cell.font = Font(bold=True) 
 
+        if col == 11:
+            cell.number_format = "#,##0"
+
     total_facturar = [None, None, None, None, None, None, None, 'TOTAL A FACTURAR:', None, None, subtotal_viajes - subtotal_con_boleta]
     sheet.append(total_facturar)
 
@@ -607,7 +610,10 @@ def exportar_liquidacion(chofer, fecha):
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         cell.border = thin_border
         cell.font = Font(bold=True)
-    
+
+        if col == 11:
+            cell.number_format = "#,##0"
+
 
     # Guardar el archivo Excel en el flujo de salida
     workbook.save(output)
