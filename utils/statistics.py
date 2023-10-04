@@ -102,7 +102,6 @@ def get_statistics(fecha_inicio, fecha_fin):
             if total_perdida < 0:
                 result_total['totalPerdidas'] += abs(total_perdida)
         
-        print(result_total)
         return jsonify({'choferes': result, 'totales': result_total}), 200
     
     except Exception:

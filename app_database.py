@@ -21,6 +21,7 @@ db_name = 'rad710$dyrtransportes' # dbFlask was created as a PythonAnywhere MySQ
 
 # connection string: mysql://user:pword@host/db
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{user}:{password}@{host}/{db_name}'
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}
 
 db.init_app(app)
 

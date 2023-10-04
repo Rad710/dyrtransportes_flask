@@ -1,9 +1,8 @@
-from flask import Response
-from datetime import datetime
+from flask import send_file
 
 import subprocess
 
-from app_database import app
+from app_database import app, user, password, host, db_name
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -99,17 +98,13 @@ app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 @app.route('/database_backup', methods=['GET'])
 def database_backup():
     try:
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        dump_file = 'dump_filename.db'
+        dump_file = 'dump_filename.sql'
 
         # Use mysqldump to create a SQL dump of your MySQL database
-        subprocess.call(["mysqldump", "-u", "username", "-p", "password", "database_name", "--result-file=" + dump_file])
-        # Open the dump file for reading
-        with open(dump_file, 'rb') as file_content:
-            # Create a Response object and set its headers
-            response = Response(file_content, content_type='application/octet-stream')
-            response.headers['Content-Disposition'] = f'attachment; filename=backup_{timestamp}.db'
-            return response
+        subprocess.run(["mysqldump", "-u", user, "-p" + password, "-h", host, "--set-gtid-purged=OFF", "--no-tablespaces", db_name, "--result-file=" + dump_file])
+        # Open the dump file for reading and send it as an attachment
+        return send_file(f'../{dump_file}', as_attachment=True)
+
     except Exception as e:
         return str(e), 500
 
