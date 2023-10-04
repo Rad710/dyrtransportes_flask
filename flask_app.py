@@ -100,7 +100,7 @@ app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 def database_backup():
     try:
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        dump_file = f'backup_{timestamp}.db'
+        dump_file = 'dump_filename.db'
 
         # Use mysqldump to create a SQL dump of your MySQL database
         subprocess.call(["mysqldump", "-u", "username", "-p", "password", "database_name", "--result-file=" + dump_file])
@@ -108,7 +108,7 @@ def database_backup():
         with open(dump_file, 'rb') as file_content:
             # Create a Response object and set its headers
             response = Response(file_content, content_type='application/octet-stream')
-            response.headers['Content-Disposition'] = f'attachment; filename={dump_file}'
+            response.headers['Content-Disposition'] = f'attachment; filename=backup_{timestamp}.db'
             return response
     except Exception as e:
         return str(e), 500
