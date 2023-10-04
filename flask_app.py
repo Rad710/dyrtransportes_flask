@@ -1,10 +1,9 @@
-from flask import Response, jsonify
+from flask import Response
 from datetime import datetime
 
-import os
-import shutil
+import subprocess
 
-from app_database import app, DATABASE_PATH
+from app_database import app
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -99,22 +98,20 @@ app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 # Route to return a copy of the database file
 @app.route('/database_backup', methods=['GET'])
 def database_backup():
-    if not os.path.exists(DATABASE_PATH):
-        return jsonify({"error": "Database file not found."}), 400
+    try:
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        dump_file = f'backup_{timestamp}.db'
 
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    copy_file = f'backup_{timestamp}.db'
-    shutil.copy2(DATABASE_PATH, copy_file)
-
-    with open(copy_file, 'rb') as file:
-        file_content = file.read()
-
-    # Remove the copied file after reading its content
-    os.remove(copy_file)
-
-    response = Response(file_content, content_type='application/octet-stream')
-    response.headers['Content-Disposition'] = f'attachment; filename={copy_file}'
-    return response
+        # Use mysqldump to create a SQL dump of your MySQL database
+        subprocess.call(["mysqldump", "-u", "username", "-p", "password", "database_name", "--result-file=" + dump_file])
+        # Open the dump file for reading
+        with open(dump_file, 'rb') as file_content:
+            # Create a Response object and set its headers
+            response = Response(file_content, content_type='application/octet-stream')
+            response.headers['Content-Disposition'] = f'attachment; filename={dump_file}'
+            return response
+    except Exception as e:
+        return str(e), 500
 
 
 
