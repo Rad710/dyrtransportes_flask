@@ -2,7 +2,7 @@ from flask import send_file
 
 import subprocess
 
-from app_database import app, user, password, host, db_name
+from app_database import app, user, host, db_name
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -101,7 +101,7 @@ def database_backup():
         dump_file = 'dump_filename.sql'
 
         # Use mysqldump to create a SQL dump of your MySQL database
-        subprocess.run(["mysqldump", "-u", user, "-p" + password, "-h", host, "--set-gtid-purged=OFF", "--no-tablespaces", db_name, "--result-file=" + dump_file])
+        subprocess.run(["mysqldump", "-u", user, "-h", host, "--set-gtid-purged=OFF", "--no-tablespaces", db_name, "--result-file=" + dump_file])
         # Open the dump file for reading and send it as an attachment
         return send_file(f'../{dump_file}', as_attachment=True)
 
