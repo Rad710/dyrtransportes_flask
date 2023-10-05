@@ -1,25 +1,29 @@
-from flask import jsonify
+from flask import jsonify, request
 from sqlalchemy import text
 
 from dateutil import parser
 
 from utils.schema import db
 
+from app_database import app
 
 def get_statistics(fecha_inicio, fecha_fin):
     try:
+        ipread1 = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+        app.logger.warning(f"The client IP is: {ipread1}")
+
         fecha_inicio = parser.isoparse(fecha_inicio).date()
         fecha_fin = parser.isoparse(fecha_fin).date()
 
         params = {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
 
         viajes_query = text("""
-                            SELECT 
-                                chofer, COUNT(cobranzas.id) as viajes, 
-                                SUM(kilos_origen) as total_origen, 
-                                SUM(kilos_destino) as total_destino, 
-                                SUM(precio * kilos_destino) as total_flete, 
-                                SUM(precio_liquidacion * kilos_destino) as total_liquidacion 
+                            SELECT
+                                chofer, COUNT(cobranzas.id) as viajes,
+                                SUM(kilos_origen) as total_origen,
+                                SUM(kilos_destino) as total_destino,
+                                SUM(precio * kilos_destino) as total_flete,
+                                SUM(precio_liquidacion * kilos_destino) as total_liquidacion
                             FROM cobranzas
                             JOIN liquidacion_viajes ON liquidacion_viajes.id = cobranzas.id
                             WHERE fecha_viaje BETWEEN :fecha_inicio AND :fecha_fin
@@ -34,7 +38,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                             WHERE (fecha BETWEEN :fecha_inicio AND :fecha_fin) AND boleta IS NOT NULL
                             GROUP BY chofer;
                             """)
-        
+
         gasto_facturado = db.session.execute(facturado_query, params).fetchall()
 
         no_facturado_query = text("""
@@ -50,7 +54,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                         'totalLiquidacionViajes': 0, 'totalGastoFacturado': 0, 'totalGastoNoFacturado': 0}
 
         default_chofer =  {
-                'viajes': 0, 'totalOrigen': 0, 'totalDestino': 0, 'totalFlete': 0, 
+                'viajes': 0, 'totalOrigen': 0, 'totalDestino': 0, 'totalFlete': 0,
                 'totalLiquidacion': 0, 'totalFacturado': 0, 'totalNoFacturado': 0
             }
 
@@ -72,7 +76,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                 result[chofer] = default_chofer.copy()
 
             result[chofer].update({
-                'viajes': viajes, 'totalOrigen': total_origen, 'totalDestino': total_destino, 
+                'viajes': viajes, 'totalOrigen': total_origen, 'totalDestino': total_destino,
                 'totalFlete': total_fletes, 'totalLiquidacion': total_liquidacion
             })
 
@@ -101,8 +105,8 @@ def get_statistics(fecha_inicio, fecha_fin):
             total_perdida = datos['totalLiquidacion'] - (datos['totalFacturado'] + datos['totalNoFacturado'])
             if total_perdida < 0:
                 result_total['totalPerdidas'] += abs(total_perdida)
-        
+
         return jsonify({'choferes': result, 'totales': result_total}), 200
-    
+
     except Exception:
         return jsonify({'error': 'Error en GET Statistics'}), 500
