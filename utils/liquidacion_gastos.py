@@ -30,6 +30,7 @@ def post_liquidacion_gasto():
         return jsonify({'message': 'Liquidacion gasto agregado exitosamente'}), 200
 
     except Exception:
+        db.session.rollback()
         return jsonify({'error': 'Error en POST tabla LiquidacionGastos'}), 500
 
 

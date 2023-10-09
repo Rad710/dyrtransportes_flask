@@ -19,6 +19,8 @@ from utils.utils import redondear
 def exportar_cobranza(fecha_creacion):
     cobranzas = Cobranzas.query.filter_by(fecha_creacion=fecha_creacion).all()
 
+    # Ordena las cobranzas por las columnas 'origen' y 'destino'
+    cobranzas_ordenadas = sorted(cobranzas, key=lambda cobranza: (cobranza.origen, cobranza.destino, cobranza.fecha_viaje, cobranza.chofer))
     # Crea un diccionario para almacenar las sumas de subtotales por grupo
     subtotales_origen = defaultdict(int)
     subtotales_destino = defaultdict(int)
@@ -28,7 +30,8 @@ def exportar_cobranza(fecha_creacion):
     subtotales = defaultdict(int)
 
     cambio_de_grupo = defaultdict(int)
-    for cobranza in cobranzas:
+
+    for cobranza in cobranzas_ordenadas:
         diferencia = cobranza.kilos_destino - cobranza.kilos_origen
         tolerancia = redondear(Decimal(cobranza.kilos_destino) * Decimal(0.002))
 
@@ -42,8 +45,6 @@ def exportar_cobranza(fecha_creacion):
 
         cambio_de_grupo[grupo] = cobranza.tiquet
 
-    # Ordena las cobranzas por las columnas 'origen' y 'destino'
-    cobranzas_ordenadas = sorted(cobranzas, key=lambda cobranza: (cobranza.origen, cobranza.destino, cobranza.fecha_viaje, cobranza.chofer))
 
     # Crear un archivo Excel en memoria
     output = io.BytesIO()

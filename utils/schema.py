@@ -18,8 +18,11 @@ class Cobranzas(db.Model):
     tiquet = db.Column(db.Integer, nullable=False)
     kilos_origen = db.Column(db.Integer, nullable=False)
     kilos_destino = db.Column(db.Integer, nullable=False)
-    precio = db.Column(db.Numeric, nullable=False)
+    precio = db.Column(db.Numeric(10, 2), nullable=False)
     fecha_creacion = db.Column(db.Date, nullable=True)
+    __table_args__ = (
+        UniqueConstraint('chofer', 'tiquet', 'fecha_viaje', name='uq_chofer_tiquet_fecha'),
+    )
 
      # diferencia = kilos_destino - kilos_origen
     # tolerancia = redondear(Decimal(kilos_origen) * Decimal(0.002))
@@ -44,8 +47,8 @@ class Precios(db.Model):
     id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
     origen = db.Column(db.String(100), nullable=False)
     destino = db.Column(db.String(100), nullable=False)
-    precio = db.Column(db.Float, nullable=False)
-    precio_liquidacion = db.Column(db.Float, nullable=False)
+    precio = db.Column(db.Numeric(10, 2), nullable=False)
+    precio_liquidacion = db.Column(db.Numeric(10, 2), nullable=False)
 
     __table_args__ = (
         UniqueConstraint('origen', 'destino', name='uq_origen_destino'),
@@ -54,7 +57,7 @@ class Precios(db.Model):
 
 class LiquidacionViajes(db.Model):
     id = db.Column(db.Integer,ForeignKey('cobranzas.id', ondelete='CASCADE'), primary_key=True)
-    precio_liquidacion = db.Column(db.Numeric, nullable=False)
+    precio_liquidacion = db.Column(db.Numeric(10, 2), nullable=False)
     fecha_liquidacion = db.Column(db.Date, nullable=False)
 
 
