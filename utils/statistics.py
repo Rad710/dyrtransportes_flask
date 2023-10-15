@@ -108,5 +108,7 @@ def get_statistics(fecha_inicio, fecha_fin):
 
         return jsonify({'choferes': result, 'totales': result_total}), 200
 
-    except Exception:
-        return jsonify({'error': 'Error en GET Statistics'}), 500
+    except Exception as e:
+        error_message = f"Error en GET Statistics {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500

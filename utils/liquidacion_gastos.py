@@ -27,11 +27,13 @@ def post_liquidacion_gasto():
     try:
         db.session.add(new_gasto)
         db.session.commit()
-        return jsonify({'message': 'Liquidacion gasto agregado exitosamente'}), 200
+        return jsonify({'success': 'Liquidacion gasto agregado exitosamente'}), 200
 
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Error en POST tabla LiquidacionGastos'}), 500
+        error_message = f'Error en POST tabla LiquidacionGastos {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 
@@ -46,8 +48,10 @@ def get_liquidacion_gastos(chofer, fecha):
 
         return jsonify(result), 200
     
-    except Exception:
-        return jsonify({'error': 'Error en GET tabla LiquidacionGastos'}), 500
+    except Exception as e:
+        error_message = f'Error en GET tabla LiquidacionGastos {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 def put_liquidacion_gasto(id):
@@ -69,12 +73,13 @@ def put_liquidacion_gasto(id):
     try:
         db.session.commit()
         app.logger.warning('Liquidacion Gasto actualizado exitosamente')
-        return jsonify({"message": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
+        return jsonify({"success": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        app.logger.warning('Error al actualizar Liquidacion Gasto')
-        return jsonify({"error": "Error al actualizar LiquidacionGasto"}), 500
+        error_message = f"Error al actualizar LiquidacionGasto {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def delete_liquidacion_gasto(id):
@@ -84,9 +89,11 @@ def delete_liquidacion_gasto(id):
         try:
             db.session.delete(gasto)
             db.session.commit()
-            return jsonify({'message': 'LiquidacionGasto eliminado exitosamente'}), 200
+            return jsonify({'success': 'LiquidacionGasto eliminado exitosamente'}), 200
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar LiquidacionGasto'}), 500
+            error_message = f'Error al eliminar LiquidacionGasto {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'LiquidacionGasto no encontrado'}), 404

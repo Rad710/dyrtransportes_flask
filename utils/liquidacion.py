@@ -13,10 +13,12 @@ def post_liquidacion():
     try:
         agregar_liquidacion(chofer)
         agregar_keywords(chofer, '', '', '', '')
-        return jsonify({"message": "Entrada agregada exitosamente a la tabla Liquidaciones"}), 200
+        return jsonify({"success": "Entrada agregada exitosamente a la tabla Liquidaciones"}), 200
 
-    except Exception:
-        return jsonify({"error": "Error al agregar a tabla del Liquidaciones"}), 500
+    except Exception as e:
+        error_message = f'Error al agregar a tabla del Liquidaciones {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
     
 
 def get_liquidacion(chofer, fecha):
@@ -24,8 +26,10 @@ def get_liquidacion(chofer, fecha):
         liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first()
         return jsonify({'id': liquidacion.id, 'pagado': liquidacion.pagado}), 200
 
-    except Exception:
-        return jsonify({'error': f'Error GET Tabla Liquidaciones {chofer}/{fecha}'}), 404
+    except Exception as e:
+        error_message = f'Error GET Tabla Liquidaciones {chofer}/{fecha} {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 def put_liquidacion(id):
@@ -44,12 +48,13 @@ def put_liquidacion(id):
     try:
         db.session.commit()
         app.logger.warning('Liquidacion actualizada exitosamente')
-        return jsonify({"message": "Entrada actualizada exitosamente en la tabla Liquidaciones"}), 200    
+        return jsonify({"success": "Entrada actualizada exitosamente en la tabla Liquidaciones"}), 200    
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        app.logger.warning('Error al actualizar Liquidacion')
-        return jsonify({"error": "Error al actualizar Liquidacion"}), 500
+        error_message = f'Error al actualizar Liquidacion {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def get_liquidaciones():
@@ -59,8 +64,10 @@ def get_liquidaciones():
             liquidaciones, key=lambda liquidacion: liquidacion)
         return jsonify([liquidacion[0] for liquidacion in liquidaciones]), 200
 
-    except Exception:
-        return jsonify({"error": "Error en GET Tabla Liquidaciones"}), 500
+    except Exception as e:
+        error_message = f'Error en GET Tabla Liquidaciones {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def delete_liquidaciones(chofer):
@@ -72,10 +79,12 @@ def delete_liquidaciones(chofer):
                 db.session.delete(liquidacion)
 
             db.session.commit()
-            return jsonify({'message': f'Liquidaciones de {chofer} eliminadas exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': f'Liquidaciones de {chofer} eliminadas exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar Liquidaciones'}), 500
+            error_message = f'Error al eliminar Liquidaciones {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Liquidaciones no encontradas'}), 404
 
@@ -88,8 +97,10 @@ def get_liquidaciones_chofer(chofer):
 
         return jsonify([liquidacion.fecha_liquidacion for liquidacion in liquidaciones_ordenadas]), 200
 
-    except Exception:
-        return jsonify({'error': f'Liquidaciones de {chofer} no encontradas'}), 404
+    except Exception as e:
+        error_message = f'Liquidaciones de {chofer} no encontradas {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 def delete_liquidaciones_chofer(chofer, fecha):
@@ -100,9 +111,11 @@ def delete_liquidaciones_chofer(chofer, fecha):
         try:
             db.session.delete(liquidacion)
             db.session.commit()
-            return jsonify({'message': f'Liquidaciones de {chofer}/{fecha} eliminadas exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': f'Liquidaciones de {chofer}/{fecha} eliminadas exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar Liquidaciones'}), 500
+            error_message = f'Error al eliminar Liquidaciones {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Liquidaciones no encontradas'}), 404

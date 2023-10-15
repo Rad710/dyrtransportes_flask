@@ -2,6 +2,7 @@ from flask import jsonify
 
 from sqlalchemy import distinct
 
+from app_database import app
 from utils.schema import db, Palabras, Cobranzas, Precios
 
 
@@ -14,7 +15,7 @@ def get_keywords():
         lista_chofer = [chofer_chapa.palabra.split('/')[0] for chofer_chapa in chofer_chapa_lista]
         lista_chofer = sorted(lista_chofer)
 
-        lista_producto = db.session.query(distinct(Cobranzas.producto)).order_by(Cobranzas.fecha_viaje.desc()).all()
+        lista_producto = db.session.query(distinct(Cobranzas.producto), Cobranzas.fecha_viaje).order_by(Cobranzas.fecha_viaje.desc()).all()
         lista_producto = [producto[0] for producto in lista_producto]
 
         lista_origen = db.session.query(distinct(Precios.origen)).all()
@@ -34,8 +35,10 @@ def get_keywords():
 
         return jsonify(result), 200
 
-    except Exception:
-        return jsonify({"error": "Error en GET de keywords"}), 500
+    except Exception as e:
+        error_message = f"Error en GET de keywords: {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def get_nomina():
@@ -49,8 +52,10 @@ def get_nomina():
 
         return jsonify(result), 200
 
-    except Exception:
-        return jsonify({"error": "Error en GET tabla Nomina"}), 500
+    except Exception as e:
+        error_message = f"Error en GET tabla Nomina {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({f"error": error_message}), 500
 
 
 def delete_nomina(id):
@@ -60,9 +65,11 @@ def delete_nomina(id):
         try:
             db.session.delete(entrada)
             db.session.commit()
-            return jsonify({'message': 'Nomina eliminada exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': 'Nomina eliminada exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar nomina'}), 500
+            error_message = f'Error al eliminar nomina {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Nomina no encontrado'}), 404

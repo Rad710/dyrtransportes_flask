@@ -27,15 +27,17 @@ def post_planilla():
                 app.logger.warning("Nueva entrada en lista de planillas")
             except IntegrityError as e:
                 db.session.rollback()
-                app.logger.warning("Error: No se pudo agregar la entrada a la lista de planillas")
+                app.logger.warning(f"Error: No se pudo agregar la entrada a la lista de planillas {str(e)}")
                 raise e
         else:
             app.logger.warning("Fecha ya existe en la lista de planillas")
-    except Exception:
-        return jsonify({"error": "Error al agregar a lista de planillas"}), 500
+    except Exception as e:
+        error_message = f'Error al agregar a lista de planillas {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
-    return jsonify({"message": "Entrada agregada exitosamente a la lista de planillas"}), 200
+    return jsonify({"success": "Entrada agregada exitosamente a la lista de planillas"}), 200
 
 
 # hacer query de todas las fechas de planillas
@@ -47,8 +49,10 @@ def get_planillas():
         fechas_ordenadas = sorted(fechas, key=lambda planilla: planilla.fecha)
         return jsonify( [planilla.fecha for planilla in fechas_ordenadas]), 200
     
-    except Exception:
-        return jsonify({"error": "Error en GET request a lista completa de planillas"}), 500
+    except Exception as e:
+        error_message = f'Error en GET request a lista completa de planillas {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def delete_planilla(fecha):
@@ -67,12 +71,14 @@ def delete_planilla(fecha):
             db.session.delete(planilla_to_delete)
             db.session.commit()
 
-            return jsonify({"message": "Planilla y Cobranzas eliminada exitosamente"}), 200
+            return jsonify({"success": "Planilla y Cobranzas eliminada exitosamente"}), 200
         else:
             return jsonify({"error": "Planilla no encontrada"}), 404
 
-    except Exception:
-        return jsonify({"error": "Error en DELETE lista de planillas"}), 500
+    except Exception as e:
+        error_message = f'Error en DELETE lista de planillas {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 
@@ -86,5 +92,7 @@ def get_planilla(year):
         
         return jsonify(planillas_ordenadas)
 
-    except Exception:
-        return jsonify({"error": "Error en GET request a lista de planillas por año"}), 500
+    except Exception as e:
+        error_message = f'Error en GET request a lista de planillas por año {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500

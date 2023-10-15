@@ -14,10 +14,10 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 script_directory = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__)
 
 
-user = 'rad710'
-password = 'hola12345'
-host = 'rad710.mysql.pythonanywhere-services.com'
-db_name = 'rad710$dyrtransportes' # dbFlask was created as a PythonAnywhere MySQL database
+user = 'root'
+password = 'root'
+host = 'localhost'
+db_name = 'dyrtransportes' # dbFlask was created as a PythonAnywhere MySQL database
 
 # connection string: mysql://user:pword@host/db
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{user}:{password}@{host}/{db_name}'

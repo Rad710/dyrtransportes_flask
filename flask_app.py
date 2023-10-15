@@ -19,6 +19,7 @@ import utils.dinatran as dinatran
 def index():
     return "Hello, World!"
 
+
 app.route('/planillas/', methods=['POST'])(planillas.post_planilla)
 
 app.route('/planillas/', methods=['GET'])(planillas.get_planillas)
@@ -27,7 +28,7 @@ app.route('/planillas/<fecha>', methods=['DELETE'])(planillas.delete_planilla)
 
 app.route('/planillas/<year>', methods=['GET'])(planillas.get_planilla)
 
-app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(export.exportar_informe)
+app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(export.exportar_informe_planillas)
 
 app.route('/cobranzas/', methods=['POST'])(cobranzas.post_cobranza)
 
@@ -106,7 +107,9 @@ def database_backup():
         return send_file(f'../{dump_file}', as_attachment=True)
 
     except Exception as e:
-        return str(e), 500
+        error_message = f'Error al crear backup {str(e)}'
+        app.logger.warning(error_message)
+        return error_message, 500
 
 
 

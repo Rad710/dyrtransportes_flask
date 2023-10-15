@@ -2,12 +2,12 @@ from flask import request, jsonify
 
 from sqlalchemy.exc import IntegrityError
 from dateutil import parser
-from decimal import Decimal
+from decimal import localcontext, Decimal, ROUND_HALF_UP
 
 from app_database import app
 from utils.schema import db, Cobranzas
-from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, redondear
-
+from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje
+from utils.precio import get_precio
 
 def post_cobranza():
     cobranza = request.json.get('cobranza')
@@ -27,20 +27,32 @@ def post_cobranza():
     try:
         id_cobranza = agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
                         tiquet, kilos_origen, kilos_destino, precio, fecha_creacion)
-    except Exception:
-        return jsonify({"error": "Error al agregar entrada a la tabla Cobranzas"}), 500
+    except Exception as e:
+        error_message = f"Error al agregar entrada a la tabla Cobranzas {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
     try:
         fecha_liquidacion = agregar_liquidacion(chofer)
-    except IntegrityError:
-        return jsonify({"error": "Error al agregar nueva liquidacion"}), 500
+    except IntegrityError as e:
+        error_message = f"Error al agregar nueva liquidacion {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
     try:
-        agregar_liquidacion_viaje(id_cobranza, 0, fecha_liquidacion)
-    except IntegrityError:
-        return jsonify({"error": "Error al agregar a liquidacion del chofer"}), 500
+        precio_liquidacion = 0
+        dict_precios = get_precio(f'{origen}-{destino}')[0].get_json()
 
-    return jsonify({"message": "Entrada agregada exitosamente a la tabla Cobranzas"}), 200
+        if 'error' not in dict_precios:
+            precio_liquidacion = dict_precios['precioLiquidacion']
+
+        agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion)
+    except IntegrityError as e:
+        error_message = f"Error al agregar a liquidacion del chofer {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
+
+    return jsonify({"success": "Entrada agregada exitosamente a la tabla Cobranzas"}), 200
 
 
 def get_cobranza(fecha_creacion):
@@ -74,13 +86,20 @@ def get_cobranza(fecha_creacion):
             cobranzas_agrupadas[origen_destino]['subtotalOrigen'] += kilos_origen
             cobranzas_agrupadas[origen_destino]['subtotalDestino'] += kilos_destino
             cobranzas_agrupadas[origen_destino]['subtotalDiferencia'] += kilos_destino - kilos_origen
-            cobranzas_agrupadas[origen_destino]['subtotalGS'] +=  redondear(precio * Decimal(kilos_destino))
 
+            total_gs = precio * Decimal(kilos_destino)
+            with localcontext() as ctx:
+                ctx.rounding = ROUND_HALF_UP
+                total_gs = int(total_gs.to_integral_value())
+
+            cobranzas_agrupadas[origen_destino]['subtotalGS'] +=  total_gs
 
         return jsonify(cobranzas_agrupadas), 200
     
-    except Exception:
-        return jsonify({"error": "Error en GET cobranza"}), 500
+    except Exception as e:
+        error_message = f"Error en GET cobranza {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def put_cobranza(id):
@@ -115,12 +134,13 @@ def put_cobranza(id):
     try:
         db.session.commit()
         app.logger.warning('Cobranza actualizada exitosamente')
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        app.logger.warning('Error al actualizar cobranza')
-        return jsonify({"error": "Error al actualizar Cobranzas"}), 500
+        error_message = f"Error al actualizar Cobranzas {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
-    return jsonify({"message": "Entrada actualizada exitosamente en la tabla Cobranzas"}), 200    
+    return jsonify({"success": "Entrada actualizada exitosamente en la tabla Cobranzas"}), 200    
 
 
 def delete_cobranza(id):
@@ -129,9 +149,11 @@ def delete_cobranza(id):
         try:
             db.session.delete(cobranza)
             db.session.commit()
-            return jsonify({'message': 'Cobranza eliminada exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': 'Cobranza eliminada exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar la cobranza'}), 500
+            error_message = f'Error al eliminar la cobranza {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Cobranza no encontrada'}), 404

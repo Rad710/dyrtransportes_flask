@@ -3,6 +3,7 @@ from sqlalchemy import text
 
 from dateutil import parser
 
+from app_database import app
 from utils.schema import db
 
 
@@ -35,5 +36,7 @@ def get_informe_dinatran(fecha_inicio, fecha_fin):
 
         return jsonify(viajes_parsed), 200
 
-    except Exception:
-        return jsonify({'error': 'Error en GET Statistics'}), 500
+    except Exception as e:
+        error_message = f'Error en GET Statistics {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
