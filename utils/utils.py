@@ -1,19 +1,10 @@
 from flask import jsonify
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
 
-from decimal import localcontext, Decimal, ROUND_HALF_UP
 from datetime import datetime
 
 from app_database import app
 from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
-
-
-def redondear(numero):
-    with localcontext() as ctx:
-        ctx.rounding = ROUND_HALF_UP
-        n = Decimal(numero)
-        return int(n.to_integral_value())
 
 
 def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
@@ -42,23 +33,24 @@ def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
         app.logger.warning('Cobranza agregada exitosamente')
         return new_cobranza.id
 
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
-        app.logger.warning('Error al agregar cobranza')
+        app.logger.warning(f'Error al agregar cobranza {str(e)}')
         raise e
 
 
 
-def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion):
-    liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, fecha_liquidacion=fecha_liquidacion)
-
+def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer):
     try:
+        id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+        liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, id_liquidacion=id_liquidacion)
+        
         db.session.add(liq)
         db.session.commit()
         app.logger.warning("Nueva entrada en lista de liquidaciones agregada")
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
-        app.logger.warning("No se pudo cargar nueva entrada en lista de liquidaciones")
+        app.logger.warning(f"No se pudo cargar nueva entrada en lista de liquidaciones {str(e)}")
         raise e
 
 
@@ -73,12 +65,13 @@ def agregar_precio(origen, destino, precio, precio_liquidacion):
             db.session.add(new_precio)
             db.session.commit()
             app.logger.warning("Nuevo precio en lista de precios")
-            return jsonify({"message": "Entrada agregada exitosamente a la tabla Precios"}), 200
+            return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
         
-        except IntegrityError:
+        except Exception as e:
             db.session.rollback()
-            app.logger.warning("No se pudo cargar nuevo precio el lista de precios")
-            return jsonify({"error": "Error al agregar a tabla Precios"}), 500
+            error_message = f"Error al agregar a tabla Precios {str(e)}"
+            app.logger.warning(error_message)
+            return jsonify({"error": error_message}), 500
         
     return jsonify({"error": "Entrada ya existe en la tabla Precios"}), 500
 
@@ -98,9 +91,9 @@ def agregar_keywords(chofer, chapa, producto, origen, destino):
                 db.session.add(new_clave)
                 db.session.commit()
                 app.logger.warning(f'Nueva entrada en palabras clave de tipo: {tipo}')
-            except IntegrityError:
+            except Exception as e:
                 db.session.rollback()
-                app.logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}')
+                app.logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}: {str(e)}')
 
 
 def agregar_liquidacion(chofer):
@@ -121,9 +114,9 @@ def agregar_liquidacion(chofer):
 
             return new_liquidacion.fecha_liquidacion
 
-        except IntegrityError as e:
+        except Exception as e:
             db.session.rollback()
-            app.logger.warning("No se pudo cargar nueva fecha de liquidacion")
+            app.logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
             raise e
     else:
         app.logger.warning('Entrada ya exite en tabla Liquidaciones')

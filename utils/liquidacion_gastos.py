@@ -1,10 +1,9 @@
 from flask import request, jsonify
-from sqlalchemy.exc import IntegrityError
 
 from dateutil import parser
 
 from app_database import app
-from utils.schema import db, LiquidacionGastos
+from utils.schema import db, LiquidacionGastos, Liquidaciones
 
 
 def post_liquidacion_gasto():
@@ -16,37 +15,50 @@ def post_liquidacion_gasto():
     fecha_liquidacion = parser.isoparse(gasto['fechaLiquidacion']).date()
     razon = gasto['razon']
 
-    new_gasto = LiquidacionGastos(
-        chofer=chofer,
-        fecha=fecha,
-        boleta=boleta,
-        importe=importe,
-        fecha_liquidacion=fecha_liquidacion,
-        razon=razon
-    )
     try:
+        liq_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+
+        new_gasto = LiquidacionGastos(
+            fecha=fecha,
+            boleta=boleta,
+            importe=importe,
+            razon=razon,
+            id_liquidacion=liq_id
+        )
+
         db.session.add(new_gasto)
         db.session.commit()
-        return jsonify({'message': 'Liquidacion gasto agregado exitosamente'}), 200
+        return jsonify({'success': 'Liquidacion gasto agregado exitosamente'}), 200
 
-    except Exception:
-        return jsonify({'error': 'Error en POST tabla LiquidacionGastos'}), 500
+    except Exception as e:
+        db.session.rollback()
+        error_message = f'Error en POST tabla LiquidacionGastos {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 
 def get_liquidacion_gastos(chofer, fecha):
     try:
-        gastos = LiquidacionGastos.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).order_by(LiquidacionGastos.fecha.asc()).all()
-        
+        gastos = db.session.query(LiquidacionGastos, Liquidaciones).join(
+            Liquidaciones,
+            Liquidaciones.id == LiquidacionGastos.id_liquidacion
+        ).filter(
+            Liquidaciones.chofer == chofer,
+            Liquidaciones.fecha_liquidacion == fecha
+        ).order_by(LiquidacionGastos.fecha.asc()).all()
+
         result = [{
             'id': gasto.id, 'fecha': gasto.fecha, 'boleta': gasto.boleta,
             'importe': gasto.importe, 'razon': gasto.razon
-        } for gasto in gastos]
+        } for gasto, _ in gastos]
 
         return jsonify(result), 200
     
-    except Exception:
-        return jsonify({'error': 'Error en GET tabla LiquidacionGastos'}), 500
+    except Exception as e:
+        error_message = f'Error en GET tabla LiquidacionGastos {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
 
 
 def put_liquidacion_gasto(id):
@@ -68,12 +80,13 @@ def put_liquidacion_gasto(id):
     try:
         db.session.commit()
         app.logger.warning('Liquidacion Gasto actualizado exitosamente')
-        return jsonify({"message": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
+        return jsonify({"success": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
 
-    except IntegrityError:
+    except Exception as e:
         db.session.rollback()
-        app.logger.warning('Error al actualizar Liquidacion Gasto')
-        return jsonify({"error": "Error al actualizar LiquidacionGasto"}), 500
+        error_message = f"Error al actualizar LiquidacionGasto {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def delete_liquidacion_gasto(id):
@@ -83,9 +96,11 @@ def delete_liquidacion_gasto(id):
         try:
             db.session.delete(gasto)
             db.session.commit()
-            return jsonify({'message': 'LiquidacionGasto eliminado exitosamente'}), 200
+            return jsonify({'success': 'LiquidacionGasto eliminado exitosamente'}), 200
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar LiquidacionGasto'}), 500
+            error_message = f'Error al eliminar LiquidacionGasto {str(e)}'
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'LiquidacionGasto no encontrado'}), 404

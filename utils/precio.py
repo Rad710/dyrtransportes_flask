@@ -1,5 +1,6 @@
 from flask import request, jsonify
 
+from app_database import app
 from utils.schema import db, Precios
 from utils.utils import agregar_precio
 
@@ -26,8 +27,10 @@ def get_precios():
         
         return jsonify(result), 200
     
-    except Exception:
-        return jsonify({"error": "Error en GET tabla Precios"}), 500
+    except Exception as e:
+        error_message = f'Error en GET tabla Precios {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def get_precio(origen_destino):
@@ -40,9 +43,11 @@ def get_precio(origen_destino):
             
             return jsonify(result), 200
         else:
-            return jsonify({"error": "No se encotro precio en tabla Precios"}), 500
-    except Exception:
-        return jsonify({"error": "Error en GET tabla Precios"}), 500
+            return jsonify({"error": "No se encontro precio en tabla Precios"}), 404
+    except Exception as e:
+        error_message = f"Error en GET tabla Precios {str(e)}"
+        app.logger.warning(error_message)
+        return jsonify({"error": error_message}), 500
 
 
 def put_precio(id):
@@ -63,10 +68,12 @@ def put_precio(id):
 
         try:
             db.session.commit()
-            return jsonify({'message': 'Precio actualizado exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': 'Precio actualizado exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al actualizar precio'}), 500
+            error_message = f"Error al actualizar precio {str(e)}"
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Precio no encontrado'}), 404
 
@@ -78,9 +85,11 @@ def delete_precio(id):
         try:
             db.session.delete(entrada)
             db.session.commit()
-            return jsonify({'message': 'Precio eliminado exitosamente'}), 200
-        except Exception:
+            return jsonify({'success': 'Precio eliminado exitosamente'}), 200
+        except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Error al eliminar precio'}), 500
+            error_message = f"Error al eliminar precio {str(e)}"
+            app.logger.warning(error_message)
+            return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Precio no encontrado'}), 404

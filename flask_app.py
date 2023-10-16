@@ -1,10 +1,8 @@
-from flask import Response, jsonify
-from datetime import datetime
+from flask import send_file
 
-import os
-import shutil
+import subprocess
 
-from app_database import app, DATABASE_PATH
+from app_database import app, user, host, db_name
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -21,6 +19,7 @@ import utils.dinatran as dinatran
 def index():
     return "Hello, World!"
 
+
 app.route('/planillas/', methods=['POST'])(planillas.post_planilla)
 
 app.route('/planillas/', methods=['GET'])(planillas.get_planillas)
@@ -29,7 +28,7 @@ app.route('/planillas/<fecha>', methods=['DELETE'])(planillas.delete_planilla)
 
 app.route('/planillas/<year>', methods=['GET'])(planillas.get_planilla)
 
-app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(export.exportar_informe)
+app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(export.exportar_informe_planillas)
 
 app.route('/cobranzas/', methods=['POST'])(cobranzas.post_cobranza)
 
@@ -99,22 +98,18 @@ app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 # Route to return a copy of the database file
 @app.route('/database_backup', methods=['GET'])
 def database_backup():
-    if not os.path.exists(DATABASE_PATH):
-        return jsonify({"error": "Database file not found."}), 400
+    try:
+        dump_file = 'dump_filename.sql'
 
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    copy_file = f'backup_{timestamp}.db'
-    shutil.copy2(DATABASE_PATH, copy_file)
+        # Use mysqldump to create a SQL dump of your MySQL database
+        subprocess.run(["mysqldump", "-u", user, "-h", host, "--set-gtid-purged=OFF", "--no-tablespaces", db_name, "--result-file=" + dump_file])
+        # Open the dump file for reading and send it as an attachment
+        return send_file(f'../{dump_file}', as_attachment=True)
 
-    with open(copy_file, 'rb') as file:
-        file_content = file.read()
-
-    # Remove the copied file after reading its content
-    os.remove(copy_file)
-
-    response = Response(file_content, content_type='application/octet-stream')
-    response.headers['Content-Disposition'] = f'attachment; filename={copy_file}'
-    return response
+    except Exception as e:
+        error_message = f'Error al crear backup {str(e)}'
+        app.logger.warning(error_message)
+        return error_message, 500
 
 
 

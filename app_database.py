@@ -13,10 +13,20 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 # donde corre el script
 script_directory = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__)
 
-# poner base de datos en mismo directorio que el script
-DATABASE_PATH = os.path.join(script_directory, "pagina_web.db")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DATABASE_PATH}'
+user = 'root'
+password = 'root'
+host = 'localhost'
+db_name = 'dyr'
+
+# user = 'rad710'
+# password = 'hola12345'
+# host = 'rad710.mysql.pythonanywhere-services.com'
+# db_name = 'rad710$dyrtransportes'
+
+# connection string: mysql://user:pword@host/db
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{user}:{password}@{host}/{db_name}'
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}
 
 db.init_app(app)
 

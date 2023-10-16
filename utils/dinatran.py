@@ -3,6 +3,7 @@ from sqlalchemy import text
 
 from dateutil import parser
 
+from app_database import app
 from utils.schema import db
 
 
@@ -22,7 +23,7 @@ def get_informe_dinatran(fecha_inicio, fecha_fin):
                                 SUM(precio_liquidacion * kilos_destino) as total_liquidacion 
                             FROM cobranzas
                             JOIN liquidacion_viajes ON liquidacion_viajes.id = cobranzas.id   
-                            WHERE fecha_creacion BETWEEN :fecha_inicio AND :fecha_fin 
+                            WHERE fecha_viaje BETWEEN :fecha_inicio AND :fecha_fin 
                             GROUP BY chapa""")
 
         # Execute the query with parameters
@@ -35,5 +36,7 @@ def get_informe_dinatran(fecha_inicio, fecha_fin):
 
         return jsonify(viajes_parsed), 200
 
-    except Exception:
-        return jsonify({'error': 'Error en GET Statistics'}), 500
+    except Exception as e:
+        error_message = f'Error en GET Statistics {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500
