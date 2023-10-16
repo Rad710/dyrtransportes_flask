@@ -1,10 +1,9 @@
 from flask import request, jsonify
-from sqlalchemy.exc import IntegrityError
 
 from dateutil import parser
 
 from app_database import app
-from utils.schema import db, LiquidacionGastos
+from utils.schema import db, LiquidacionGastos, Liquidaciones
 
 
 def post_liquidacion_gasto():
@@ -16,15 +15,17 @@ def post_liquidacion_gasto():
     fecha_liquidacion = parser.isoparse(gasto['fechaLiquidacion']).date()
     razon = gasto['razon']
 
-    new_gasto = LiquidacionGastos(
-        chofer=chofer,
-        fecha=fecha,
-        boleta=boleta,
-        importe=importe,
-        fecha_liquidacion=fecha_liquidacion,
-        razon=razon
-    )
     try:
+        liq_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+
+        new_gasto = LiquidacionGastos(
+            fecha=fecha,
+            boleta=boleta,
+            importe=importe,
+            razon=razon,
+            id_liquidacion=liq_id
+        )
+
         db.session.add(new_gasto)
         db.session.commit()
         return jsonify({'success': 'Liquidacion gasto agregado exitosamente'}), 200
@@ -39,12 +40,18 @@ def post_liquidacion_gasto():
 
 def get_liquidacion_gastos(chofer, fecha):
     try:
-        gastos = LiquidacionGastos.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).order_by(LiquidacionGastos.fecha.asc()).all()
-        
+        gastos = db.session.query(LiquidacionGastos, Liquidaciones).join(
+            Liquidaciones,
+            Liquidaciones.id == LiquidacionGastos.id_liquidacion
+        ).filter(
+            Liquidaciones.chofer == chofer,
+            Liquidaciones.fecha_liquidacion == fecha
+        ).order_by(LiquidacionGastos.fecha.asc()).all()
+
         result = [{
             'id': gasto.id, 'fecha': gasto.fecha, 'boleta': gasto.boleta,
             'importe': gasto.importe, 'razon': gasto.razon
-        } for gasto in gastos]
+        } for gasto, _ in gastos]
 
         return jsonify(result), 200
     
@@ -75,7 +82,7 @@ def put_liquidacion_gasto(id):
         app.logger.warning('Liquidacion Gasto actualizado exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
 
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         error_message = f"Error al actualizar LiquidacionGasto {str(e)}"
         app.logger.warning(error_message)

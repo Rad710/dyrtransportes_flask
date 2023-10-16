@@ -1,10 +1,9 @@
 from flask import request, jsonify
-from sqlalchemy.exc import IntegrityError
 
 from dateutil import parser
 
 from app_database import app
-from utils.schema import db, LiquidacionViajes, Cobranzas
+from utils.schema import db, LiquidacionViajes, Cobranzas, Liquidaciones
 from utils.utils import agregar_cobranza
 
 
@@ -22,8 +21,7 @@ def post_liquidacion_viaje():
     kilos_destino = liquidacion_viaje['kgDestino']
     precio = liquidacion_viaje['precio']
     precio_liquidacion = liquidacion_viaje['precioLiquidacion']
-    fecha_liquidacion = parser.isoparse(
-        liquidacion_viaje['fechaLiquidacion']).date()
+    fecha_liquidacion = parser.isoparse(liquidacion_viaje['fechaLiquidacion']).date()
 
     try:
         id_cobranza = agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
@@ -33,15 +31,16 @@ def post_liquidacion_viaje():
         app.logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
-    liq = LiquidacionViajes(
-        id=id_cobranza, precio_liquidacion=precio_liquidacion, fecha_liquidacion=fecha_liquidacion)
-
     try:
+        id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+        liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, 
+                                id_liquidacion=id_liquidacion)
+            
         db.session.add(liq)
         db.session.commit()
         app.logger.warning("Nueva entrada en lista de liquidaciones agregada")
         return jsonify({'success': 'Liquidaciones Viaje agregado exitosamente'}), 200
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         error_message = f'Error al cargar en tabla Liquidaciones Viajes {str(e)}'
         app.logger.warning(error_message)
@@ -50,6 +49,8 @@ def post_liquidacion_viaje():
 
 def get_liquidacion_viajes(chofer, fecha):
     try:
+        id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first().id
+
         viajes = (
             db.session.query(Cobranzas, LiquidacionViajes)
             .join(
@@ -57,7 +58,7 @@ def get_liquidacion_viajes(chofer, fecha):
                 Cobranzas.id == LiquidacionViajes.id
             )
             .filter(
-                LiquidacionViajes.fecha_liquidacion == fecha,
+                LiquidacionViajes.id_liquidacion == id_liquidacion,
                 Cobranzas.chofer == chofer
             )
             # Sort in ascending order by fecha_viaje
@@ -116,7 +117,7 @@ def put_liquidacion_viaje(id):
     try:
         db.session.commit()
         app.logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         error_message = f'Error al actualizar Liquidacion Viaje y Cobranza {str(e)}'
         app.logger.warning(error_message)
@@ -127,16 +128,17 @@ def put_liquidacion_viaje(id):
 
 def delete_liquidacion_viaje(id):
     viaje = db.session.get(LiquidacionViajes, id)
+    cobranza = db.session.get(Cobranzas, id)
 
-    if viaje:
-        try:
-            db.session.delete(viaje)
-            db.session.commit()
-            return jsonify({'success': 'Viaje eliminado exitosamente'}), 200
-        except Exception as e:
-            db.session.rollback()
-            error_message = f'Error al eliminar Viaje {str(e)}'
-            app.logger.warning(error_message)
-            return jsonify({'error': error_message}), 500
-    else:
-        return jsonify({'error': 'Viaje no encontrado'}), 404
+    try:
+        if cobranza.fecha_creacion == None:
+            db.session.delete(cobranza)
+
+        db.session.delete(viaje)
+        db.session.commit()
+        return jsonify({'success': 'Viaje eliminado exitosamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        error_message = f'Error al eliminar Viaje {str(e)}'
+        app.logger.warning(error_message)
+        return jsonify({'error': error_message}), 500

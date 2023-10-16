@@ -1,9 +1,8 @@
 from flask import request, jsonify
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import distinct
 
 from app_database import app
-from utils.schema import db, Liquidaciones, LiquidacionGastos
+from utils.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 
 
@@ -50,7 +49,7 @@ def put_liquidacion(id):
         app.logger.warning('Liquidacion actualizada exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla Liquidaciones"}), 200    
 
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         error_message = f'Error al actualizar Liquidacion {str(e)}'
         app.logger.warning(error_message)

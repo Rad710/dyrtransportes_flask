@@ -1,5 +1,4 @@
 from flask import jsonify
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
 
 from datetime import datetime
@@ -34,21 +33,22 @@ def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
         app.logger.warning('Cobranza agregada exitosamente')
         return new_cobranza.id
 
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         app.logger.warning(f'Error al agregar cobranza {str(e)}')
         raise e
 
 
 
-def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion):
-    liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, fecha_liquidacion=fecha_liquidacion)
-
+def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer):
     try:
+        id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+        liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, id_liquidacion=id_liquidacion)
+        
         db.session.add(liq)
         db.session.commit()
         app.logger.warning("Nueva entrada en lista de liquidaciones agregada")
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         app.logger.warning(f"No se pudo cargar nueva entrada en lista de liquidaciones {str(e)}")
         raise e
@@ -67,7 +67,7 @@ def agregar_precio(origen, destino, precio, precio_liquidacion):
             app.logger.warning("Nuevo precio en lista de precios")
             return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
         
-        except IntegrityError as e:
+        except Exception as e:
             db.session.rollback()
             error_message = f"Error al agregar a tabla Precios {str(e)}"
             app.logger.warning(error_message)
@@ -91,7 +91,7 @@ def agregar_keywords(chofer, chapa, producto, origen, destino):
                 db.session.add(new_clave)
                 db.session.commit()
                 app.logger.warning(f'Nueva entrada en palabras clave de tipo: {tipo}')
-            except IntegrityError as e:
+            except Exception as e:
                 db.session.rollback()
                 app.logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}: {str(e)}')
 
@@ -114,7 +114,7 @@ def agregar_liquidacion(chofer):
 
             return new_liquidacion.fecha_liquidacion
 
-        except IntegrityError as e:
+        except Exception as e:
             db.session.rollback()
             app.logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
             raise e

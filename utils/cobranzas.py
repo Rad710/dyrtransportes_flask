@@ -1,6 +1,5 @@
 from flask import request, jsonify
 
-from sqlalchemy.exc import IntegrityError
 from dateutil import parser
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 
@@ -34,7 +33,7 @@ def post_cobranza():
 
     try:
         fecha_liquidacion = agregar_liquidacion(chofer)
-    except IntegrityError as e:
+    except Exception as e:
         error_message = f"Error al agregar nueva liquidacion {str(e)}"
         app.logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -46,8 +45,8 @@ def post_cobranza():
         if 'error' not in dict_precios:
             precio_liquidacion = dict_precios['precioLiquidacion']
 
-        agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion)
-    except IntegrityError as e:
+        agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer)
+    except Exception as e:
         error_message = f"Error al agregar a liquidacion del chofer {str(e)}"
         app.logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -134,7 +133,7 @@ def put_cobranza(id):
     try:
         db.session.commit()
         app.logger.warning('Cobranza actualizada exitosamente')
-    except IntegrityError as e:
+    except Exception as e:
         db.session.rollback()
         error_message = f"Error al actualizar Cobranzas {str(e)}"
         app.logger.warning(error_message)

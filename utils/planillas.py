@@ -2,7 +2,6 @@ from flask import request, jsonify
 from sqlalchemy import extract
 
 from dateutil import parser
-from sqlalchemy.exc import IntegrityError
 
 from app_database import app
 from utils.schema import db, Planillas, Cobranzas
@@ -25,7 +24,7 @@ def post_planilla():
                 db.session.add(new_planilla)
                 db.session.commit()
                 app.logger.warning("Nueva entrada en lista de planillas")
-            except IntegrityError as e:
+            except Exception as e:
                 db.session.rollback()
                 app.logger.warning(f"Error: No se pudo agregar la entrada a la lista de planillas {str(e)}")
                 raise e
@@ -58,22 +57,13 @@ def get_planillas():
 def delete_planilla(fecha):
     try:
         fecha =  parser.isoparse(fecha).date()
-        # Query the Planillas record with the given fecha
+
         planilla_to_delete = Planillas.query.filter_by(fecha=fecha).first()
-        # Check if the planilla exists
-        if planilla_to_delete:
-            cobranzas_to_delete = Cobranzas.query.filter_by(fecha_creacion=fecha).all()
+        # Delete the planilla
+        db.session.delete(planilla_to_delete)
+        db.session.commit()
 
-            for cobranza in cobranzas_to_delete:
-                db.session.delete(cobranza)
-
-            # Delete the planilla
-            db.session.delete(planilla_to_delete)
-            db.session.commit()
-
-            return jsonify({"success": "Planilla y Cobranzas eliminada exitosamente"}), 200
-        else:
-            return jsonify({"error": "Planilla no encontrada"}), 404
+        return jsonify({"success": "Planilla y Cobranzas eliminados exitosamente"}), 200
 
     except Exception as e:
         error_message = f'Error en DELETE lista de planillas {str(e)}'

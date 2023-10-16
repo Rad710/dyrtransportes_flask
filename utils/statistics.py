@@ -34,7 +34,9 @@ def get_statistics(fecha_inicio, fecha_fin):
         viajes = db.session.execute(viajes_query, params).fetchall()
 
         facturado_query = text("""
-                            SELECT chofer, SUM(importe) as total_facturado FROM liquidacion_gastos
+                            SELECT chofer, SUM(importe) as total_facturado 
+                            FROM liquidacion_gastos
+                            JOIN liquidaciones ON liquidacion_gastos.id_liquidacion = liquidaciones.id
                             WHERE (fecha BETWEEN :fecha_inicio AND :fecha_fin) AND boleta IS NOT NULL
                             GROUP BY chofer;
                             """)
@@ -42,7 +44,9 @@ def get_statistics(fecha_inicio, fecha_fin):
         gasto_facturado = db.session.execute(facturado_query, params).fetchall()
 
         no_facturado_query = text("""
-                            SELECT chofer, SUM(importe) as total_facturado FROM liquidacion_gastos
+                            SELECT chofer, SUM(importe) as total_facturado 
+                            FROM liquidacion_gastos
+                            JOIN liquidaciones ON liquidacion_gastos.id_liquidacion = liquidaciones.id
                             WHERE (fecha BETWEEN :fecha_inicio AND :fecha_fin) AND boleta IS NULL
                             GROUP BY chofer;
                             """)

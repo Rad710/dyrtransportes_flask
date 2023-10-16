@@ -9,7 +9,7 @@ from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app_database import app
-from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos
+from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
 
 
 def exportar_cobranza(fecha_creacion):
@@ -378,20 +378,22 @@ def exportar_informe_planillas(fecha_inicio, fecha_fin):
 
 
 def exportar_liquidacion(chofer, fecha):
+    liq_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first().id
+
     # Perform an inner join between Cobranza and Liquidaciones based on 'chofer' and 'fecha_de_liquidacion'
     viajes = db.session.query(Cobranzas, LiquidacionViajes).join(
         LiquidacionViajes,
         Cobranzas.id == LiquidacionViajes.id
     ).filter(
         Cobranzas.chofer == chofer,
-        LiquidacionViajes.fecha_liquidacion == fecha
+        LiquidacionViajes.id_liquidacion == liq_id
     ).all()
 
     # Perform an inner join between Cobranza and Liquidaciones based on 'chofer' and 'fecha_de_liquidacion'
     gastos_sin_boleta = LiquidacionGastos.query.filter_by(
-        chofer=chofer, fecha_liquidacion=fecha, boleta=None).all()
+        id_liquidacion = liq_id, boleta=None).all()
     gastos_con_boleta = LiquidacionGastos.query.filter_by(
-        chofer=chofer, fecha_liquidacion=fecha).filter(LiquidacionGastos.boleta.isnot(None)).all()
+        id_liquidacion = liq_id).filter(LiquidacionGastos.boleta.isnot(None)).all()
 
     # Calcular la longitud máxima de las tres listas
     max_len = max(len(viajes), len(gastos_sin_boleta), len(gastos_con_boleta))
@@ -551,6 +553,7 @@ def exportar_liquidacion(chofer, fecha):
         fila = [contador]
 
         if viaje:
+            print('Viaje: ', viaje)
             current_row = contador + 5
             diferencia = f'=+H{current_row}-G{current_row}'
             total_gs = f'=ROUND(H{current_row}*J{current_row}, 0)'
