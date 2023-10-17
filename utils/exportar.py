@@ -22,12 +22,12 @@ def exportar_cobranza(fecha_creacion):
 
     subtotales_grupo = {}
     default_grupo = {'origen': 0, 'destino': 0, 'diferencia': '', 'tolerancia': '', 'last_row': 0, 
-                     'diferencia_tolerancia': '', 'subtotal': '', 'ultimo_tiquet': '', 'producto': ''}
+                     'diferencia_tolerancia': '', 'subtotal': '', 'ultima_entrada': '', 'producto': ''}
 
     group_counter = 6
     first_row = 0
     for cobranza in cobranzas_ordenadas:
-        grupo = (cobranza.origen, cobranza.destino)
+        grupo = (cobranza.origen, cobranza.destino, cobranza.producto)
 
         if grupo not in subtotales_grupo:
             group_counter += 1
@@ -42,7 +42,7 @@ def exportar_cobranza(fecha_creacion):
         subtotales_grupo[grupo]['diferencia_tolerancia'] = f'=SUM(M{first_row}:M{group_counter})'
         subtotales_grupo[grupo]['subtotal'] = f'=SUM(O{first_row}:O{group_counter})'
 
-        subtotales_grupo[grupo]['ultimo_tiquet'] = cobranza.tiquet
+        subtotales_grupo[grupo]['ultima_entrada'] = cobranza.tiquet
         subtotales_grupo[grupo]['last_row'] = group_counter
 
         group_counter += 1
@@ -157,8 +157,8 @@ def exportar_cobranza(fecha_creacion):
                 style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
             cell.border = thin_border
 
-        grupo = (cobranza.origen, cobranza.destino)
-        if subtotales_grupo[grupo]['ultimo_tiquet'] == cobranza.tiquet:
+        grupo = (cobranza.origen, cobranza.destino, cobranza.producto)
+        if subtotales_grupo[grupo]['ultima_entrada'] == cobranza.tiquet:
             contador += 1
 
             sheet.append(['Subtotal', None, None, None, None, None, None, None,
@@ -553,7 +553,6 @@ def exportar_liquidacion(chofer, fecha):
         fila = [contador]
 
         if viaje:
-            print('Viaje: ', viaje)
             current_row = contador + 5
             diferencia = f'=+H{current_row}-G{current_row}'
             total_gs = f'=ROUND(H{current_row}*J{current_row}, 0)'

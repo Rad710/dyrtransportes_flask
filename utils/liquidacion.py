@@ -5,10 +5,11 @@ from app_database import app
 from utils.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 
+import re
 
 def post_liquidacion():
     chofer = request.json.get('chofer')
-
+    chofer = re.sub(r'\s+', ' ', str(chofer)).strip()
     try:
         agregar_liquidacion(chofer)
         agregar_keywords(chofer, '', '', '', '')

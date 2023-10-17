@@ -4,12 +4,14 @@ from sqlalchemy import extract
 from dateutil import parser
 
 from app_database import app
-from utils.schema import db, Planillas, Cobranzas
-
+from utils.schema import db, Planillas
 
 def post_planilla():
+    fecha = request.json.get('fecha')
+    return post_planilla(fecha)
+
+def agregar_planilla(fecha):
     try:
-        fecha = request.json.get('fecha')
         fecha =  parser.isoparse(fecha).date()
 
         # entrada existe en la tabla de lista de planillas

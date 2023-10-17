@@ -4,24 +4,26 @@ from dateutil import parser
 
 from app_database import app
 from utils.schema import db, LiquidacionViajes, Cobranzas, Liquidaciones
-from utils.utils import agregar_cobranza
+from utils.utils import agregar_cobranza, string_to_int
 
+import re
 
 def post_liquidacion_viaje():
     liquidacion_viaje = request.json.get('liquidacionViaje')
 
-    fecha_viaje = parser.isoparse(liquidacion_viaje['fechaViaje']).date()
-    chofer = liquidacion_viaje['chofer']
-    chapa = liquidacion_viaje['chapa']
-    producto = liquidacion_viaje['producto']
-    origen = liquidacion_viaje['origen']
-    destino = liquidacion_viaje['destino']
-    tiquet = liquidacion_viaje['tiquet']
-    kilos_origen = liquidacion_viaje['kgOrigen']
-    kilos_destino = liquidacion_viaje['kgDestino']
-    precio = liquidacion_viaje['precio']
-    precio_liquidacion = liquidacion_viaje['precioLiquidacion']
-    fecha_liquidacion = parser.isoparse(liquidacion_viaje['fechaLiquidacion']).date()
+    fecha_viaje = parser.isoparse(re.sub(r'\s+', ' ', str(liquidacion_viaje['fechaViaje'])).strip()).date()
+
+    chofer = re.sub(r'\s+', ' ', str(liquidacion_viaje['chofer'])).strip()
+    chapa = re.sub(r'\s+', ' ', str(liquidacion_viaje['chapa'])).strip()
+    producto = re.sub(r'\s+', ' ', str(liquidacion_viaje['producto'])).strip()
+    origen = re.sub(r'\s+', ' ', str(liquidacion_viaje['origen'])).strip()
+    destino = re.sub(r'\s+', ' ', str(liquidacion_viaje['destino'])).strip()
+    tiquet = string_to_int(re.sub(r'\s+', ' ', str(liquidacion_viaje['tiquet'])).strip())
+    kilos_origen = string_to_int(re.sub(r'\s+', ' ', str(liquidacion_viaje['kgOrigen'])).strip())
+    kilos_destino = string_to_int(re.sub(r'\s+', ' ', str(liquidacion_viaje['kgDestino'])).strip())
+    precio = re.sub(r'\s+', ' ', str(liquidacion_viaje['precio'])).strip()
+    precio_liquidacion = re.sub(r'\s+', ' ', str(liquidacion_viaje['precioLiquidacion'])).strip()
+    fecha_liquidacion = parser.isoparse(re.sub(r'\s+', ' ', str(liquidacion_viaje['fechaLiquidacion'])).strip()).date()
 
     try:
         id_cobranza = agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
@@ -131,7 +133,7 @@ def delete_liquidacion_viaje(id):
     cobranza = db.session.get(Cobranzas, id)
 
     try:
-        if cobranza.fecha_creacion == None:
+        if cobranza.fecha_creacion is None:
             db.session.delete(cobranza)
 
         db.session.delete(viaje)

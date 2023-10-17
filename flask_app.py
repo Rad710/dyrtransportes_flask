@@ -10,9 +10,10 @@ import utils.precio as precio
 import utils.liquidacion as liquidacion
 import utils.liquidacion_viajes as liquidacion_viajes
 import utils.liquidacion_gastos as liquidacion_gastos
-import utils.export as export
+import utils.exportar as exportar
 import utils.statistics as statistics
 import utils.dinatran as dinatran
+import utils.importar as importar
 
 
 @app.route('/')
@@ -28,7 +29,7 @@ app.route('/planillas/<fecha>', methods=['DELETE'])(planillas.delete_planilla)
 
 app.route('/planillas/<year>', methods=['GET'])(planillas.get_planilla)
 
-app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(export.exportar_informe_planillas)
+app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(exportar.exportar_informe_planillas)
 
 app.route('/cobranzas/', methods=['POST'])(cobranzas.post_cobranza)
 
@@ -38,7 +39,7 @@ app.route('/cobranzas/<string:id>', methods=['PUT'])(cobranzas.put_cobranza)
 
 app.route('/cobranza/<string:id>', methods=['DELETE'])(cobranzas.delete_cobranza)
 
-app.route('/exportar_cobranza/<string:fecha_creacion>', methods=['GET'])(export.exportar_cobranza)
+app.route('/exportar_cobranza/<string:fecha_creacion>', methods=['GET'])(exportar.exportar_cobranza)
 
 app.route('/keywords/', methods=['GET'])(nomina.get_keywords)
 
@@ -52,7 +53,7 @@ app.route('/precios/<string:id>', methods=['PUT'])(precio.put_precio)
 
 app.route('/precios/<string:id>', methods=['DELETE'])(precio.delete_precio)
 
-app.route('/exportar_precios', methods=['GET'])(export.exportar_precios)
+app.route('/exportar_precios', methods=['GET'])(exportar.exportar_precios)
 
 app.route('/nomina/', methods=['GET'])(nomina.get_nomina)
 
@@ -88,12 +89,15 @@ app.route('/liquidacion_gasto/<string:id>', methods=['PUT'])(liquidacion_gastos.
 
 app.route('/liquidacion_gasto/<string:id>', methods=['DELETE'])(liquidacion_gastos.delete_liquidacion_gasto)
 
-app.route('/exportar_liquidacion/<string:chofer>/<string:fecha>', methods=['GET'])(export.exportar_liquidacion)
+app.route('/exportar_liquidacion/<string:chofer>/<string:fecha>', methods=['GET'])(exportar.exportar_liquidacion)
 
 app.route('/statistics/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(statistics.get_statistics)
 
 app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])(dinatran.get_informe_dinatran)
 
+app.route('/importar_cobranza', methods=['POST'])(importar.importar_cobranza)
+
+app.route('/exportar_formato_cobranza', methods=['GET'])(importar.exportar_formato_cobranza)
 
 # Route to return a copy of the database file
 @app.route('/database_backup', methods=['GET'])
