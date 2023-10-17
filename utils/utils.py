@@ -7,6 +7,14 @@ from app_database import app
 from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 
+def string_to_int(string):
+    try:
+        integer_value = int(string)
+        return integer_value
+    except ValueError:
+        return 0
+    
+
 def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
                   tiquet, kilos_origen, kilos_destino, precio, fecha_creacion):
     
@@ -103,7 +111,7 @@ def agregar_liquidacion(chofer):
             Liquidaciones.pagado != True  # Exclude entries where pagado is True
         )
     ).all()
-    if not existing_entries:
+    if len(existing_entries) == 0:
         # nueva entrada
         new_liquidacion = Liquidaciones(
             chofer=chofer, fecha_liquidacion=datetime.now())
@@ -123,4 +131,3 @@ def agregar_liquidacion(chofer):
         liquidaciones_ordenadas = sorted(
             existing_entries, key=lambda liq: liq.fecha_liquidacion, reverse=True)
         return liquidaciones_ordenadas[0].fecha_liquidacion
-
