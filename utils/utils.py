@@ -7,12 +7,12 @@ from app_database import app
 from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 
-def string_to_int(string):
+def string_to_int(string, default=0):
     try:
         integer_value = int(string)
         return integer_value
     except ValueError:
-        return 0
+        return default
     
 
 def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
