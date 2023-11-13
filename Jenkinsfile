@@ -35,28 +35,9 @@ pipeline {
                     sh """
                         git status
                         git branch -r
+                        git checkout ${env.BRANCH_NAME}
                         ls
                         """
-    
-                    publishChecks status: 'IN_PROGRESS',
-                        name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Build step...'
-                    sh """
-                        npm install
-                        npm audit fix
-                        npm run build
-                        """
-    
-                    publishChecks status: 'IN_PROGRESS',
-                        name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Docker build...'
-                    
-                    sh """
-                        docker build -t dyrtransportes-react:latest .
-                        """
-                    // docker run -p 5050:80 -d dyrtransportes-react
                 }
             }
             post {
