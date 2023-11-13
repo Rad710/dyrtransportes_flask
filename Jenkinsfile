@@ -35,7 +35,7 @@ pipeline {
                     sh """
                         git status
                         git branch -r
-                        git checkout ${env.BRANCH_NAME}
+                        git checkout origin/${env.BRANCH_NAME}
                         ls
                         """
                 }
