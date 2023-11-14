@@ -5,10 +5,18 @@ pipeline {
         nodejs '21.1.0'
     }
     stages {
-        stage('Prepare') {
+        stage ('Prepare')
+        {
             steps {
-                echo "Preparing..."
-                echo "Environment variables: ${env}"
+                script {
+                    sh 'printenv'
+                    script {
+                        params.each() { param, value ->
+                            print "Parameter: ${param}, Value: ${value}"
+                        }
+                    }
+                    echo "PATH is: $PATH"
+                }
             }
         }
         stage('Checkout') {
