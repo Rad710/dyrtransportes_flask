@@ -31,7 +31,8 @@ pipeline {
                     publishChecks status: 'IN_PROGRESS',
                         name: 'Preview Build', 
                         title: 'Pipeline Check', 
-                        summary: 'Cloning repo...'
+                        summary: 'Cloning repo...',
+                        conclusion: 'NONE'
                     sh """
                         git status
                         git branch -r
