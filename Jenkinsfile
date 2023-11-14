@@ -21,7 +21,7 @@ pipeline {
         }
         stage('Checkout') {
             steps {
-                echo "Cloning repo..."
+                echo "Cloning repoa..."
                 checkout scm
             }
         }
