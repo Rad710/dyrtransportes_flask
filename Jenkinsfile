@@ -29,7 +29,7 @@ pipeline {
                         text: 'The Jenkins Pipeline...',
                         detailsURL: 'https://jenkins.roshka.com/job/rshkap-model-build-test',
                         conclusion: 'NONE',
-                        status: 'IN_PROGRESS'
+                        status: 'SUCCESS'
                     
                     echo "Cloning rep..."
                     checkout scm
