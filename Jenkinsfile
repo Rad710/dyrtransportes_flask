@@ -28,11 +28,6 @@ pipeline {
                         echo "This build is associated with a branch: ${env.BRANCH_NAME}"
                     }
 
-                    publishChecks status: 'IN_PROGRESS',
-                        name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Cloning....',
-                        conclusion: 'NONE'
                     sh """
                         git status
                         git branch -r
