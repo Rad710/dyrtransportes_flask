@@ -38,10 +38,6 @@ pipeline {
                         git branch -r
                         ls
                         """
-                    publishChecks name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Cloning completed',
-                        conclusion: 'SUCCESS'
                 }
             }
             post {
