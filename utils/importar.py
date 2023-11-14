@@ -1,6 +1,6 @@
 from flask import request, jsonify, send_file
 import pandas as pd
-from datetime import datetime
+import datetime
 
 from app_database import app
 from utils.cobranzas import crear_cobranza_liquidacion
@@ -60,7 +60,8 @@ def process_row(row):
         if isinstance(row['FECHA'], str)
         else row['FECHA']
     ).strftime("%Y-%m-%d")
-
+    print(fecha_viaje)
+    print(row['FECHA CREACION'])
     cobranza = {
         "fechaViaje": fecha_viaje,
         "chofer": row['CHOFER'],

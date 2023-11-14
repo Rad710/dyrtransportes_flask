@@ -387,7 +387,7 @@ def exportar_liquidacion(chofer, fecha):
     ).filter(
         Cobranzas.chofer == chofer,
         LiquidacionViajes.id_liquidacion == liq_id
-    ).all()
+    ).order_by(Cobranzas.fecha_viaje).all()
 
     # Perform an inner join between Cobranza and Liquidaciones based on 'chofer' and 'fecha_de_liquidacion'
     gastos_sin_boleta = LiquidacionGastos.query.filter_by(
