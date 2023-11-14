@@ -31,7 +31,6 @@ pipeline {
                     sh """
                         git status
                         git branch -r
-                        ls
                         """
                 }
             }
