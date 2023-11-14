@@ -21,8 +21,32 @@ pipeline {
         }
         stage('Checkout') {
             steps {
-                echo "Cloning rep..."
-                checkout scm
+                script {
+                                        //Send build result to Github
+                    publishChecks name: 'Preview Build', 
+                        title: 'Pipeline Check', 
+                        summary: 'Checking merge',
+                        text: 'The Jenkins Pipeline...',
+                        detailsURL: 'https://jenkins.roshka.com/job/rshkap-model-build-test',
+                        conclusion: 'NONE',
+                        status: 'IN_PROGRESS'
+                    
+                    echo "Cloning rep..."
+                    checkout scm
+                }
+            }
+
+            post {
+                success {
+                                //Send build result to Github
+                    publishChecks name: 'Preview Build', 
+                        title: 'Pipeline Check', 
+                        summary: 'Checking merge',
+                        text: 'The Jenkins Pipeline...',
+                        detailsURL: 'https://google.com',
+                        conclusion: 'SUCCESS'
+                }
+
             }
         }
         
