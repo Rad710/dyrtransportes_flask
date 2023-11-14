@@ -44,7 +44,7 @@ pipeline {
                         summary: 'Cloning Repo',
                         text: 'The Jenkins Pipeline...',
                         detailsURL: 'https://google.com',
-                        conclusion: 'SUCCESS'
+                        conclusion: 'FAILURE'
                 }
 
             }
