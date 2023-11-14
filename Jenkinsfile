@@ -23,9 +23,9 @@ pipeline {
             steps {
                 script {
                                         //Send build result to Github
-                    publishChecks name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Checking merge',
+                    publishChecks name: 'Cloning Repo', 
+                        title: 'Cloning Repo', 
+                        summary: 'Cloning Repo',
                         text: 'The Jenkins Pipeline...',
                         detailsURL: 'https://jenkins.roshka.com/job/rshkap-model-build-test',
                         conclusion: 'NONE',
@@ -39,9 +39,9 @@ pipeline {
             post {
                 success {
                                 //Send build result to Github
-                    publishChecks name: 'Preview Build', 
-                        title: 'Pipeline Check', 
-                        summary: 'Checking merge',
+                    publishChecks name: 'Cloning Repo', 
+                        title: 'Cloning Repo', 
+                        summary: 'Cloning Repo',
                         text: 'The Jenkins Pipeline...',
                         detailsURL: 'https://google.com',
                         conclusion: 'SUCCESS'
