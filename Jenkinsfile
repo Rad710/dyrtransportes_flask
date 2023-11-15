@@ -23,11 +23,8 @@ pipeline {
             steps {
                 script {
                                         //Send build result to Github
-                    publishChecks name: 'Cloning Repo1', 
-                        title: 'Cloning Repo2', 
-                        summary: 'Cloning Repo3',
-                        text: 'Cloning Repo4',
-                        detailsURL: 'https://google.com',
+                    publishChecks name: 'Checkout', 
+                        title: 'Cloning repository', 
                         conclusion: 'NONE',
                         status: 'IN_PROGRESS'
                     
@@ -39,10 +36,10 @@ pipeline {
             post {
                 success {
                     //Send build result to Github
-                    publishChecks name: 'Cloning Repo1', 
-                        title: 'Cloning Repo2', 
-                        summary: 'Cloning Repo3',
-                        text: 'Cloning Repo4',
+                    publishChecks name: 'Checkout', 
+                        title: 'Cloning repository', 
+                        summary: 'Cloning repository from source',
+                        text: 'Texto',
                         detailsURL: 'https://google.com',
                         conclusion: 'SUCCESS'
                 }
