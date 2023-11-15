@@ -28,7 +28,7 @@ pipeline {
                         conclusion: 'NONE',
                         status: 'IN_PROGRESS'
                     
-                    echo "Cloning rep....."
+                    echo "Cloning rep..."
                     checkout scm
                 }
             }
