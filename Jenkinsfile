@@ -23,10 +23,10 @@ pipeline {
             steps {
                 script {
                                         //Send build result to Github
-                    publishChecks name: 'Cloning Repo', 
-                        title: 'Cloning Repo', 
-                        summary: 'Cloning Repo',
-                        text: 'Cloning Repo',
+                    publishChecks name: 'Cloning Repo1', 
+                        title: 'Cloning Repo2', 
+                        summary: 'Cloning Repo3',
+                        text: 'Cloning Repo4',
                         detailsURL: 'https://google.com',
                         conclusion: 'NONE',
                         status: 'IN_PROGRESS'
