@@ -26,10 +26,10 @@ pipeline {
                     publishChecks name: 'Cloning Repo', 
                         title: 'Cloning Repo', 
                         summary: 'Cloning Repo',
-                        text: 'The Jenkins Pipeline...',
-                        detailsURL: 'https://jenkins.roshka.com/job/rshkap-model-build-test',
+                        text: 'Cloning Repo',
+                        detailsURL: 'url.url',
                         conclusion: 'NONE',
-                        status: 'SUCCESS'
+                        status: 'IN_PROGRESS'
                     
                     echo "Cloning rep..."
                     checkout scm
@@ -38,15 +38,23 @@ pipeline {
 
             post {
                 success {
-                                //Send build result to Github
-                    publishChecks name: 'Cloning Repo', 
-                        title: 'Cloning Repo', 
-                        summary: 'Cloning Repo',
-                        text: 'The Jenkins Pipeline...',
+                    //Send build result to Github
+                    publishChecks name: 'Cloning Repo1', 
+                        title: 'Cloning Repo2', 
+                        summary: 'Cloning Repo3',
+                        text: 'Cloning Repo4',
+                        detailsURL: 'https://google.com',
+                        conclusion: 'SUCCESS'
+                }
+                failure {
+                    //Send build result to Github
+                    publishChecks name: 'Cloning Repo1', 
+                        title: 'Cloning Repo2', 
+                        summary: 'Cloning Repo3',
+                        text: 'Cloning Repo4',
                         detailsURL: 'https://google.com',
                         conclusion: 'FAILURE'
                 }
-
             }
         }
         
