@@ -27,7 +27,7 @@ pipeline {
                         title: 'Cloning Repo', 
                         summary: 'Cloning Repo',
                         text: 'Cloning Repo',
-                        detailsURL: 'url.url',
+                        detailsURL: 'https://google.com',
                         conclusion: 'NONE',
                         status: 'IN_PROGRESS'
                     
