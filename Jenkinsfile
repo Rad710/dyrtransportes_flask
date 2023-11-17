@@ -16,6 +16,10 @@ pipeline {
                         }
                     }
                     echo "PATH is: $PATH"
+                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                    commitMsg = commit.substring( commit.indexOf(' ') ).trim()
+
+                    echo "$commit"
                 }
             }
         }
