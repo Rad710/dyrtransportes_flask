@@ -1,5 +1,3 @@
-def CAUSE = currentBuild.causes[0].shortDescription
-
 pipeline {
     agent any
     
@@ -18,7 +16,7 @@ pipeline {
                         }
                     }
                     echo "PATH is: $PATH"
-
+                    CAUSE = currentBuild.causes[0].shortDescription
                     echo "Build cause is: $CAUSE"
                 }
             }
