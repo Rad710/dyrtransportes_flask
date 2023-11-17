@@ -57,7 +57,7 @@ pipeline {
         //                 conclusion: 'FAILURE'
         //         }
         //     }
-        // }
+        }
         
         stage('Build project') {
             steps {
