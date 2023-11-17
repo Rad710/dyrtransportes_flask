@@ -5,16 +5,53 @@ pipeline {
         nodejs '21.1.0'
     }
     stages {
-        stage('Prepare') {
+        stage ('Prepare')
+        {
             steps {
-                echo "Preparing..."
-                echo "Environment variables: ${env}"
+                script {
+                    sh 'printenv'
+                    script {
+                        params.each() { param, value ->
+                            print "Parameter: ${param}, Value: ${value}"
+                        }
+                    }
+                    echo "PATH is: $PATH"
+                }
             }
         }
         stage('Checkout') {
             steps {
-                echo "Cloning repo...."
-                checkout scm
+                script {
+                                        //Send build result to Github
+                    publishChecks name: 'Checkout', 
+                        title: 'Cloning repository', 
+                        conclusion: 'NONE',
+                        status: 'IN_PROGRESS'
+                    
+                    echo "Cloning rep..."
+                    checkout scm
+                }
+            }
+
+            post {
+                success {
+                    //Send build result to Github
+                    publishChecks name: 'Checkout', 
+                        title: 'Cloning repository', 
+                        summary: 'Cloning repository from source',
+                        text: 'Texto',
+                        detailsURL: 'https://google.com',
+                        conclusion: 'SUCCESS'
+                }
+                failure {
+                    //Send build result to Github
+                    publishChecks name: 'Cloning Repo1', 
+                        title: 'Cloning Repo2', 
+                        summary: 'Cloning Repo3',
+                        text: 'Cloning Repo4',
+                        detailsURL: 'https://google.com',
+                        conclusion: 'FAILURE'
+                }
             }
         }
         
@@ -31,7 +68,6 @@ pipeline {
                     sh """
                         git status
                         git branch -r
-                        ls
                         """
                 }
             }
