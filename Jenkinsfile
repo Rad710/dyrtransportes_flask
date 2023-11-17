@@ -16,7 +16,7 @@ pipeline {
                         }
                     }
                     echo "PATH is: $PATH"
-                    CAUSE = currentBuild.causes[0].shortDescription
+                    CAUSE = currentBuild.causes
                     echo "Build cause is: $CAUSE"
                 }
             }
