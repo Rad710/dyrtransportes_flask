@@ -26,38 +26,38 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                                        //Send build result to Github
-                    publishChecks name: 'Checkout', 
-                        title: 'Cloning repository', 
-                        conclusion: 'NONE',
-                        status: 'IN_PROGRESS'
+                    //                     //Send build result to Github
+                    // publishChecks name: 'Checkout', 
+                    //     title: 'Cloning repository', 
+                    //     conclusion: 'NONE',
+                    //     status: 'IN_PROGRESS'
                     
-                    echo "Cloning rep..."
+                    // echo "Cloning rep..."
                     checkout scm
                 }
             }
 
-            post {
-                success {
-                    //Send build result to Github
-                    publishChecks name: 'Checkout', 
-                        title: 'Cloning repository', 
-                        summary: 'Cloning repository from source',
-                        text: 'Texto',
-                        detailsURL: 'https://google.com',
-                        conclusion: 'SUCCESS'
-                }
-                failure {
-                    //Send build result to Github
-                    publishChecks name: 'Cloning Repo1', 
-                        title: 'Cloning Repo2', 
-                        summary: 'Cloning Repo3',
-                        text: 'Cloning Repo4',
-                        detailsURL: 'https://google.com',
-                        conclusion: 'FAILURE'
-                }
-            }
-        }
+        //     post {
+        //         success {
+        //             //Send build result to Github
+        //             publishChecks name: 'Checkout', 
+        //                 title: 'Cloning repository', 
+        //                 summary: 'Cloning repository from source',
+        //                 text: 'Texto',
+        //                 detailsURL: 'https://google.com',
+        //                 conclusion: 'SUCCESS'
+        //         }
+        //         failure {
+        //             //Send build result to Github
+        //             publishChecks name: 'Cloning Repo1', 
+        //                 title: 'Cloning Repo2', 
+        //                 summary: 'Cloning Repo3',
+        //                 text: 'Cloning Repo4',
+        //                 detailsURL: 'https://google.com',
+        //                 conclusion: 'FAILURE'
+        //         }
+        //     }
+        // }
         
         stage('Build project') {
             steps {
