@@ -1,3 +1,9 @@
+if (BRANCH_NAME == 'feature/mysql') {
+    echo "YES"
+} else {
+    echo "NO"
+}
+
 pipeline {
     agent any
     
