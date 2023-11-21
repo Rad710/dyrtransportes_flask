@@ -17,7 +17,7 @@ def exportar_cobranza(fecha_creacion):
 
     # Ordena las cobranzas por las columnas 'origen' y 'destino'
     cobranzas_ordenadas = sorted(cobranzas, key=lambda cobranza: (
-        cobranza.producto, cobranza.origen, cobranza.destino, cobranza.fecha_viaje, cobranza.chofer))
+        cobranza.producto, cobranza.origen, cobranza.destino, cobranza.chofer, cobranza.fecha_viaje))
     # Crea un diccionario para almacenar las sumas de subtotales por grupo
 
     subtotales_grupo = {}
