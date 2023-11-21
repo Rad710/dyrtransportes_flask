@@ -102,8 +102,9 @@ def get_cobranza(fecha_creacion):
             cobranzas_agrupadas[origen_destino]['subtotalGS'] +=  total_gs
 
         result = list(cobranzas_agrupadas.items())
-        result.sort(key=lambda x: x[0].split('|') + [x[1]['chofer'], x[1]['fechaViaje']])
+        result.sort(key=lambda x: x[0].split('|'))
         result = [pair[1] for pair in result]
+        # result.sort(key=lambda x: (x['chofer'], x['fechaViaje']))
         return jsonify(result), 200
     
     except Exception as e:
