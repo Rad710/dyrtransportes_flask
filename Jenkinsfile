@@ -85,6 +85,9 @@ pipeline {
     }
     
     post {
+        always {
+            influxDbPublisher(selectedTarget: 'InfluxDB')
+        }
         success {
             echo "Success!"
         }
