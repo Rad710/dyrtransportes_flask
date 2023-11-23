@@ -1,3 +1,9 @@
+if (BRANCH_NAME == 'feature/mysql') {
+    echo "YES"
+} else {
+    echo "NO"
+}
+
 pipeline {
     agent any
     
@@ -79,6 +85,9 @@ pipeline {
     }
     
     post {
+        always {
+            influxDbPublisher(selectedTarget: 'InfluxDB')
+        }
         success {
             echo "Success!"
         }
