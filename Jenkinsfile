@@ -102,7 +102,7 @@ pipeline {
                 githubData['commit'] = GIT_COMMIT
 
                 // Check if the input string matches the pattern
-                if (CHANGE_ID) {
+                if (env.CHANGE_ID) {
                     echo "Pull Request!"
                     githubData['authorUsername'] = CHANGE_AUTHOR.toLowerCase()
                     githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
