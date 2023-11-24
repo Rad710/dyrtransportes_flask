@@ -92,7 +92,7 @@ pipeline {
                 githubData = [:]
                 githubData['commit'] = commit
                 githubData['author'] = author
-                ithubData['email'] = email
+                githubData['email'] = email
 
                 echo "${githubData}"
                 influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
