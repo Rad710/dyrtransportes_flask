@@ -22,7 +22,7 @@ pipeline {
 
                     // echo "$commit"
 
-                    author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN %aE' | xargs").trim()
+                    author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN,%aE' | xargs").trim().split(",")
                     echo "Commit Author: ${author}"
                 }
             }
