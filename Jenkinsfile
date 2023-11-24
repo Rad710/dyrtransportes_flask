@@ -28,7 +28,7 @@ pipeline {
                     author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN,%aE' | xargs").trim()
                     echo "Commit Author: ${author}"
 
-                    user = currentBuild.getBuildCauses()[0].userId
+                    user = currentBuild.getBuildCauses()
                     echo "User: ${user}"
                 }
             }
