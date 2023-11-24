@@ -109,7 +109,7 @@ pipeline {
                     githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
                 } else {
                     echo "Push!"
-                    githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].toLowerCase()
+                    githubData['authorUsername'] = email.split("\\+")[1].split("@")[0].toLowerCase()
                     githubData['authorName'] = author
                 }
 
