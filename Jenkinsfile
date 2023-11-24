@@ -26,6 +26,8 @@ pipeline {
                     author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
                     email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
 
+                    echo "Author: ${author}. Email: ${email}"
+                    
                     user = currentBuild.getBuildCauses()
                     echo "User: ${user}"
                 }
