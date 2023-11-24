@@ -101,14 +101,13 @@ pipeline {
                 githubData = [:]
                 githubData['commit'] = GIT_COMMIT
 
-                // Define the pattern using a regular expression
-                def pattern = ~/PR-\d+/
-                
                 // Check if the input string matches the pattern
-                if (BRANCH_NAME =~ pattern) {
+                if (CHANGE_ID) {
+                    echo "Pull Request!"
                     githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].toLowerCase()
                     githubData['authorName'] = author
                 } else {
+                    echo "Push!"
                     githubData['authorUsername'] = CHANGE_AUTHOR.toLowerCase()
                     githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
                 }
