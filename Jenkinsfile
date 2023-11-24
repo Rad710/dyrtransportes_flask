@@ -20,18 +20,6 @@ pipeline {
                     }
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
-                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
-                    echo "$commit"
-
-                    author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
-                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
-
-                    echo "Author: ${author}. Email: ${email}"
-                    sh "git show"
-                    user = currentBuild.getBuildCauses()
-                    echo "User: ${user}"
-
-                    // sh "git rev-list --count aaa..bbb"
                 }
             }
         }
@@ -93,10 +81,37 @@ pipeline {
     post {
         always {
             script {
+
+                commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                // echo "$commit"
+
+                author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+
+                // echo "Author: ${author}. Email: ${email}"
+                // sh "git show"
+                // user = currentBuild.getBuildCauses() //initiated from Jenkins
+                // echo "User: ${user}"
+
+                // git rev-list --count 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+                // git log --oneline 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+                
+
+                    // sh "git rev-list --count aaa..bbb"
                 githubData = [:]
-                githubData['commit'] = commit
-                githubData['author'] = author
-                githubData['email'] = email
+                githubData['commit'] = GIT_COMMIT
+
+                // Define the pattern using a regular expression
+                def pattern = ~/PR-\d+/
+                
+                // Check if the input string matches the pattern
+                if (BRANCH_NAME =~ pattern) {
+                    githubData['authorUsername'] = email.split("+")[0].split("@")[0].tolowerCase()
+                    githubData['authorName'] = author
+                } else {
+                    githubData['authorUsername'] = CHANGE_AUTHOR.tolowerCase()
+                    githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
+                }
 
                 echo "${githubData}"
                 influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
