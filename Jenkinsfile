@@ -89,8 +89,10 @@ pipeline {
         always {
             script {
                 githubData = [:]
-                githubData['commitMsg'] = commitMsg
+                githubData['commit'] = commitMsg
                 githubData['author'] = author
+
+                echo "${githubData}"
                 influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
             }
         }
