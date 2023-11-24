@@ -88,7 +88,7 @@ pipeline {
                 author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
                 email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
 
-                // echo "Author: ${author}. Email: ${email}"
+                echo "Author: ${author}. Email: ${email}"
                 // sh "git show"
                 // user = currentBuild.getBuildCauses() //initiated from Jenkins
                 // echo "User: ${user}"
