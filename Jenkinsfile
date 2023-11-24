@@ -88,7 +88,7 @@ pipeline {
                 author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
                 email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
 
-                // echo "Author: ${author}. Email: ${email}"
+                echo "Author: ${author}. Email: ${email}"
                 // sh "git show"
                 // user = currentBuild.getBuildCauses() //initiated from Jenkins
                 // echo "User: ${user}"
@@ -98,22 +98,26 @@ pipeline {
                 
 
                     // sh "git rev-list --count aaa..bbb"
+
                 githubData = [:]
                 githubData['commit'] = GIT_COMMIT
 
                 // Check if the input string matches the pattern
-                if (CHANGE_ID) {
+                if (env.CHANGE_ID) {
                     echo "Pull Request!"
-                    githubData['authorUsername'] = CHANGE_AUTHOR.toLowerCase()
-                    githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
+                    githubData['authorUsername'] = env.CHANGE_AUTHOR.toLowerCase()
+                    githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
                 } else {
                     echo "Push!"
                     githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].toLowerCase()
                     githubData['authorName'] = author
                 }
 
-                echo "${githubData}"
-                influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
+                def customMeasurementFields = [:]
+                customMeasurementFields['github_data'] = githubData
+                
+                echo "${customMeasurementFields}"
+                influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
             }
         }
         success {
