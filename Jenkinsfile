@@ -27,6 +27,10 @@ pipeline {
 
                     author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN,%aE' | xargs").trim()
                     echo "Commit Author: ${author}"
+
+                    user = currentBuild.getBuildCauses()[0].userId
+                    userId = slackUserIdFromEmail(user)
+                    echo "User: ${user}. ID: ${userId}"
                 }
             }
         }
