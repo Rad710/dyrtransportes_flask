@@ -106,10 +106,10 @@ pipeline {
                 
                 // Check if the input string matches the pattern
                 if (BRANCH_NAME =~ pattern) {
-                    githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].tolowerCase()
+                    githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].toLowerCase()
                     githubData['authorName'] = author
                 } else {
-                    githubData['authorUsername'] = CHANGE_AUTHOR.tolowerCase()
+                    githubData['authorUsername'] = CHANGE_AUTHOR.toLowerCase()
                     githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
                 }
 
