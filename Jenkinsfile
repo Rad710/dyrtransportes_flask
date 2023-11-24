@@ -104,8 +104,8 @@ pipeline {
                 // Check if the input string matches the pattern
                 if (env.CHANGE_ID) {
                     echo "Pull Request!"
-                    githubData['authorUsername'] = CHANGE_AUTHOR.toLowerCase()
-                    githubData['authorName'] = CHANGE_AUTHOR_DISPLAY_NAME
+                    githubData['authorUsername'] = env.CHANGE_AUTHOR.toLowerCase()
+                    githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
                 } else {
                     echo "Push!"
                     githubData['authorUsername'] = email.split("\\+")[0].split("@")[0].toLowerCase()
