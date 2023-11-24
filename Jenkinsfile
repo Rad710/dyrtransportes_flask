@@ -30,6 +30,8 @@ pipeline {
                     sh "git show"
                     user = currentBuild.getBuildCauses()
                     echo "User: ${user}"
+
+                    // sh "git rev-list --count aaa..bbb"
                 }
             }
         }
