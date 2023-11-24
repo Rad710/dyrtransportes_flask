@@ -29,8 +29,7 @@ pipeline {
                     echo "Commit Author: ${author}"
 
                     user = currentBuild.getBuildCauses()[0].userId
-                    userId = slackUserIdFromEmail(user)
-                    echo "User: ${user}. ID: ${userId}"
+                    echo "User: ${user}"
                 }
             }
         }
