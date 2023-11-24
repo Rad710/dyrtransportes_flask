@@ -1,3 +1,6 @@
+def commitMsg = ''
+def author = ''
+
 pipeline {
     agent any
     
@@ -17,10 +20,10 @@ pipeline {
                     }
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
-                    // commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
-                    // commitMsg = commit.substring( commit.indexOf(' ') ).trim()
+                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                    commitMsg = commit.substring( commit.indexOf(' ') ).trim()
 
-                    // echo "$commit"
+                    echo "$commitMsg"
 
                     author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN,%aE' | xargs").trim().split(",")
                     echo "Commit Author: ${author}"
@@ -84,7 +87,10 @@ pipeline {
     
     post {
         always {
-            influxDbPublisher(selectedTarget: 'InfluxDB')
+            githubData = [:]
+            githubData['commitMsg'] = commitMsg
+            githubData['author'] = author
+            influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
         }
         success {
             echo "Success!"
