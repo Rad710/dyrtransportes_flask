@@ -87,10 +87,12 @@ pipeline {
     
     post {
         always {
-            githubData = [:]
-            githubData['commitMsg'] = commitMsg
-            githubData['author'] = author
-            influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
+            script {
+                githubData = [:]
+                githubData['commitMsg'] = commitMsg
+                githubData['author'] = author
+                influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
+            }
         }
         success {
             echo "Success!"
