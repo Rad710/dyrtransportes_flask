@@ -98,6 +98,7 @@ pipeline {
                 
 
                     // sh "git rev-list --count aaa..bbb"
+
                 githubData = [:]
                 githubData['commit'] = GIT_COMMIT
 
@@ -112,8 +113,11 @@ pipeline {
                     githubData['authorName'] = author
                 }
 
-                echo "${githubData}"
-                influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
+                def customMeasurementFields = [:]
+                customMeasurementFields['github_data'] = githubData
+                
+                echo "${customMeasurementFields}"
+                influxDbPublisher(selectedTarget: 'InfluxDB', customData: customMeasurementFields)
             }
         }
         success {
