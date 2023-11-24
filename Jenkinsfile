@@ -1,4 +1,4 @@
-def commitMsg = ''
+def commit = ''
 def author = ''
 
 pipeline {
@@ -21,12 +21,10 @@ pipeline {
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
                     commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
-                    commitMsg = commit.substring( commit.indexOf(' ') ).trim()
+                    echo "$commit"
 
-                    echo "$commitMsg"
-
-                    author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%aN,%aE' | xargs").trim()
-                    echo "Commit Author: ${author}"
+                    author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
 
                     user = currentBuild.getBuildCauses()
                     echo "User: ${user}"
@@ -92,8 +90,9 @@ pipeline {
         always {
             script {
                 githubData = [:]
-                githubData['commit'] = commitMsg
+                githubData['commit'] = commit
                 githubData['author'] = author
+                ithubData['email'] = email
 
                 echo "${githubData}"
                 influxDbPublisher(selectedTarget: 'InfluxDB', customData: githubData)
