@@ -21,6 +21,9 @@ pipeline {
                     // commitMsg = commit.substring( commit.indexOf(' ') ).trim()
 
                     // echo "$commit"
+
+                    author = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an' | xargs").trim()
+                    echo "Commit Author: ${author}"
                 }
             }
         }
