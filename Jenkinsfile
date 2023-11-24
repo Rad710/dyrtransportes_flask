@@ -117,7 +117,7 @@ pipeline {
                 customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
-                influxDbPublisher(selectedTarget: 'InfluxDB', customData: customMeasurementFields)
+                influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
             }
         }
         success {
