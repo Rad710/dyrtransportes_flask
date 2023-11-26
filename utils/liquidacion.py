@@ -1,6 +1,5 @@
 from flask import request, jsonify
-from sqlalchemy import distinct
-
+from sqlalchemy import distinct, desc
 from app_database import app
 from utils.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
@@ -91,11 +90,12 @@ def delete_liquidaciones(chofer):
 
 def get_liquidaciones_chofer(chofer):
     try:
-        liquidaciones = Liquidaciones.query.filter_by(chofer=chofer).all()
-        liquidaciones_ordenadas = sorted(
-            liquidaciones, key=lambda liquidacion: liquidacion.fecha_liquidacion, reverse=True)
-
-        return jsonify([liquidacion.fecha_liquidacion for liquidacion in liquidaciones_ordenadas]), 200
+        liquidaciones = Liquidaciones.query.filter_by(chofer=chofer).order_by(desc(Liquidaciones.fecha_liquidacion)).all()
+        return jsonify([
+            {
+                'fechaLiquidacion': liquidacion.fecha_liquidacion, 'pagado': liquidacion.pagado
+            } for liquidacion in liquidaciones
+            ]), 200
 
     except Exception as e:
         error_message = f'Liquidaciones de {chofer} no encontradas {str(e)}'

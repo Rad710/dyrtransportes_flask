@@ -127,7 +127,7 @@ def agregar_liquidacion(chofer):
             app.logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
             raise e
     else:
-        app.logger.warning('Entrada ya exite en tabla Liquidaciones')
+        app.logger.warning('Entrada ya existe en tabla Liquidaciones')
         liquidaciones_ordenadas = sorted(
             existing_entries, key=lambda liq: liq.fecha_liquidacion, reverse=True)
         return liquidaciones_ordenadas[0].fecha_liquidacion
