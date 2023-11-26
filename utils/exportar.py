@@ -13,11 +13,7 @@ from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionG
 
 
 def exportar_cobranza(fecha_creacion):
-    cobranzas = Cobranzas.query.filter_by(fecha_creacion=fecha_creacion).all()
-
-    # Ordena las cobranzas por las columnas 'origen' y 'destino'
-    cobranzas_ordenadas = sorted(cobranzas, key=lambda cobranza: (
-        cobranza.producto, cobranza.origen, cobranza.destino, cobranza.fecha_viaje, cobranza.chofer))
+    cobranzas_ordenadas = Cobranzas.query.filter_by(fecha_creacion=fecha_creacion).order_by(Cobranzas.producto, Cobranzas.origen, Cobranzas.destino, Cobranzas.chofer, Cobranzas.fecha_viaje).all()
     # Crea un diccionario para almacenar las sumas de subtotales por grupo
 
     subtotales_grupo = {}
@@ -415,8 +411,8 @@ def exportar_liquidacion(chofer, fecha):
     sheet.column_dimensions['B'].width = 9.91
     sheet.column_dimensions['C'].width = 7.91
     sheet.column_dimensions['D'].width = 9.36
-    sheet.column_dimensions['E'].width = 14.82
-    sheet.column_dimensions['F'].width = 11.36
+    sheet.column_dimensions['E'].width = 18
+    sheet.column_dimensions['F'].width = 18
     sheet.column_dimensions['G'].width = 10.3
     sheet.column_dimensions['H'].width = 11.0
     sheet.column_dimensions['I'].width = 8.09
@@ -669,6 +665,113 @@ def exportar_liquidacion(chofer, fecha):
         if col == 11:
             cell.number_format = "#,##0"
 
+    sheet.append([None, None, None, None, None, None, None,
+                      'Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4', None, None, None])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                      end_row=sheet.max_row, end_column=12)
+
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+
+
+    sheet.append([])
+
+    sheet.append([None, None, None, None, None, None, None,
+                    'Descripcion', None, 'Exenta', 'IVA 5%', 'IVA 10%'])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                    end_row=sheet.max_row, end_column=9)
+
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+
+    
+    sheet.append([None, None, None, None, None, None, None,
+                'Servicio de Flete', None, 0, 0, f'=+K{last_row + 5}'])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                    end_row=sheet.max_row, end_column=9)
+
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+
+        if col >= 10:
+            cell.number_format = "#,##0"
+
+    sheet.append([None, None, None, None, None, None, None,
+                None, None, None, None])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                end_row=sheet.max_row, end_column=9)
+
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+
+        if col >= 10:
+            cell.number_format = "#,##0"
+
+
+    sheet.append([None, None, None, None, None, None, None,
+                'Subtotal', None, f'=+J{last_row + 9}', 0, f'=+L{last_row + 9}'])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                end_row=sheet.max_row, end_column=9)
+    
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+
+        if col >= 10:
+            cell.number_format = "#,##0"
+
+
+    sheet.append([None, None, None, None, None, None, None,
+            'Total', None, None, None, f'=+J{last_row + 11}+L{last_row + 11}'])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                end_row=sheet.max_row, end_column=9)
+    
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+        cell.font = Font(bold=True)
+
+        if col >= 10:
+            cell.number_format = "#,##0"
+
+    sheet.append([None, None, None, None, None, None, None, None,
+        None, 'IVA 10%', None, f'=+L{last_row + 12}/11'])
+    
+    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
+                end_row=sheet.max_row, end_column=9)
+
+    for col in range(8, 13):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(left=Side(style='thin'), right=Side(
+            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        cell.border = thin_border
+        cell.font = Font(bold=True)
+
+        if col >= 10:
+            cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+    
     # Guardar el archivo Excel en el flujo de salida
     workbook.save(output)
     output.seek(0)

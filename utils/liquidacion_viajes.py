@@ -86,7 +86,10 @@ def get_liquidacion_viajes(chofer, fecha):
 def put_liquidacion_viaje(id):
     viaje = request.json.get('liquidacionViaje')
 
+    print(f'Viaje: {viaje}')
+
     fecha_viaje = parser.isoparse(viaje['fechaViaje']).date()
+    fecha_liquidacion = parser.isoparse(viaje['fechaLiquidacion']).date()
     chofer = viaje['chofer']
     chapa = viaje['chapa']
     producto = viaje['producto']
@@ -100,6 +103,7 @@ def put_liquidacion_viaje(id):
 
     existing_cobranza = db.session.get(Cobranzas, id)
     existing_liquidacion_viaje = db.session.get(LiquidacionViajes, id)
+    existing_liquidacion_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
 
     if existing_cobranza is None or existing_liquidacion_viaje is None:
         return jsonify({"error": "No se encontró cobranza a actualizar"}), 500
@@ -116,6 +120,8 @@ def put_liquidacion_viaje(id):
     existing_cobranza.precio = precio
 
     existing_liquidacion_viaje.precio_liquidacion = precio_liquidacion
+    existing_liquidacion_viaje.id_liquidacion = existing_liquidacion_id
+
     try:
         db.session.commit()
         app.logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')

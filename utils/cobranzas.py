@@ -4,9 +4,8 @@ from dateutil import parser
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 
 from app_database import app
-from utils.schema import db, Cobranzas
+from utils.schema import db, Cobranzas, LiquidacionViajes
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, string_to_int
-from utils.precio import get_precio
 
 from sqlalchemy.exc import IntegrityError
 
@@ -18,6 +17,7 @@ def post_cobranza():
 
 
 def crear_cobranza_liquidacion(cobranza):
+    print(f'Cobranza: {cobranza}')
     fecha_viaje = parser.isoparse(re.sub(r'\s+', ' ', str(cobranza['fechaViaje']).strip())).date()
     chofer = re.sub(r'\s+', ' ', str(cobranza['chofer'])).strip()
     chapa = re.sub(r'\s+', ' ', str(cobranza['chapa'])).strip()
@@ -28,6 +28,7 @@ def crear_cobranza_liquidacion(cobranza):
     kilos_origen = string_to_int(re.sub(r'\s+', ' ', str(cobranza['kgOrigen'])).strip())
     kilos_destino = string_to_int(re.sub(r'\s+', ' ', str(cobranza['kgDestino'])).strip())
     precio = re.sub(r'\s+', ' ', str(cobranza['precio'])).strip()
+    precio_liquidacion = re.sub(r'\s+', ' ', str(cobranza['precioLiquidacion'])).strip()
     fecha_creacion = parser.isoparse(re.sub(r'\s+', ' ', str(cobranza['fechaCreacion'])).strip()).date()
 
     try:
@@ -50,12 +51,6 @@ def crear_cobranza_liquidacion(cobranza):
         return jsonify({"error": error_message}), 500
 
     try:
-        precio_liquidacion = 0
-        dict_precios = get_precio(f'{origen}-{destino}')[0].get_json()
-
-        if 'error' not in dict_precios:
-            precio_liquidacion = dict_precios['precioLiquidacion']
-
         agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer)
     except Exception as e:
         error_message = f"Error al agregar a liquidacion del chofer {str(e)}"
@@ -68,11 +63,17 @@ def crear_cobranza_liquidacion(cobranza):
 def get_cobranza(fecha_creacion):
     try:
         fecha_creacion =  parser.isoparse(fecha_creacion).date()
-        cobranzas = Cobranzas.query.filter_by(fecha_creacion=fecha_creacion).all()
+        cobranzas = (
+            db.session.query(Cobranzas, LiquidacionViajes)
+            .join(LiquidacionViajes, Cobranzas.id == LiquidacionViajes.id)
+            .filter(Cobranzas.fecha_creacion == fecha_creacion)
+            .order_by(Cobranzas.chofer, Cobranzas.fecha_viaje)
+            .all()
+        )
 
         cobranzas_agrupadas = {}
         #calcula los subtotales
-        for cobranza in cobranzas:
+        for cobranza, liquidacion_viaje in cobranzas:
             origen_destino = f'{cobranza.producto}|{cobranza.origen}|{cobranza.destino}'
 
             if origen_destino not in cobranzas_agrupadas:
@@ -83,11 +84,13 @@ def get_cobranza(fecha_creacion):
             kilos_origen = int(cobranza.kilos_origen)
             kilos_destino = int(cobranza.kilos_destino)
             precio = Decimal(cobranza.precio)
+            precio_liquidacion = Decimal(liquidacion_viaje.precio_liquidacion)
 
             cobranzas_agrupadas[origen_destino]['viajes'] += [{
                 'id': cobranza.id, 'fechaViaje': cobranza.fecha_viaje, 'chofer': cobranza.chofer, 'chapa': 
                 cobranza.chapa, 'producto': cobranza.producto, 'origen': cobranza.origen, 'destino': cobranza.destino, 
-                'tiquet': cobranza.tiquet, 'kgOrigen': kilos_origen, 'kgDestino': kilos_destino, 'precio': precio
+                'tiquet': cobranza.tiquet, 'kgOrigen': kilos_origen, 'kgDestino': kilos_destino, 
+                'precio': precio, 'precioLiquidacion': precio_liquidacion
             }]
 
             cobranzas_agrupadas[origen_destino]['subtotalOrigen'] += kilos_origen
@@ -116,6 +119,7 @@ def put_cobranza(id):
     cobranza = request.json.get('cobranza')
 
     fecha_viaje = parser.isoparse(cobranza['fechaViaje']).date()
+    fecha_creacion = parser.isoparse(cobranza['fechaCreacion']).date()
     chofer = cobranza['chofer']
     chapa = cobranza['chapa']
     producto = cobranza['producto']
@@ -125,10 +129,12 @@ def put_cobranza(id):
     kilos_origen = cobranza['kgOrigen']
     kilos_destino = cobranza['kgDestino']
     precio = cobranza['precio']
+    precio_liquidacion = cobranza['precioLiquidacion']
 
     existing_cobranza = Cobranzas.query.filter_by(id=id).first()
+    existing_liquidacion = LiquidacionViajes.query.filter_by(id=id).first()
 
-    if existing_cobranza is None:
+    if existing_cobranza is None or existing_liquidacion is None:
         return jsonify({"error": "No se encontró cobranza a actualizar"}), 500
 
     existing_cobranza.fecha_viaje = fecha_viaje
@@ -141,6 +147,10 @@ def put_cobranza(id):
     existing_cobranza.kilos_origen = kilos_origen
     existing_cobranza.kilos_destino = kilos_destino
     existing_cobranza.precio = precio
+    existing_cobranza.fecha_creacion = fecha_creacion
+
+    existing_liquidacion.precio_liquidacion = precio_liquidacion
+
     try:
         db.session.commit()
         app.logger.warning('Cobranza actualizada exitosamente')
