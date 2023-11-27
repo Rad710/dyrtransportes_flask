@@ -80,7 +80,6 @@ pipeline {
     
     post {
         always {
-            node('docker-agent') {
                 script {
     
                     commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
@@ -120,7 +119,6 @@ pipeline {
                     echo "${customMeasurementFields}"
                     influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
                 }
-            }
         }
     }
 }
