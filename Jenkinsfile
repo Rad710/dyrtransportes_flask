@@ -82,42 +82,43 @@ pipeline {
         always {
                 script {
     
-                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
-                    // echo "$commit"
+                    // commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                    // // echo "$commit"
     
-                    author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
-                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+                    // author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                    // email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
     
-                    echo "Author: ${author}. Email: ${email}"
-                    // sh "git show"
-                    // user = currentBuild.getBuildCauses() //initiated from Jenkins
-                    // echo "User: ${user}"
+                    // echo "Author: ${author}. Email: ${email}"
+                    // // sh "git show"
+                    // // user = currentBuild.getBuildCauses() //initiated from Jenkins
+                    // // echo "User: ${user}"
     
-                    // git rev-list --count 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
-                    // git log --oneline 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+                    // // git rev-list --count 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+                    // // git log --oneline 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
                     
     
-                        // sh "git rev-list --count aaa..bbb"
+                    //     // sh "git rev-list --count aaa..bbb"
     
-                    githubData = [:]
-                    githubData['commit'] = GIT_COMMIT
+                    // githubData = [:]
+                    // githubData['commit'] = GIT_COMMIT
     
-                    // Check if the input string matches the pattern
-                    if (env.CHANGE_ID) {
-                        echo "Pull Request!"
-                        githubData['authorUsername'] = env.CHANGE_AUTHOR.toLowerCase()
-                        githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
-                    } else {
-                        echo "Push!"
-                        githubData['authorUsername'] = email.split("\\+")[1].split("@")[0].toLowerCase()
-                        githubData['authorName'] = author
-                    }
+                    // // Check if the input string matches the pattern
+                    // if (env.CHANGE_ID) {
+                    //     echo "Pull Request!"
+                    //     githubData['authorUsername'] = env.CHANGE_AUTHOR.toLowerCase()
+                    //     githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
+                    // } else {
+                    //     echo "Push!"
+                    //     githubData['authorUsername'] = email.split("\\+")[1].split("@")[0].toLowerCase()
+                    //     githubData['authorName'] = author
+                    // }
     
-                    def customMeasurementFields = [:]
-                    customMeasurementFields['github_data'] = githubData
+                    // def customMeasurementFields = [:]
+                    // customMeasurementFields['github_data'] = githubData
                     
-                    echo "${customMeasurementFields}"
-                    influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
+                    // echo "${customMeasurementFields}"
+                    // influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
+                    influxDbPublisher(selectedTarget: 'InfluxDB')
                 }
         }
     }
