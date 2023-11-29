@@ -1,5 +1,6 @@
 def commit = ''
 def author = ''
+def email = ''
 
 pipeline {
     agent any
