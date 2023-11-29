@@ -117,8 +117,8 @@ pipeline {
                     myTags = ['github_data':['author_username': email,'author_name': author]]
                 }
 
-//                 def customMeasurementFields = [:]
-//                 customMeasurementFields['github_data'] = githubData
+                def customMeasurementFields = [:]
+                customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
 
