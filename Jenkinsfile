@@ -101,10 +101,10 @@ pipeline {
                 githubData = [:]
                 githubData['commit'] = commit
 
-                // Check if the input string matches the pattern
+                // Check if PR or push
                 if (env.CHANGE_ID) {
                     echo "Pull Request!"
-                    githubData['author_username'] = env.CHANGE_AUTHOR.toLowerCase()
+                    githubData['author_username'] = env.CHANGE_AUTHOR
                     githubData['author_name'] = env.CHANGE_AUTHOR_DISPLAY_NAME
                 } else {
                     echo "Push!"
@@ -116,7 +116,10 @@ pipeline {
                 customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
-                influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
+
+                myTags = ['github_data':['tag_a':'author_username','tag_b':'author_name']]
+
+                influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields, customDataMapTags: myTags)
                 // influxDbPublisher(selectedTarget: 'InfluxDB')
             }
         }
