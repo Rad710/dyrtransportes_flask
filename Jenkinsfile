@@ -104,12 +104,12 @@ pipeline {
                 // Check if the input string matches the pattern
                 if (env.CHANGE_ID) {
                     echo "Pull Request!"
-                    githubData['authorUsername'] = env.CHANGE_AUTHOR.toLowerCase()
-                    githubData['authorName'] = env.CHANGE_AUTHOR_DISPLAY_NAME
+                    githubData['author_username'] = env.CHANGE_AUTHOR.toLowerCase()
+                    githubData['author_name'] = env.CHANGE_AUTHOR_DISPLAY_NAME
                 } else {
                     echo "Push!"
-                    githubData['authorUsername'] = email.split("\\+")[1].split("@")[0].toLowerCase()
-                    githubData['authorName'] = author
+                    githubData['author_username'] = email
+                    githubData['author_name'] = author
                 }
 
                 def customMeasurementFields = [:]
