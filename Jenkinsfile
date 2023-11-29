@@ -1,3 +1,4 @@
+
 def commit = ''
 def author = ''
 def email = ''
@@ -39,32 +40,32 @@ pipeline {
         //             //     conclusion: 'NONE',
         //             //     status: 'IN_PROGRESS'
                     
-        //             // echo "Cloning rep..."
-        //             checkout scm
-        //         }
-        //     }
+//         //             // echo "Cloning rep..."
+//         //             checkout scm
+//         //         }
+//         //     }
 
-        // //     post {
-        // //         success {
-        // //             //Send build result to Github
-        // //             publishChecks name: 'Checkout', 
-        // //                 title: 'Cloning repository', 
-        // //                 summary: 'Cloning repository from source',
-        // //                 text: 'Texto',
-        // //                 detailsURL: 'https://google.com',
-        // //                 conclusion: 'SUCCESS'
-        // //         }
-        // //         failure {
-        // //             //Send build result to Github
-        // //             publishChecks name: 'Cloning Repo1', 
-        // //                 title: 'Cloning Repo2', 
-        // //                 summary: 'Cloning Repo3',
-        // //                 text: 'Cloning Repo4',
-        // //                 detailsURL: 'https://google.com',
-        // //                 conclusion: 'FAILURE'
-        // //         }
-        // //     }
-        // }
+//         // //     post {
+//         // //         success {
+//         // //             //Send build result to Github
+//         // //             publishChecks name: 'Checkout', 
+//         // //                 title: 'Cloning repository', 
+//         // //                 summary: 'Cloning repository from source',
+//         // //                 text: 'Texto',
+//         // //                 detailsURL: 'https://google.com',
+//         // //                 conclusion: 'SUCCESS'
+//         // //         }
+//         // //         failure {
+//         // //             //Send build result to Github
+//         // //             publishChecks name: 'Cloning Repo1', 
+//         // //                 title: 'Cloning Repo2', 
+//         // //                 summary: 'Cloning Repo3',
+//         // //                 text: 'Cloning Repo4',
+//         // //                 detailsURL: 'https://google.com',
+//         // //                 conclusion: 'FAILURE'
+//         // //         }
+//         // //     }
+//         // }
         
         stage('Build project') {
             steps {
@@ -83,7 +84,7 @@ pipeline {
                 }
             }
         }
-    }
+//     }
     
     post {
         always {
@@ -92,11 +93,11 @@ pipeline {
                 // user = currentBuild.getBuildCauses() //initiated from Jenkins
                 // echo "User: ${user}"
 
-                // git rev-list --count 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
-                // git log --oneline 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+//                 // git rev-list --count 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
+//                 // git log --oneline 39745114e1b606a918981c6b334138c9eb0c4e8a..c1c56a398774daac8aefd4100ff4cdf98122ff15
                 
 
-                    // sh "git rev-list --count aaa..bbb"
+//                     // sh "git rev-list --count aaa..bbb"
 
                 githubData = [:]
                 githubData['commit'] = commit
@@ -116,8 +117,8 @@ pipeline {
                     myTags = ['github_data':['author_username': email,'author_name': author]]
                 }
 
-                def customMeasurementFields = [:]
-                customMeasurementFields['github_data'] = githubData
+//                 def customMeasurementFields = [:]
+//                 customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
 
