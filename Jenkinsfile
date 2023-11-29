@@ -1,4 +1,3 @@
-
 def commit = ''
 def author = ''
 def username = ''
@@ -23,7 +22,7 @@ pipeline {
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
 
-                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                    commit = env.GIT_COMMIT
                     author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
                     username = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
 
