@@ -12,7 +12,6 @@ pipeline {
         {
             steps {
                 script {
-                    sh "docker run aaaaa"
                     sh 'printenv'
                     script {
                         params.each() { param, value ->
