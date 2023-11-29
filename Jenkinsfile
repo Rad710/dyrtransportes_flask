@@ -1,7 +1,7 @@
 
 def commit = ''
 def author = ''
-def email = ''
+def username = ''
 
 pipeline {
     agent any
@@ -25,9 +25,14 @@ pipeline {
 
                     commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
                     author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
-                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+                    username = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+
+                    if (currentBuild.getBuildCauses()[0].shortDescription.contains("Started by user")) {
+                        author = currentBuild.getBuildCauses()[0].userName
+                        username = currentBuild.getBuildCauses()[0].userId
+                    }
     
-                    echo "Author: ${author}. Email: ${email}. Commit ${commit}"
+                    echo "Author: ${author}. Username: ${username}. Commit ${commit}"
                 }
             }
         }
@@ -114,15 +119,13 @@ pipeline {
                     // githubData['field_author_username'] = email
                     // githubData['field_author_name'] = author
 
-                    myTags = ['github_data':['author_username': email,'author_name': author]]
+                    myTags = ['github_data':['author_username': username,'author_name': author]]
                 }
 
                 def customMeasurementFields = [:]
                 customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
-
-                echo "Build Cause: ${currentBuild.getBuildCauses()}"
 
                 influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields, customDataMapTags: myTags)
                 // influxDbPublisher(selectedTarget: 'InfluxDB')
