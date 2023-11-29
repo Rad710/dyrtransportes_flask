@@ -98,7 +98,7 @@ pipeline {
                     // sh "git rev-list --count aaa..bbb"
 
                 githubData = [:]
-                githubData['commit'] = GIT_COMMIT
+                githubData['commit'] = commit
 
                 // Check if the input string matches the pattern
                 if (env.CHANGE_ID) {
