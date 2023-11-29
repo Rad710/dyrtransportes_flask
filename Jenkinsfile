@@ -121,7 +121,7 @@ pipeline {
                 
                 echo "${customMeasurementFields}"
 
-                echo "BUild Cause: ${currentBuild.getBuildCauses()"
+                echo "BUild Cause: ${currentBuild.getBuildCauses()}"
 
                 influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields, customDataMapTags: myTags)
                 // influxDbPublisher(selectedTarget: 'InfluxDB')
