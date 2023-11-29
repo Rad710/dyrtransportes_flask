@@ -21,6 +21,12 @@ pipeline {
                     }
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
+
+                    commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
+                    author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+    
+                    echo "Author: ${author}. Email: ${email}. Commit ${commit}"
                 }
             }
         }
@@ -82,13 +88,6 @@ pipeline {
     post {
         always {
             script {
-                commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
-                // echo "$commit"
-
-                author = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
-                email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
-
-                echo "Author: ${author}. Email: ${email}"
                 // sh "git show"
                 // user = currentBuild.getBuildCauses() //initiated from Jenkins
                 // echo "User: ${user}"
