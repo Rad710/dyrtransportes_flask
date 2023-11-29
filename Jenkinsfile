@@ -104,20 +104,22 @@ pipeline {
                 // Check if PR or push
                 if (env.CHANGE_ID) {
                     echo "Pull Request!"
-                    githubData['field_author_username'] = env.CHANGE_AUTHOR
-                    githubData['field_author_name'] = env.CHANGE_AUTHOR_DISPLAY_NAME
+                    // githubData['field_author_username'] = env.CHANGE_AUTHOR
+                    // githubData['field_author_name'] = env.CHANGE_AUTHOR_DISPLAY_NAME
+
+                    myTags = ['github_data':['tag_author_username': env.CHANGE_AUTHOR,'tag_author_name': env.CHANGE_AUTHOR_DISPLAY_NAME]]
                 } else {
                     echo "Push!"
-                    githubData['field_author_username'] = email
-                    githubData['field_author_name'] = author
+                    // githubData['field_author_username'] = email
+                    // githubData['field_author_name'] = author
+
+                    myTags = ['github_data':['tag_author_username': email,'tag_author_name': author]]
                 }
 
                 def customMeasurementFields = [:]
                 customMeasurementFields['github_data'] = githubData
                 
                 echo "${customMeasurementFields}"
-
-                myTags = ['github_data':['tag_author_username':'author_username','tag_author_name':'author_name']]
 
                 influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields, customDataMapTags: myTags)
                 // influxDbPublisher(selectedTarget: 'InfluxDB')
