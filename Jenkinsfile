@@ -33,7 +33,7 @@ pipeline {
     
                     echo "Author: ${author}. Username: ${username}. Commit ${commit}"
 
-                    echo "${developers()}"
+                    echo "${culprits()}"
                 }
             }
         }
