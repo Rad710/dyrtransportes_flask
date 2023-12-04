@@ -20,7 +20,7 @@ pipeline {
 
                     createGitHubRelease(
                             credentialId: 'jenkgit',
-                            // repository: 'jcustenborder/xjc-kafka-connect-plugin',
+                            repository: 'Rad710/dyrtransportes_flask',
                             tag: '0.0.0',
                             commitish: 'main',
                             // bodyFile: 'test.md',
