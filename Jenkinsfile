@@ -22,55 +22,6 @@ pipeline {
                             credentialId: 'jenkins-github-app',
                             // repository: 'jcustenborder/xjc-kafka-connect-plugin',
                             tag: '0.0.0',
-                            // commitish: '17b5676aaab28e334c0a9befc86e7615a7539c32',
-                            // bodyFile: 'test.md',
-                            // draft: true
-                    )
-                }
-            }
-        }
-//         // stage('Checkout') {
-//         //     steps {
-//         //         script {
-//         //             //                     //Send build result to Github
-//         //             // publishChecks name: 'Checkout', 
-//         //             //     title: 'Cloning repository', 
-//         //             //     conclusion: 'NONE',
-//         //             //     status: 'IN_PROGRESS'
-                    
-//         //             // echo "Cloning rep..."
-//         //             checkout scm
-//         //         }
-//         //     }
-
-//         // //     post {
-//         // //         success {
-//         // //             //Send build result to Github
-//         // //             publishChecks name: 'Checkout', 
-//         // //                 title: 'Cloning repository', // def commit = ''
-// def author = ''
-
-pipeline {
-    agent any
-    
-    stages {
-        stage ('Prepare')
-        {
-            steps {
-                script {
-                    sh 'printenv'
-                    script {
-                        params.each() { param, value ->
-                            print "Parameter: ${param}, Value: ${value}"
-                        }
-                    }
-                    echo "PATH is: $PATH"
-                    echo "WORKSPACE is: ${WORKSPACE}"
-
-                    createGitHubRelease(
-                            credentialId: 'jenkins-github-app',
-                            // repository: 'jcustenborder/xjc-kafka-connect-plugin',
-                            tag: '0.0.0',
                             commitish: 'main',
                             // bodyFile: 'test.md',
                             // draft: true
