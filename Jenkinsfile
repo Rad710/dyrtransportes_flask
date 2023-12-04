@@ -19,7 +19,7 @@ pipeline {
                     echo "WORKSPACE is: ${WORKSPACE}"
 
                     createGitHubRelease(
-                            // credentialId: 'jenkins-github-app',
+                            credentialId: 'jenkgit',
                             // repository: 'jcustenborder/xjc-kafka-connect-plugin',
                             tag: '0.0.0',
                             commitish: 'main',
