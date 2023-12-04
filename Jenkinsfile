@@ -1,28 +1,34 @@
 // def commit = ''
 // def author = ''
 
-// pipeline {
-//     agent any
+pipeline {
+    agent any
     
-//     tools {
-//         nodejs '21.1.0'
-//     }
-//     stages {
-//         stage ('Prepare')
-//         {
-//             steps {
-//                 script {
-//                     sh 'printenv'
-//                     script {
-//                         params.each() { param, value ->
-//                             print "Parameter: ${param}, Value: ${value}"
-//                         }
-//                     }
-//                     echo "PATH is: $PATH"
-//                     echo "WORKSPACE is: ${WORKSPACE}"
-//                 }
-//             }
-//         }
+    stages {
+        stage ('Prepare')
+        {
+            steps {
+                script {
+                    sh 'printenv'
+                    script {
+                        params.each() { param, value ->
+                            print "Parameter: ${param}, Value: ${value}"
+                        }
+                    }
+                    echo "PATH is: $PATH"
+                    echo "WORKSPACE is: ${WORKSPACE}"
+
+                    createGitHubRelease(
+                            credentialId: 'jenkins-github-app',
+                            // repository: 'jcustenborder/xjc-kafka-connect-plugin',
+                            tag: '0.0.0',
+                            // commitish: '17b5676aaab28e334c0a9befc86e7615a7539c32',
+                            // bodyFile: 'test.md',
+                            // draft: true
+                    )
+                }
+            }
+        }
 //         // stage('Checkout') {
 //         //     steps {
 //         //         script {
@@ -76,11 +82,11 @@
 //                 }
 //             }
 //         }
-//     }
+    }
     
-//     post {
-//         always {
-//             script {
+    post {
+        // always {
+            // script {
 
 //                 commit = sh(returnStdout: true, script: 'git log -1 --oneline').trim()
 //                 // echo "$commit"
@@ -120,11 +126,11 @@
 //                 influxDbPublisher(selectedTarget: 'InfluxDB', customDataMap: customMeasurementFields)
 //             }
 //         }
-//         success {
-//             echo "Success!"
-//         }
-//         failure {
-//             echo "Failure!"
-//         }
-//     }
-// }
+        success {
+            echo "Success!"
+        }
+        failure {
+            echo "Failure!"
+        }
+    }
+}
