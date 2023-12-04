@@ -22,7 +22,7 @@ pipeline {
                             credentialId: 'jenkgit',
                             repository: 'Rad710/dyrtransportes_flask',
                             tag: '0.0.0',
-                            commitish: 'main',
+                            // commitish: 'main',
                             // bodyFile: 'test.md',
                             // draft: true
                     )
