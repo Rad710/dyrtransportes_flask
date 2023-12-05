@@ -30,6 +30,21 @@ pipeline {
             }
         }
 
+        
+        stage('Tag GIT Repo') {
+            steps {
+                script {       
+                    echo "GIT TAG: ${TAG}"             
+                    sshagent (credentials: ["jenkins-github-app"]) {
+                        sh 'git tag -a ${TAG} -m "${TAG_COMMENT}" '
+                        sh "git push ${env.GIT_URL} ${TAG}"
+                        sh "git tag -d ${TAG}"
+                    }
+                }
+            }
+        }
+
+        
     stage('Check run') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'jenkins-github-app',
