@@ -36,9 +36,9 @@ pipeline {
                 script {       
                     echo "GIT TAG: ${TAG}"             
                     sshagent (credentials: ["jenkins-github-app"]) {
-                        sh 'git tag -a ${TAG} -m "${TAG_COMMENT}" '
-                        sh "git push ${env.GIT_URL} ${TAG}"
-                        sh "git tag -d ${TAG}"
+                        sh 'git tag -a 0.0.9 -m "aaaaa" '
+                        sh "git push ${env.GIT_URL} 0.0.9"
+                        sh "git tag -d 0.0.9"
                     }
                 }
             }
