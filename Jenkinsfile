@@ -34,7 +34,7 @@ pipeline {
         stage('Tag GIT Repo') {
             steps {
                 script {       
-                    echo "GIT TAG: ${TAG}"             
+                    echo "GIT TAG: 0.0.9"             
                     sshagent (credentials: ["jenkins-github-app"]) {
                         sh 'git tag -a 0.0.9 -m "aaaaa" '
                         sh "git push ${env.GIT_URL} 0.0.9"
