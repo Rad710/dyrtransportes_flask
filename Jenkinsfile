@@ -1,5 +1,3 @@
-// def commit = ''
-// def author = ''
 
 pipeline {
     agent any
