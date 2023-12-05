@@ -18,14 +18,14 @@ pipeline {
                     echo "PATH is: $PATH"
                     echo "WORKSPACE is: ${WORKSPACE}"
 
-                    createGitHubRelease(
-                            credentialId: 'jenkgit',
-                            repository: 'Rad710/dyrtransportes_flask',
-                            tag: '0.0.0',
-                            commitish: 'main',
-                            // bodyFile: 'test.md',
-                            // draft: true
-                    )
+                    // createGitHubRelease(
+                    //         credentialId: 'jenkgit',
+                    //         repository: 'Rad710/dyrtransportes_flask',
+                    //         tag: '0.0.0',
+                    //         commitish: 'main',
+                    //         // bodyFile: 'test.md',
+                    //         // draft: true
+                    // )
                 }
             }
         }
