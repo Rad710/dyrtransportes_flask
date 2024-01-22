@@ -4,6 +4,7 @@ from flask_caching import Cache
 
 import os
 import sys
+import time
 from dotenv import load_dotenv
 
 from utils.schema import db
@@ -28,10 +29,27 @@ connection_string = f'mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}'
 app.config['SQLALCHEMY_DATABASE_URI'] = connection_string
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}
 
+
+print("Initializing app...")
 db.init_app(app)
 
 # Wrap db.create_all() in an app context
+print("Connecting to DB...")
+
 with app.app_context():
-    db.create_all()
+    max_retries = 3
+    retry_delay = 5
+    for attempt in range(1, max_retries + 1):
+        try:
+            db.create_all()
+            break
+        except Exception as e:
+            print(f"Error during database initialization (attempt {attempt}/{max_retries}): {e}")
+            if attempt < max_retries:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                # If max retries reached, raise the exception
+                raise e
 
 CORS(app)
