@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  dyrtransportes-react-dev:
+    image: localhost:5000/dyrtransportes/dev/dyrtransportes-flask:latest
+    
+    ports:
+      - 8081:8081
+
+    container_name: dyrtransportes-flask-dev
+
+    networks:
+      - dyrtransportes
+      - dyrtransportes-backend
+
+
+  dyrtransportes-mysql-db:
+    image: localhost:5000/mysql/mysql:8
+
+    restart: always
+
+    volumes:
+      - /home/rolando/Desktop/dyrtransportes-mysql:/var/lib/mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      # MYSQL_USER: rad
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: dyrtransportes
+
+    container_name: dyrtransportes-mysql-dev
+
+    networks:
+      - dyrtransportes
+      - dyrtransportes-backend
+
+    ports:
+      - 3306:3306
+
+
+  dyrtransportes-adminer:
+    image: adminer
+
+    restart: always
+
+    ports:
+      - 8000:8080
+
+    container_name: dyrtransportes-adminer-dev
+
+    networks:
+      - dyrtransportes
+      - dyrtransportes-backend
+
+networks:
+  dyrtransportes:
+  dyrtransportes-backend:
