@@ -287,7 +287,7 @@ pipeline {
                 echo 'Post stage cleaning...'
 
                 try {
-                    sh "docker rmi -f ${imageName}:latest ${imageName}:${tag}"
+                    sh "docker rmi -f ${imageName}:${tag} ${imageName}:latest"
                 } catch (e) {
                     echo 'No docker image to delete. Or failure when deleting!'
                 }
