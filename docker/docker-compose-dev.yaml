@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  dyrtransportes-react-dev:
+  dyrtransportes-flask-dev:
     image: localhost:5000/dyrtransportes/dev/dyrtransportes-flask:latest
     
     ports:

@@ -1,13 +1,17 @@
-FROM python:3.10-slim
+FROM python:3.10.13
 
-EXPOSE 5000
+EXPOSE 8081
+
+# RUN apt-get -y update && apt-get -y upgrade
+# RUN apt-get -y install pkg-config \
+#     && apt-get -y install gcc python3-dev
+
+# RUN apt-get install libmysqlclient-dev
 
 WORKDIR /app
 
 COPY . .
 
-RUN apt install pkg-config
-# sudo apt-get install gcc libmysqlclient-dev python3-dev
 RUN pip install -r requirements.txt
 
 ENV FLASK_APP=flask_app.py
