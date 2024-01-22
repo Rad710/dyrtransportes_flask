@@ -6,7 +6,7 @@ def tag = BRANCH_NAME.toLowerCase().replaceAll('/', '_')
 def tagComment = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}. Build URL: ${BUILD_URL}"
 
 def dockerImage
-def dockerComposeFile = 'docker-compose-dev.yaml'
+def dockerComposeFile = 'docker/docker-compose-dev.yaml'
 
 def registry = 'http://localhost:5000'
 // def registryCredentials = 'localhost-docker-registry'
