@@ -100,6 +100,15 @@ pipeline {
             steps {
                 script {
                     echo "Building..."
+
+                    sh """
+                        rm .env
+                        echo "DB_USERNAME = 'root'" >> .env
+                        echo "DB_PASSWORD = 'root'" >> .env
+                        echo "DB_HOST = 'dyrtransportes-mysql-dev'" >> .env
+                        echo "DB_NAME = 'dyrtransportes'" >> .env
+                    """
+
                     dockerImage = docker.build(imageName, "-f docker/Dockerfile.flask .")
                 }
             }
@@ -116,9 +125,11 @@ pipeline {
                 script {
                     echo 'Scanning...'
 
-                    sh 'echo "sonar.projectKey=D-y-R-Transportes-Flask" >> sonar-project.properties'
-                    sh 'echo "sonar.python.version=3.10" >> sonar-project.properties'
-                    
+                    sh """
+                        echo "sonar.projectKey=D-y-R-Transportes-Flask" >> sonar-project.properties
+                        echo "sonar.python.version=3.10" >> sonar-project.properties
+                    """
+
                     def scannerHome = tool 'SonarScanner'
                     withSonarQubeEnv("http://localhost:9000") {
                         sh "${scannerHome}/bin/sonar-scanner"
