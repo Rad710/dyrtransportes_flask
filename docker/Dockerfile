@@ -20,4 +20,4 @@ RUN pip install -r requirements.txt --upgrade
 
 ENV FLASK_APP=flask_app.py
 
-CMD ["flask", "run", "--host", "0.0.0.0"]
+CMD ["flask", "run", "--host", "0.0.0.0", "--port", "8081"]
