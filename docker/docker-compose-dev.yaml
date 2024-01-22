@@ -39,7 +39,7 @@ services:
 
 
   dyrtransportes-adminer:
-    image: adminer
+    image: localhost:5000/adminer/adminer:latest
 
     restart: always
 
