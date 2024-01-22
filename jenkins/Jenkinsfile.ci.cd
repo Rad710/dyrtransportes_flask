@@ -109,7 +109,7 @@ pipeline {
                         echo "DB_NAME = 'dyrtransportes'" >> .env
                     """
 
-                    dockerImage = docker.build(imageName, "-f docker/Dockerfile.flask .")
+                    dockerImage = docker.build(imageName, "-f docker/Dockerfile .")
                 }
             }
         }
