@@ -22,7 +22,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                                 chofer, COUNT(cobranzas.id) as viajes,
                                 SUM(kilos_origen) as total_origen,
                                 SUM(kilos_destino) as total_destino,
-                                SUM(precio * kilos_destino) as total_flete,
+                                SUM(precio * (10 / 11) * kilos_destino) as total_flete,
                                 SUM(precio_liquidacion * kilos_destino) as total_liquidacion
                             FROM cobranzas
                             JOIN liquidacion_viajes ON liquidacion_viajes.id = cobranzas.id

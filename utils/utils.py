@@ -7,12 +7,12 @@ from app_database import app
 from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 
-def string_to_int(string):
+def string_to_int(string, default=0):
     try:
         integer_value = int(string)
         return integer_value
     except ValueError:
-        return 0
+        return default
     
 
 def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
@@ -127,7 +127,7 @@ def agregar_liquidacion(chofer):
             app.logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
             raise e
     else:
-        app.logger.warning('Entrada ya exite en tabla Liquidaciones')
+        app.logger.warning('Entrada ya existe en tabla Liquidaciones')
         liquidaciones_ordenadas = sorted(
             existing_entries, key=lambda liq: liq.fecha_liquidacion, reverse=True)
         return liquidaciones_ordenadas[0].fecha_liquidacion

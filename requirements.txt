@@ -1,0 +1,10 @@
+flask_caching
+flask
+python-dotenv
+Flask-Cors
+Flask-SQLAlchemy
+SQLAlchemy
+mysqlclient
+python-dateutil
+openpyxl
+pandas

@@ -8,7 +8,7 @@ from utils.schema import db, Planillas
 
 def post_planilla():
     fecha = request.json.get('fecha')
-    return post_planilla(fecha)
+    return agregar_planilla(fecha)
 
 def agregar_planilla(fecha):
     try:
