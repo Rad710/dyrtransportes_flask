@@ -130,7 +130,7 @@ pipeline {
         stage('Tag GIT Repo') {
             when {
                 expression {
-                    return !dockerComposeFile.isEmpty()
+                    return !tag.isEmpty()
                 }
             }
             steps {
@@ -152,7 +152,7 @@ pipeline {
         stage('Push Docker Registry') {
             when {
                 expression {
-                    return !dockerComposeFile.isEmpty()
+                    return !tag.isEmpty()
                 }
             }
             steps {
@@ -170,7 +170,7 @@ pipeline {
         stage('Archive Artifact') {
             when {
                 expression {
-                    return !dockerComposeFile.isEmpty() && BRANCH_NAME != 'develop'
+                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
                 }
             }
 
@@ -202,7 +202,7 @@ pipeline {
         stage('Create GitHub Release') {
             when {
                 expression {
-                    return !dockerComposeFile.isEmpty() && BRANCH_NAME != 'develop'
+                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
                 }
             }
 
@@ -259,7 +259,7 @@ pipeline {
         stage('Deploy Docker Host') {
             when {
                 expression {
-                    return !dockerComposeFile.isEmpty()
+                    return !tag.isEmpty()
                 }
             }
             steps {
@@ -293,7 +293,7 @@ pipeline {
                 }
 
                 notificationMessage = tagComment + " Result: ${currentBuild.currentResult}."
-                if (!dockerComposeFile.isEmpty()) {
+                if (!tag.isEmpty()) {
                     notificationMessage += " Push to Docker Registry with tag: ${tag}."
                 }
 
