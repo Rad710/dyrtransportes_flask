@@ -63,14 +63,14 @@ pipeline {
                     }
 
                     if (BRANCH_NAME == 'main') {
-                        imageName = 'dyrtransportes/backend/prod/dyrtransportes-flask'
+                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
 
                         tag = sh(returnStdout: true, script: 'git describe --tags --abbrev=0').trim()
                         tag = tag.split("\\.")[0..2].join(".")
                     }
 
                     if (BRANCH_NAME == 'develop') {
-                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask-test'
+                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
 
                         tag = "0.0.${BUILD_ID}-test"
                     }
@@ -287,7 +287,7 @@ pipeline {
                 echo 'Post stage cleaning...'
 
                 try {
-                    sh "docker rmi -f ${imageName}:${tag} ${imageName}:latest"
+                    sh "docker rmi -f \$(docker images -q ${imageName})"
                 } catch (e) {
                     echo 'No docker image to delete. Or failure when deleting!'
                 }

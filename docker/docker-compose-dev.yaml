@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   dyrtransportes-flask-dev:
-    image: localhost:5000/dyrtransportes/dev/dyrtransportes-flask:latest
+    image: localhost:5000/dyrtransportes/backend/dev/dyrtransportes-flask:latest
     
     ports:
       - 8081:8081
