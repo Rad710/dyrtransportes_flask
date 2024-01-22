@@ -2,5 +2,5 @@
 utils/__pycache__
 __pycache__
 tempCodeRunnerFile.py
-# .env
-# **/.env
+.env
+**/.env
