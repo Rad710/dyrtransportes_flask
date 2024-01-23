@@ -23,7 +23,6 @@ DB_NAME = os.getenv('DB_NAME')
 
 print('DB_HOST: ', DB_HOST)
 
-# connection string: mysql://user:pword@host/db
 connection_string = f'mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}'
 app.config['SQLALCHEMY_DATABASE_URI'] = connection_string
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}

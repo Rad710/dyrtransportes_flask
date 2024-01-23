@@ -7,6 +7,12 @@ services:
     ports:
       - 8081:8081
 
+    environment:
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - DB_HOST=dyrtransportes-mysql-dev
+      - DB_NAME=dyrtransportes
+
     container_name: dyrtransportes-flask-dev
 
     networks:

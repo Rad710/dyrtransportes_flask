@@ -101,14 +101,6 @@ pipeline {
                 script {
                     echo "Building..."
 
-                    sh """
-                        rm .env
-                        echo "DB_USERNAME = 'root'" >> .env
-                        echo "DB_PASSWORD = 'root'" >> .env
-                        echo "DB_HOST = 'dyrtransportes-mysql-dev'" >> .env
-                        echo "DB_NAME = 'dyrtransportes'" >> .env
-                    """
-
                     dockerImage = docker.build(imageName, "-f docker/Dockerfile .")
                 }
             }
@@ -200,9 +192,14 @@ pipeline {
                     sh "docker cp ${containerName}:/usr/share/nginx/html ./artifact"
                     sh "docker compose -f ${dockerComposeFile} down"
 
-                    sh "tar -czvf ${serviceName}-${tag}.tar.gz ./artifact"
+                    tarFileName = "${serviceName}-${tag}.tar.gz"
 
-                    archiveArtifacts artifacts: "${serviceName}-${tag}.tar.gz",
+                    tar file: tarFileName
+                        archive: false
+                        compress: true 
+                        dir: "artifact"
+
+                    archiveArtifacts artifacts: tarFileName,
                         allowEmptyArchive: true,
                         fingerprint: true,
                         onlyIfSuccessful: true
@@ -256,8 +253,8 @@ pipeline {
                                 -H "Accept: application/vnd.github+json" \
                                 -H "X-GitHub-Api-Version: 2022-11-28" \
                                 -H "Content-Type:application/octet-stream" \
-                                "${uploadUrl}/assets?name=${serviceName}-${tag}.tar.gz" \
-                                --data-binary "@${serviceName}-${tag}.tar.gz"
+                                "${uploadUrl}/assets?name=${tarFileName}" \
+                                --data-binary "@${tarFileName}"
                             """
                         } catch (e) {
                             echo "Error en crear GitHub Release: ${e}"
