@@ -11,6 +11,8 @@ EXPOSE 8081
 WORKDIR /app
 
 COPY requirements.txt .
+COPY docker/wait-for-it.sh wait-for-it.sh
+COPY docker/entrypoint.sh entrypoint.sh
 
 RUN pip install -r requirements.txt
 
@@ -20,4 +22,4 @@ RUN pip install -r requirements.txt --upgrade
 
 ENV FLASK_APP=flask_app.py
 
-CMD ["flask", "run", "--host", "0.0.0.0", "--port", "8081"]
+CMD ["./wait-for-it.sh", "-t", "0", "dyrtransportes-mysql-dev:3306", "--", "./entrypoint.sh"]

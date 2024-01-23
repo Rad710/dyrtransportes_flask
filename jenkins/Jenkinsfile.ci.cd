@@ -141,7 +141,7 @@ pipeline {
         stage('Tag GIT Repo') {
             when {
                 expression {
-                    return !tag.isEmpty()
+                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
                 }
             }
             steps {
