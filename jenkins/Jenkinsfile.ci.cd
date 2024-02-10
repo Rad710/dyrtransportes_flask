@@ -122,7 +122,7 @@ pipeline {
                     """
 
                     def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv("http://localhost:9000") {
+                    withSonarQubeEnv("http://sonarqube-community:9000") {
                         sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
@@ -228,6 +228,8 @@ pipeline {
                 script {
                     echo "Deploying..."
 
+                    sh "echo -n \"REGISTRY = 'localhost:5000'\" > docker/.env"
+
                     dockerContext = "default"
                     echo "Deploy to Docker Host in ${dockerContext}"
 
@@ -285,6 +287,10 @@ pipeline {
                 //     notificationColor = 'good'
                 // }
                 // slackSend(channel: "@${userId}", color: "${notificationColor}", message: "${notificationMessage}", notifyCommitters: true)
+
+                mineRepository()
+                gitDiffStat()
+                discoverGitReferenceBuild(targetBranch: 'main')
             }
         }
     }
