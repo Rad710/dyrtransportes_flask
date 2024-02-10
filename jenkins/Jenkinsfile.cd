@@ -208,7 +208,7 @@ pipeline {
                     dockerContext = "remote"
                     echo "Deploy to Docker Host in ${dockerContext}"
 
-                    sshagent (credentials: ["remoteDocker"]) {
+                    sshagent (credentials: ["remote-docker"]) {
                         try {
                             sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} down"
                         } catch (e) {

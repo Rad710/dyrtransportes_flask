@@ -194,7 +194,7 @@ pipeline {
                                 -d '{ "tag_name": "${tag}", \
                                     "target_commitish": "${BRANCH_NAME}", \
                                     "name": "${tag}", \
-                                    "body": "${tagComment.replace('\n', '<br />')}", \
+                                    "body": "${commitList.replace('\n', '<br />')}", \
                                     "draft": false, \
                                     "prerelease": false, \
                                     "generate_release_notes": true}'
@@ -230,17 +230,28 @@ pipeline {
 
                     sh "echo -n \"REGISTRY = 'localhost:5000'\" > docker/.env"
 
-                    dockerContext = "default"
+                    try {
+                        sh "docker context create remote --docker \"host=ssh://rolando@172.20.0.1\""
+
+                        sh "mkdir /home/jenkins/.ssh"
+                        sh "ssh-keyscan -H -t ssh-ed25519 172.20.0.1 >> /home/jenkins/.ssh/known_hosts"
+                    } catch (e) {
+                        echo "docker context already exists!"
+                    }
+                    
+                    dockerContext = "remote"
                     echo "Deploy to Docker Host in ${dockerContext}"
 
-                    try {
-                        sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} down"
-                    } catch (e) {
-                        echo "First time running docker compose!"
-                    }
+                    sshagent (credentials: ["remote-docker"]) {
+                        try {
+                            sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} down"
+                        } catch (e) {
+                            echo "First time running docker compose!"
+                        }
 
-                    sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} pull"
-                    sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} up -d"
+                        sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} pull"
+                        sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} up -d"
+                    }
                 }
             }
         }
