@@ -36,3 +36,6 @@ RUN wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-s
     && unzip sonar-scanner-cli-5.0.1.3006-linux.zip -d . \
     && mv sonar-scanner-5.0.1.3006-linux sonar-scanner \
     && rm sonar-scanner-cli-5.0.1.3006-linux.zip
+
+ENV PATH=$PATH:/opt/sonar-scanner/bin
+WORKDIR /app
