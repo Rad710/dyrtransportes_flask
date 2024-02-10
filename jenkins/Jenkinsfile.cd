@@ -165,7 +165,7 @@ pipeline {
                                 -d '{ "tag_name": "${TAG}", \
                                     "target_commitish": "${BRANCH_NAME}", \
                                     "name": "${TAG}", \
-                                    "body": "${TAG_COMMENT}", \
+                                    "body": "${TAG_COMMENT.replace('\n', '<br />')}", \
                                     "draft": false, \
                                     "prerelease": false, \
                                     "generate_release_notes": true}'
