@@ -169,43 +169,6 @@ pipeline {
             }
         }
 
-        stage('Archive Artifact') {
-            when {
-                expression {
-                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
-                }
-            }
-
-            steps {
-                script {
-                    echo "Archiving..."
-                    // usar el docker compose para tener env de diferentes ambientes
-                    sh "docker compose -f ${dockerComposeFile} up -d"
-                    
-                    dockerEnv = dockerComposeFile.replace('docker/docker-compose-', '')
-                    dockerEnv = dockerEnv.replace('.yaml', '')
-                    serviceName = "dyrtransportes-flask-" + dockerEnv
-                    containerName = sh(script: "docker compose -f ${dockerComposeFile} ps -q ${serviceName}", 
-                        returnStdout: true).trim() 
-                    
-                    sh "docker cp ${containerName}:/usr/share/nginx/html ./artifact"
-                    sh "docker compose -f ${dockerComposeFile} down"
-
-                    tarFileName = "${serviceName}-${tag}.tar.gz"
-
-                    tar file: tarFileName
-                        archive: false
-                        compress: true 
-                        dir: "artifact"
-
-                    archiveArtifacts artifacts: tarFileName,
-                        allowEmptyArchive: true,
-                        fingerprint: true,
-                        onlyIfSuccessful: true
-                }
-            }
-        }
-
         stage('Create GitHub Release') {
             when {
                 expression {

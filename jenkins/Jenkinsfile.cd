@@ -2,12 +2,11 @@ def username = ''
 def email = ''
 
 def imageName = ''
-def tagComment = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}. Build URL: ${BUILD_URL}"
 
 def dockerImage
 def dockerComposeFile = 'docker/docker-compose-dev.yaml'
 
-def registry = 'http://localhost:5000'
+def registry = 'http://docker-registry-server:5000'
 // def registryCredentials = 'localhost-docker-registry'
 
 def numberCommits = 5
@@ -110,7 +109,7 @@ pipeline {
                     """
 
                     def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv("http://localhost:9000") {
+                    withSonarQubeEnv("http://sonarqube-community:9000") {
                         sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
@@ -143,37 +142,6 @@ pipeline {
                         dockerImage.push("${TAG}")
                         dockerImage.push("latest")
                     }
-                }
-            }
-        }
-
-        stage('Archive Artifact') {
-            steps {
-                script {
-                    echo "Archiving..."
-                    // usar el docker compose para tener env de diferentes ambientes
-                    sh "docker compose -f ${dockerComposeFile} up -d"
-                    
-                    dockerEnv = dockerComposeFile.replace('docker/docker-compose-', '')
-                    dockerEnv = dockerEnv.replace('.yaml', '')
-                    serviceName = "dyrtransportes-flask-" + dockerEnv
-                    containerName = sh(script: "docker compose -f ${dockerComposeFile} ps -q ${serviceName}", 
-                        returnStdout: true).trim() 
-                    
-                    sh "docker cp ${containerName}:/usr/share/nginx/html ./artifact"
-                    sh "docker compose -f ${dockerComposeFile} down"
-
-                    tarFileName = "${serviceName}-${TAG}.tar.gz"
-
-                    tar file: tarFileName
-                        archive: false
-                        compress: true 
-                        dir: "artifact"
-
-                    archiveArtifacts artifacts: tarFileName,
-                        allowEmptyArchive: true,
-                        fingerprint: true,
-                        onlyIfSuccessful: true
                 }
             }
         }
@@ -260,7 +228,7 @@ pipeline {
                     echo 'No docker image to delete. Or failure when deleting!'
                 }
 
-                notificationMessage = TAG_COMMENT + " Result: ${currentBuild.currentResult}. Push to Docker Registry with tag: ${TAG}"
+                notificationMessage = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}. Build URL: ${BUILD_URL}. Result: ${currentBuild.currentResult}. Push to Docker Registry with tag: ${TAG}"
 
                 blameData = [:]
                 myTags = ['blame_data':['author': username, 'email': email, 'cause': currentBuild.getBuildCauses()[0].shortDescription]]
@@ -288,6 +256,10 @@ pipeline {
                 //     notificationColor = 'good'
                 // }
                 // slackSend(channel: "@${userId}", color: "${notificationColor}", message: "${notificationMessage}", notifyCommitters: true)
+
+                mineRepository()
+                gitDiffStat()
+                discoverGitReferenceBuild(targetBranch: 'main')
             }
         }
     }
