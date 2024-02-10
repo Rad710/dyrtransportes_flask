@@ -108,7 +108,7 @@ pipeline {
 
                 recordIssues enabledForFailure: true, 
                     aggregatingResults: true, 
-                    tools: [androidLintParser(pattern: 'flask/pylint.log')],
+                    tools: [pyLint(pattern: 'flask/pylint.log')],
                     qualityGates: [[threshold: 1, type: 'TOTAL_ERROR', failed: true], [threshold: 1, type: 'TOTAL_HIGH', failed: true]]
 
                 echo 'Testing must be implemented...'
