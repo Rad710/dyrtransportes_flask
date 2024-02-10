@@ -4,6 +4,8 @@ services:
   dyrtransportes-flask-dev:
     image: ${REGISTRY}/dyrtransportes/backend/dev/dyrtransportes-flask:latest
     
+    restart: always
+
     ports:
       - 8081:8081
 

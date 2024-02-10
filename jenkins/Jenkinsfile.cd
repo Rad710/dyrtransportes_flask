@@ -244,15 +244,15 @@ pipeline {
                 echo "Custom measurements: ${customMeasurementFields}. Custom tags: ${myTags}"
 
 
-                // mail to: "rolmedro@gmail.com",
-                //     subject: TAG_COMMENT,
-                //     body : notificationMessage
+                mail to: "rolmedro@gmail.com",
+                    subject: "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}",
+                    body : "${notificationMessage}'\n'${TAG_COMMENT}"
 
-                // withSonarQubeEnv("http://localhost:9000") {
-                //     influxDbPublisher(selectedTarget: 'influxdb', 
-                //         customDataMap: customMeasurementFields, 
-                //         customDataMapTags: myTags)
-                // }
+                withSonarQubeEnv("http://sonarqube-community:9000") {
+                    influxDbPublisher(selectedTarget: 'influxdb', 
+                        customDataMap: customMeasurementFields, 
+                        customDataMapTags: myTags)
+                }
 
                 // userId = slackUserIdFromEmail(email)
                 // if (currentBuild.currentResult != 'SUCCESS') {

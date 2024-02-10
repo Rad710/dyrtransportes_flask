@@ -281,15 +281,15 @@ pipeline {
                 echo "Custom measurements: ${customMeasurementFields}. Custom tags: ${myTags}"
 
 
-                // mail to: "rolmedro@gmail.com",
-                //     subject: tagComment,
-                //     body : notificationMessage
+                mail to: "rolmedro@gmail.com",
+                    subject: tagComment,
+                    body : notificationMessage
 
-                // withSonarQubeEnv("http://localhost:9000") {
-                //     influxDbPublisher(selectedTarget: 'influxdb', 
-                //         customDataMap: customMeasurementFields, 
-                //         customDataMapTags: myTags)
-                // }
+                withSonarQubeEnv("http://sonarqube-community:9000") {
+                    influxDbPublisher(selectedTarget: 'influxdb', 
+                        customDataMap: customMeasurementFields, 
+                        customDataMapTags: myTags)
+                }
 
                 // userId = slackUserIdFromEmail(email)
                 // if (currentBuild.currentResult != 'SUCCESS') {
