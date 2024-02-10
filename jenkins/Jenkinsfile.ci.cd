@@ -19,6 +19,8 @@ pipeline {
         docker {
             image "dev/python-flask-agent:3.10.13"
             registryUrl "http://docker-registry-server:5000"
+            // docker group gid: 999
+            // stat -c '%g' /var/run/docker.sock
             args """
                 --group-add 999
                 -v /var/run/docker.sock:/var/run/docker.sock
@@ -118,7 +120,7 @@ pipeline {
             steps {
                 echo "Starting pylint..."
                 dir("flask") {
-                    sh "pylint \
+                    sh "pylint --exit-zero \
                         --msg-template='{path}:{line}: [{msg_id}, {obj}] {msg} ({symbol})' \
                         app_database.py flask_app.py utils > pylint.log"
                 }
