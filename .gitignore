@@ -5,3 +5,4 @@ tempCodeRunnerFile.py
 .env
 **/.env
 pylint.log
+.scannerwork/

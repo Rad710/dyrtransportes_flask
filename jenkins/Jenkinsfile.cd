@@ -110,12 +110,12 @@ pipeline {
                     sh "pylint --exit-zero \
                         --msg-template='{path}:{line}: [{msg_id}, {obj}] {msg} ({symbol})' \
                         app_database.py flask_app.py utils > pylint.log"
-                }
 
-                recordIssues enabledForFailure: true, 
-                    aggregatingResults: true, 
-                    tools: [pyLint(pattern: 'flask/pylint.log')],
-                    qualityGates: [[threshold: 1, type: 'TOTAL_ERROR', failed: true], [threshold: 1, type: 'TOTAL_HIGH', failed: true]]
+                    recordIssues enabledForFailure: true, 
+                        aggregatingResults: true, 
+                        tools: [pyLint(pattern: 'pylint.log')],
+                        qualityGates: [[threshold: 1, type: 'TOTAL_ERROR', failed: true], [threshold: 1, type: 'TOTAL_HIGH', failed: true]]
+                }
 
                 echo 'Testing must be implemented...'
             }
@@ -126,14 +126,11 @@ pipeline {
                 script {
                     echo 'Scanning...'
 
-                    sh """
-                        echo "sonar.projectKey=D-y-R-Transportes-Flask" >> sonar-project.properties
-                        echo "sonar.python.version=3.10" >> sonar-project.properties
-                    """
-
-                    def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv("http://sonarqube-community:9000") {
-                        sh "${scannerHome}/bin/sonar-scanner"
+                    dir("flask") {
+                        withSonarQubeEnv("http://sonarqube-community:9000") {
+                            sh "sonar-scanner -Dsonar.projectKey=D-y-R-Transportes-Flask \
+                                -Dsonar.python.version=3.10"
+                        }
                     }
                 }
             }
@@ -271,12 +268,13 @@ pipeline {
                     subject: "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}",
                     body : "${notificationMessage}'\n'${TAG_COMMENT}"
 
-                withSonarQubeEnv("http://sonarqube-community:9000") {
-                    influxDbPublisher(selectedTarget: 'influxdb', 
-                        customDataMap: customMeasurementFields, 
-                        customDataMapTags: myTags)
+                dir("flask") {
+                    withSonarQubeEnv("http://sonarqube-community:9000") {
+                        influxDbPublisher(selectedTarget: 'influxdb', 
+                            customDataMap: customMeasurementFields, 
+                            customDataMapTags: myTags)
+                    }
                 }
-
                 // userId = slackUserIdFromEmail(email)
                 // if (currentBuild.currentResult != 'SUCCESS') {
                 //     notificationColor = 'danger'
