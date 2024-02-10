@@ -28,10 +28,11 @@ RUN echo \
 
 #Install Docker CLI
 RUN apt-get -y update && apt-get -y install docker-ce-cli \
-    inetutils-ping wget zip jq curl npm && \
+    inetutils-ping wget zip jq curl && \
     apt-get clean -y
 
-RUN npm install -g sonarqube-scanner
-
-USER jenkins
-RUN sonar-scanner --version
+WORKDIR /opt
+RUN wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip \
+    && unzip sonar-scanner-cli-5.0.1.3006-linux.zip -d . \
+    && mv sonar-scanner-5.0.1.3006-linux sonar-scanner \
+    && rm sonar-scanner-cli-5.0.1.3006-linux.zip
