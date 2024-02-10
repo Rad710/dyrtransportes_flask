@@ -3,7 +3,7 @@ from flask import request, jsonify
 from dateutil import parser
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, Cobranzas, LiquidacionViajes
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, string_to_int
 
@@ -36,25 +36,25 @@ def crear_cobranza_liquidacion(cobranza):
                         tiquet, kilos_origen, kilos_destino, precio, fecha_creacion)
     except IntegrityError as e:
         error_message = f"Entrada duplicada {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
     except Exception as e:
         error_message = f"Error al agregar entrada a la tabla Cobranzas {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     try:
         fecha_liquidacion = agregar_liquidacion(chofer)
     except Exception as e:
         error_message = f"Error al agregar nueva liquidacion {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     try:
         agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer)
     except Exception as e:
         error_message = f"Error al agregar a liquidacion del chofer {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     return jsonify({"success": "Entrada agregada exitosamente a la tabla Cobranzas"}), 200
@@ -112,7 +112,7 @@ def get_cobranza(fecha_creacion):
     
     except Exception as e:
         error_message = f"Error en GET cobranza {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -154,11 +154,11 @@ def put_cobranza(id):
 
     try:
         db.session.commit()
-        app.logger.warning('Cobranza actualizada exitosamente')
+        logger.warning('Cobranza actualizada exitosamente')
     except Exception as e:
         db.session.rollback()
         error_message = f"Error al actualizar Cobranzas {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     return jsonify({"success": "Entrada actualizada exitosamente en la tabla Cobranzas"}), 200    
@@ -174,7 +174,7 @@ def delete_cobranza(id):
         except Exception as e:
             db.session.rollback()
             error_message = f'Error al eliminar la cobranza {str(e)}'
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Cobranza no encontrada'}), 404

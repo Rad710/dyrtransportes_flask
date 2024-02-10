@@ -2,7 +2,7 @@ from flask import request, jsonify
 
 from dateutil import parser
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, LiquidacionViajes, Cobranzas, Liquidaciones
 from utils.utils import agregar_cobranza, string_to_int
 
@@ -30,7 +30,7 @@ def post_liquidacion_viaje():
                                        tiquet, kilos_origen, kilos_destino, precio, None)
     except Exception as e:
         error_message = f"Error al agregar entrada a la tabla Cobranzas {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     try:
@@ -40,12 +40,12 @@ def post_liquidacion_viaje():
             
         db.session.add(liq)
         db.session.commit()
-        app.logger.warning("Nueva entrada en lista de liquidaciones agregada")
+        logger.warning("Nueva entrada en lista de liquidaciones agregada")
         return jsonify({'success': 'Liquidaciones Viaje agregado exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
         error_message = f'Error al cargar en tabla Liquidaciones Viajes {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
@@ -79,7 +79,7 @@ def get_liquidacion_viajes(chofer, fecha):
 
     except Exception as e:
         error_message = f'Error en GET tabla Liquidaciones Viajes {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
     
 
@@ -124,11 +124,11 @@ def put_liquidacion_viaje(id):
 
     try:
         db.session.commit()
-        app.logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')
+        logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')
     except Exception as e:
         db.session.rollback()
         error_message = f'Error al actualizar Liquidacion Viaje y Cobranza {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
     return jsonify({"success": "Entrada actualizada exitosamente en la tabla Cobranzas y LiquidacionViajes"}), 200    
@@ -148,5 +148,5 @@ def delete_liquidacion_viaje(id):
     except Exception as e:
         db.session.rollback()
         error_message = f'Error al eliminar Viaje {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500

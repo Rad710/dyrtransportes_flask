@@ -8,7 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
 
 
@@ -282,7 +282,7 @@ def exportar_cobranza(fecha_creacion):
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers[
         'Content-Disposition'] = f'attachment; filename=cobranza_{fecha_creacion}.xlsx'
-    app.logger.warning(f'Cobranza exportada {fecha_creacion}')
+    logger.warning(f'Cobranza exportada {fecha_creacion}')
 
     return response
 
@@ -368,7 +368,7 @@ def exportar_informe_planillas(fecha_inicio, fecha_fin):
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers[
         'Content-Disposition'] = f'attachment; filename=informe_{fecha_inicio}-{fecha_fin}.xlsx'
-    app.logger.warning(f'Informe exportado: {fecha_inicio}-{fecha_fin}')
+    logger.warning(f'Informe exportado: {fecha_inicio}-{fecha_fin}')
 
     return response
 
@@ -780,7 +780,7 @@ def exportar_liquidacion(chofer, fecha):
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers['Content-Disposition'] = f'attachment; filename={chofer}_Liquidacion_{fecha}.xlsx'
-    app.logger.warning(f'Liquidacion {chofer}_{fecha} exportada')
+    logger.warning(f'Liquidacion {chofer}_{fecha} exportada')
 
     return response
 
@@ -840,5 +840,5 @@ def exportar_precios():
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers['Content-Disposition'] = 'attachment; filename=lista_de_precios.xlsx'
 
-    app.logger.warning("Lista de Precios exportada")
+    logger.warning("Lista de Precios exportada")
     return response

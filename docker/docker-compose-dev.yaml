@@ -1,11 +1,19 @@
 version: "3.9"
 
 services:
-  dyrtransportes-react-dev:
-    image: localhost:5000/dyrtransportes/dev/dyrtransportes-flask:latest
+  dyrtransportes-flask-dev:
+    image: ${REGISTRY}/dyrtransportes/backend/dev/dyrtransportes-flask:latest
     
+    restart: always
+
     ports:
       - 8081:8081
+
+    environment:
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - DB_HOST=dyrtransportes-mysql-dev
+      - DB_NAME=dyrtransportes
 
     container_name: dyrtransportes-flask-dev
 
@@ -15,7 +23,7 @@ services:
 
 
   dyrtransportes-mysql-db:
-    image: localhost:5000/mysql/mysql:8
+    image: ${REGISTRY}/mysql/mysql:8
 
     restart: always
 
@@ -39,7 +47,7 @@ services:
 
 
   dyrtransportes-adminer:
-    image: adminer
+    image: ${REGISTRY}/adminer/adminer:4.8.1
 
     restart: always
 

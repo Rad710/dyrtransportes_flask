@@ -1,0 +1,292 @@
+def username = ''
+def email = ''
+
+def imageName = ''
+
+def dockerImage
+def dockerComposeFile = 'docker/docker-compose-dev.yaml'
+
+def dockerRegistry = 'http://docker-registry-server:5000'
+// def registryCredentials = 'localhost-docker-registry'
+
+def numberCommits = 5
+def commitList = ''
+
+if (TARGET_ENV == 'DEV') {
+    env.TAG += '-dev'
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+    
+} else if (TARGET_ENV == 'RC') {
+    env.TAG += '-rc'
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+
+} else if (TARGET_ENV == 'PROD') {
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+}
+
+pipeline {
+    agent {
+        docker {
+            image "dev/python-flask-agent:3.10.13"
+            registryUrl "http://docker-registry-server:5000"
+            // docker group gid: 999
+            // stat -c '%g' /var/run/docker.sock
+            args """
+                --group-add 999
+                -v /var/run/docker.sock:/var/run/docker.sock
+            """
+        }
+    }
+
+    options {
+        skipDefaultCheckout()
+    }
+
+    environment {
+        GITHUB_REPO = 'Rad710/dyrtransportes_flask'
+    }
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                script {
+                    echo "Cloning Repository..."
+
+                    checkout scm
+                }
+            }
+        }
+
+        stage('Prepare') {
+            steps {
+                script {
+                    echo 'Preparing...'
+
+                    echo 'env Variables'
+                    echo "PATH is: $PATH"
+                    echo "USER is: $USER"
+
+                    sh 'printenv'
+                    script {
+                        params.each { param, value ->
+                            print "Parameter: ${param}, Value: ${value}"
+                        }
+                    }
+
+                    username = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                    email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+                    echo "Repo Author name: ${username}/email:${email}"
+
+                    if (currentBuild.getBuildCauses()[0].shortDescription.contains("Started by user")) {
+                        username = null
+                        email = currentBuild.getBuildCauses()[0].userId
+                    }
+    
+                    echo "Author: ${username}/${email}"
+
+                    commitList = sh(returnStdout: true, script: "git log -${numberCommits} --format=\"%s\"").trim()
+                    echo "List of Commits: ${commitList}"
+
+                    sh 'git config --global user.name "jenkins"'
+                    sh 'git config --global user.email "jenkins@jenkins.com"'
+                }
+            }
+        }
+
+        stage('Build Step') {
+            steps {
+                script {
+                    echo "Building..."
+
+                    dockerImage = docker.build(imageName, "-f docker/Dockerfile .")
+                }
+            }
+        }
+
+        stage('Test & pylint') {
+            steps {
+                echo "Starting pylint..."
+                dir("flask") {
+                    sh "pylint --exit-zero \
+                        --msg-template='{path}:{line}: [{msg_id}, {obj}] {msg} ({symbol})' \
+                        app_database.py flask_app.py utils > pylint.log"
+
+                    recordIssues enabledForFailure: true, 
+                        aggregatingResults: true, 
+                        tools: [pyLint(pattern: 'pylint.log')],
+                        qualityGates: [[threshold: 1, type: 'TOTAL_ERROR', failed: true], [threshold: 1, type: 'TOTAL_HIGH', failed: true]]
+                }
+
+                echo 'Testing must be implemented...'
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                script {
+                    echo 'Scanning...'
+
+                    dir("flask") {
+                        withSonarQubeEnv("http://sonarqube-community:9000") {
+                            sh "sonar-scanner -Dsonar.projectKey=D-y-R-Transportes-Flask \
+                                -Dsonar.python.version=3.10"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Tag GIT Repo') {
+            steps {
+                script {
+                    echo "Tagging..."
+                    echo "GIT tag: ${tag}. Tag comment: ${TAG_COMMENT}"
+                    withCredentials([usernamePassword(credentialsId: 'rad710-jenkins-github-app',
+                        usernameVariable: 'GITHUB_APP',
+                        passwordVariable: 'GITHUB_ACCESS_TOKEN')]) {  
+                    
+                        sh "git tag -a ${TAG} -m \"${TAG_COMMENT}\" "
+                        sh "git push https://${GITHUB_APP}:${GITHUB_ACCESS_TOKEN}@github.com/${GITHUB_REPO}.git ${tag}"
+                        sh "git tag -d ${TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Registry') {
+            steps {
+                script {
+                    echo "Pushing..."
+                    docker.withRegistry(dockerRegistry) {
+                        echo "Push Docker Image: ${imageName} with tag: ${TAG}"
+                        dockerImage.push("${TAG}")
+                        dockerImage.push("latest")
+                    }
+                }
+            }
+        }
+
+        stage('Create GitHub Release') {
+            steps {
+                script {
+                    echo "Releasing..."
+                    withCredentials([usernamePassword(credentialsId: 'rad710-jenkins-github-app',
+                        usernameVariable: 'GITHUB_APP',
+                        passwordVariable: 'GITHUB_ACCESS_TOKEN')]) {
+
+                        try {
+                            createRelease = sh(script: """
+                                curl -s -X POST \
+                                -w "%{http_code}" \
+                                -H "Authorization: token ${GITHUB_ACCESS_TOKEN}" \
+                                -H "Accept: application/vnd.github+json" \
+                                -H "X-GitHub-Api-Version: 2022-11-28" \
+                                https://api.github.com/repos/${GITHUB_REPO}/releases \
+                                -d '{ "tag_name": "${TAG}", \
+                                    "target_commitish": "${BRANCH_NAME}", \
+                                    "name": "${TAG}", \
+                                    "body": "${TAG_COMMENT.replace('\n', '<br />')}", \
+                                    "draft": false, \
+                                    "prerelease": false, \
+                                    "generate_release_notes": true}'
+                            """, returnStdout: true).trim()
+
+                            responseCode = createRelease.split('\n')[-1] as Integer
+                            createRelease = createRelease.split(responseCode as String)[0]
+
+                            echo "Create Release Respose: ${createRelease}"
+                            echo "Response Code from GitHub Release: ${responseCode}"
+
+                            responseJSON = readJSON(text: createRelease)
+                            uploadUrl = responseJSON['upload_url'].replace('/assets{?name,label}', '')
+
+                            echo "Upload URL: ${uploadUrl}"
+                        } catch (e) {
+                            echo "Error en crear GitHub Release: ${e}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Docker Host') {
+            steps {
+                script {
+                    echo "Deploying..."
+
+                    sh "echo -n \"REGISTRY = 'localhost:5000'\" > docker/.env"
+
+                    try {
+                        sh "docker context create remote --docker \"host=ssh://rolando@172.20.0.1\""
+
+                        sh "mkdir /home/jenkins/.ssh"
+                        sh "ssh-keyscan -H -t ssh-ed25519 172.20.0.1 >> /home/jenkins/.ssh/known_hosts"
+                    } catch (e) {
+                        echo "docker context already exists!"
+                    }
+                    
+                    dockerContext = "remote"
+                    echo "Deploy to Docker Host in ${dockerContext}"
+
+                    sshagent (credentials: ["remote-docker"]) {
+                        try {
+                            sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} down"
+                        } catch (e) {
+                            echo "First time running docker compose!"
+                        }
+
+                        sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} pull"
+                        sh "docker --context ${dockerContext} compose -f ${dockerComposeFile} up -d"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                echo 'Post stage cleaning...'
+
+                try {
+                    sh "docker rmi -f \$(docker images -q ${imageName})"
+                } catch (e) {
+                    echo 'No docker image to delete. Or failure when deleting!'
+                }
+
+                notificationMessage = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}. Build URL: ${BUILD_URL}. Result: ${currentBuild.currentResult}. Push to Docker Registry with tag: ${TAG}"
+
+                blameData = [:]
+                myTags = ['blame_data':['author': username, 'email': email, 'cause': currentBuild.getBuildCauses()[0].shortDescription]]
+
+                def customMeasurementFields = [:]
+                customMeasurementFields['blame_data'] = blameData
+                
+                echo "Custom measurements: ${customMeasurementFields}. Custom tags: ${myTags}"
+
+
+                mail to: "rolmedro@gmail.com",
+                    subject: "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}",
+                    body : "${notificationMessage}'\n'${TAG_COMMENT}"
+
+                dir("flask") {
+                    withSonarQubeEnv("http://sonarqube-community:9000") {
+                        influxDbPublisher(selectedTarget: 'influxdb', 
+                            customDataMap: customMeasurementFields, 
+                            customDataMapTags: myTags)
+                    }
+                }
+                // userId = slackUserIdFromEmail(email)
+                // if (currentBuild.currentResult != 'SUCCESS') {
+                //     notificationColor = 'danger'
+                // }  else {
+                //     notificationColor = 'good'
+                // }
+                // slackSend(channel: "@${userId}", color: "${notificationColor}", message: "${notificationMessage}", notifyCommitters: true)
+
+                mineRepository()
+                gitDiffStat()
+                discoverGitReferenceBuild(targetBranch: 'main')
+            }
+        }
+    }
+}

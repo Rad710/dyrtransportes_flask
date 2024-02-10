@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from sqlalchemy import distinct, desc
-from app_database import app
+from app_database import logger
 from utils.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 
@@ -16,7 +16,7 @@ def post_liquidacion():
 
     except Exception as e:
         error_message = f'Error al agregar a tabla del Liquidaciones {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
     
 
@@ -27,13 +27,13 @@ def get_liquidacion(chofer, fecha):
 
     except Exception as e:
         error_message = f'Error GET Tabla Liquidaciones {chofer}/{fecha} {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
 def put_liquidacion(id):
     liquidacion = request.json.get('liquidacion')
-    app.logger.warning(liquidacion)
+    logger.warning(liquidacion)
     # fecha_liquidacion = parser.isoparse(liquidacion['fechaLiquidacion']).date()
     # chofer = liquidacion['chofer']
     pagado = liquidacion['pagado']
@@ -46,13 +46,13 @@ def put_liquidacion(id):
     existing_liquidacion.pagado = pagado
     try:
         db.session.commit()
-        app.logger.warning('Liquidacion actualizada exitosamente')
+        logger.warning('Liquidacion actualizada exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla Liquidaciones"}), 200    
 
     except Exception as e:
         db.session.rollback()
         error_message = f'Error al actualizar Liquidacion {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -65,7 +65,7 @@ def get_liquidaciones():
 
     except Exception as e:
         error_message = f'Error en GET Tabla Liquidaciones {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -82,7 +82,7 @@ def delete_liquidaciones(chofer):
         except Exception as e:
             db.session.rollback()
             error_message = f'Error al eliminar Liquidaciones {str(e)}'
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Liquidaciones no encontradas'}), 404
@@ -99,7 +99,7 @@ def get_liquidaciones_chofer(chofer):
 
     except Exception as e:
         error_message = f'Liquidaciones de {chofer} no encontradas {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
@@ -115,7 +115,7 @@ def delete_liquidaciones_chofer(chofer, fecha):
         except Exception as e:
             db.session.rollback()
             error_message = f'Error al eliminar Liquidaciones {str(e)}'
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Liquidaciones no encontradas'}), 404

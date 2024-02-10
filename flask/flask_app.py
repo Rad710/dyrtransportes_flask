@@ -2,7 +2,7 @@ from flask import send_file
 
 import subprocess
 
-from app_database import app, DB_USERNAME, DB_HOST, DB_NAME
+from app_database import app, logger, DB_USERNAME, DB_HOST, DB_NAME
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -112,11 +112,11 @@ def database_backup():
 
     except Exception as e:
         error_message = f'Error al crear backup {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return error_message, 500
 
 
 
 if __name__ == '__main__':
     print('Flask API starting up...')
-    app.run(host='127.0.0.1', port=8081)
+    app.run(host='0.0.0.0', port=8085)

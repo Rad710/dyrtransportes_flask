@@ -2,7 +2,7 @@ from flask import request, jsonify, send_file
 import pandas as pd
 import datetime
 
-from app_database import app
+from app_database import logger
 from utils.cobranzas import crear_cobranza_liquidacion
 from utils.planillas import agregar_planilla
 
@@ -46,11 +46,11 @@ def importar_cobranza():
 
         df.apply(process_row, axis=1)
 
-        app.logger.warning("File processed successfully")
+        logger.warning("File processed successfully")
         return jsonify({"success": "File processed successfully"}), 200
     except Exception as e:
         error_message = f"Error procesando el archivo {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 

@@ -1,6 +1,6 @@
 from flask import request, jsonify
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, Precios
 from utils.utils import agregar_precio
 
@@ -29,7 +29,7 @@ def get_precios():
     
     except Exception as e:
         error_message = f'Error en GET tabla Precios {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -46,7 +46,7 @@ def get_precio(origen_destino):
             return jsonify({"error": "No se encontro precio en tabla Precios"}), 404
     except Exception as e:
         error_message = f"Error en GET tabla Precios {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -72,7 +72,7 @@ def put_precio(id):
         except Exception as e:
             db.session.rollback()
             error_message = f"Error al actualizar precio {str(e)}"
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Precio no encontrado'}), 404
@@ -89,7 +89,7 @@ def delete_precio(id):
         except Exception as e:
             db.session.rollback()
             error_message = f"Error al eliminar precio {str(e)}"
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Precio no encontrado'}), 404

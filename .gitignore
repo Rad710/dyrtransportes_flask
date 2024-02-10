@@ -4,3 +4,5 @@ __pycache__
 tempCodeRunnerFile.py
 .env
 **/.env
+pylint.log
+.scannerwork/
