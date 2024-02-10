@@ -135,7 +135,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Quality Gate') {
+        stage('SonarQube Analysis') {
             steps {
                 script {
                     echo 'Scanning...'
@@ -147,6 +147,14 @@ pipeline {
                         }
                     }
                 }
+            }
+        }
+
+        stage("SonarQube Quality Gate") {
+            steps {
+              timeout(time: 5, unit: 'MINUTES') {
+                waitForQualityGate abortPipeline: true
+              }
             }
         }
 
