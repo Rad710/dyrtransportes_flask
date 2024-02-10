@@ -8,7 +8,7 @@ def tagComment = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BU
 def dockerImage
 def dockerComposeFile = 'docker/docker-compose-dev.yaml'
 
-def dockerRegistry = 'http://localhost:5000'
+def dockerRegistry = 'http://docker-registry-server:5000'
 // def registryCredentials = 'localhost-docker-registry'
 
 def numberCommits = 5
