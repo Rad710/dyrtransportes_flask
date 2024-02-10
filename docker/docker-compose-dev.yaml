@@ -39,8 +39,8 @@ services:
     container_name: dyrtransportes-mysql-dev
 
     networks:
-      - dyrtransportes
       - dyrtransportes-backend
+      - dyrtransportes
 
     ports:
       - 3306:3306
@@ -61,5 +61,7 @@ services:
       - dyrtransportes-backend
 
 networks:
-  dyrtransportes:
   dyrtransportes-backend:
+  dyrtransportes:
+    name: dyrtransportes
+    external: true

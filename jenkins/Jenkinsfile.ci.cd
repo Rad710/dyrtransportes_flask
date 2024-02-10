@@ -201,7 +201,7 @@ pipeline {
         stage('Create GitHub Release') {
             when {
                 expression {
-                    return !tag.isEmpty() && BRANCH_NAME == 'main'
+                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
                 }
             }
 
