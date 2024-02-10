@@ -2,7 +2,7 @@ from flask import send_file
 
 import subprocess
 
-from app_database import app, DB_USERNAME, DB_HOST, DB_NAME
+from app_database import app, logger, DB_USERNAME, DB_HOST, DB_NAME
 import utils.planillas as planillas
 import utils.cobranzas as cobranzas
 import utils.keywords as nomina
@@ -112,7 +112,7 @@ def database_backup():
 
     except Exception as e:
         error_message = f'Error al crear backup {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return error_message, 500
 
 

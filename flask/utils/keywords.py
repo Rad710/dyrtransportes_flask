@@ -2,7 +2,7 @@ from flask import jsonify
 
 from sqlalchemy import distinct
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, Palabras, Cobranzas, Precios
 
 
@@ -37,7 +37,7 @@ def get_keywords():
 
     except Exception as e:
         error_message = f"Error en GET de keywords: {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -54,7 +54,7 @@ def get_nomina():
 
     except Exception as e:
         error_message = f"Error en GET tabla Nomina {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({f"error": error_message}), 500
 
 
@@ -69,7 +69,7 @@ def delete_nomina(id):
         except Exception as e:
             db.session.rollback()
             error_message = f'Error al eliminar nomina {str(e)}'
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'Nomina no encontrado'}), 404

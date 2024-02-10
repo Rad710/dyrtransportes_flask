@@ -5,12 +5,12 @@ from dateutil import parser
 
 from utils.schema import db
 
-from app_database import app
+from app_database import logger
 
 def get_statistics(fecha_inicio, fecha_fin):
     try:
         ipread1 = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
-        app.logger.warning(f"The client IP is: {ipread1}")
+        logger.warning(f"The client IP is: {ipread1}")
 
         fecha_inicio = parser.isoparse(fecha_inicio).date()
         fecha_fin = parser.isoparse(fecha_fin).date()
@@ -114,5 +114,5 @@ def get_statistics(fecha_inicio, fecha_fin):
 
     except Exception as e:
         error_message = f"Error en GET Statistics {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500

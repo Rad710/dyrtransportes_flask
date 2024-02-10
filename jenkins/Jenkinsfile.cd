@@ -25,7 +25,12 @@ if (TARGET_ENV == 'DEV') {
 }
 
 pipeline {
-    agent any
+    agent {
+        docker {
+            image "dev/python-flask-agent:3.10.13"
+            registryUrl "http://docker-registry-server:5000"
+        }
+    }
 
     options {
         skipDefaultCheckout()
@@ -94,6 +99,18 @@ pipeline {
 
         stage('Test & pylint') {
             steps {
+                echo "Starting pylint..."
+                dir("flask") {
+                    sh "pylint \
+                        --msg-template='{path}:{line}: [{msg_id}, {obj}] {msg} ({symbol})' \
+                        app_database.py flask_app.py utils > pylint.log"
+                }
+
+                recordIssues enabledForFailure: true, 
+                    aggregatingResults: true, 
+                    tools: [androidLintParser(pattern: 'flask/pylint.log')],
+                    qualityGates: [[threshold: 1, type: 'TOTAL_ERROR', failed: true], [threshold: 1, type: 'TOTAL_HIGH', failed: true]]
+
                 echo 'Testing must be implemented...'
             }
         }

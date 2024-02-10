@@ -2,7 +2,7 @@ from flask import request, jsonify
 
 from dateutil import parser
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, LiquidacionGastos, Liquidaciones
 
 
@@ -33,7 +33,7 @@ def post_liquidacion_gasto():
     except Exception as e:
         db.session.rollback()
         error_message = f'Error en POST tabla LiquidacionGastos {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
@@ -57,7 +57,7 @@ def get_liquidacion_gastos(chofer, fecha):
     
     except Exception as e:
         error_message = f'Error en GET tabla LiquidacionGastos {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
@@ -79,13 +79,13 @@ def put_liquidacion_gasto(id):
     existing_gasto.razon = razon
     try:
         db.session.commit()
-        app.logger.warning('Liquidacion Gasto actualizado exitosamente')
+        logger.warning('Liquidacion Gasto actualizado exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
 
     except Exception as e:
         db.session.rollback()
         error_message = f"Error al actualizar LiquidacionGasto {str(e)}"
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -100,7 +100,7 @@ def delete_liquidacion_gasto(id):
         except Exception as e:
             db.session.rollback()
             error_message = f'Error al eliminar LiquidacionGasto {str(e)}'
-            app.logger.warning(error_message)
+            logger.warning(error_message)
             return jsonify({'error': error_message}), 500
     else:
         return jsonify({'error': 'LiquidacionGasto no encontrado'}), 404

@@ -1,5 +1,9 @@
 FROM python:3.10.13
 
+COPY flask/requirements.txt .
+
+RUN pip install -r requirements.txt
+
 EXPOSE 8081
 
 # RUN apt-get -y update && apt-get -y upgrade
@@ -10,13 +14,10 @@ EXPOSE 8081
 
 WORKDIR /app
 
-COPY requirements.txt .
 COPY docker/wait-for-it.sh wait-for-it.sh
 COPY docker/entrypoint.sh entrypoint.sh
 
-RUN pip install -r requirements.txt
-
-COPY . .
+COPY flask .
 
 RUN pip install -r requirements.txt --upgrade
 

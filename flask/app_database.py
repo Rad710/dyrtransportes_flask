@@ -1,4 +1,5 @@
 from flask import Flask
+from flask.logging import create_logger
 from flask_cors import CORS
 from flask_caching import Cache
 
@@ -9,6 +10,8 @@ from dotenv import load_dotenv
 from utils.schema import db
 
 app = Flask(__name__)
+logger = create_logger(app)
+
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 # where script is executed

@@ -3,7 +3,7 @@ from sqlalchemy import extract
 
 from dateutil import parser
 
-from app_database import app
+from app_database import logger
 from utils.schema import db, Planillas
 
 def post_planilla():
@@ -25,16 +25,16 @@ def agregar_planilla(fecha):
             try:
                 db.session.add(new_planilla)
                 db.session.commit()
-                app.logger.warning("Nueva entrada en lista de planillas")
+                logger.warning("Nueva entrada en lista de planillas")
             except Exception as e:
                 db.session.rollback()
-                app.logger.warning(f"Error: No se pudo agregar la entrada a la lista de planillas {str(e)}")
+                logger.warning(f"Error: No se pudo agregar la entrada a la lista de planillas {str(e)}")
                 raise e
         else:
-            app.logger.warning("Fecha ya existe en la lista de planillas")
+            logger.warning("Fecha ya existe en la lista de planillas")
     except Exception as e:
         error_message = f'Error al agregar a lista de planillas {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -52,7 +52,7 @@ def get_planillas():
     
     except Exception as e:
         error_message = f'Error en GET request a lista completa de planillas {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -69,7 +69,7 @@ def delete_planilla(fecha):
 
     except Exception as e:
         error_message = f'Error en DELETE lista de planillas {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
@@ -86,5 +86,5 @@ def get_planilla(year):
 
     except Exception as e:
         error_message = f'Error en GET request a lista de planillas por año {str(e)}'
-        app.logger.warning(error_message)
+        logger.warning(error_message)
         return jsonify({"error": error_message}), 500
