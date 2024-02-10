@@ -14,6 +14,8 @@ def dockerRegistry = 'http://docker-registry-server:5000'
 def numberCommits = 5
 def commitList = ''
 
+def releasePattern = ~/release\/\d+\.\d+\.\d+$/
+
 pipeline {
     agent {
         docker {
@@ -64,8 +66,6 @@ pipeline {
                         }
                     }
 
-                    releasePattern = ~/release\/\d+\.\d+\.\d+$/
-
                     if (BRANCH_NAME ==~ releasePattern) {
                         imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
 
@@ -77,6 +77,7 @@ pipeline {
 
                         tag = sh(returnStdout: true, script: 'git describe --tags --abbrev=0').trim()
                         tag = tag.split("\\.")[0..2].join(".")
+                        tag += ".${BUILD_ID}"
                     }
 
                     if (BRANCH_NAME == 'develop') {
@@ -152,7 +153,7 @@ pipeline {
         stage('Tag GIT Repo') {
             when {
                 expression {
-                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
+                    return !tag.isEmpty() && BRANCH_NAME ==~ releasePattern
                 }
             }
             steps {
