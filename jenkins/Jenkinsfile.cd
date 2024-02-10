@@ -6,7 +6,7 @@ def imageName = ''
 def dockerImage
 def dockerComposeFile = 'docker/docker-compose-dev.yaml'
 
-def registry = 'http://docker-registry-server:5000'
+def dockerRegistry = 'http://docker-registry-server:5000'
 // def registryCredentials = 'localhost-docker-registry'
 
 def numberCommits = 5
@@ -137,7 +137,7 @@ pipeline {
             steps {
                 script {
                     echo "Pushing..."
-                    docker.withRegistry(registry) {
+                    docker.withRegistry(dockerRegistry) {
                         echo "Push Docker Image: ${imageName} with tag: ${TAG}"
                         dockerImage.push("${TAG}")
                         dockerImage.push("latest")
@@ -181,14 +181,6 @@ pipeline {
                             uploadUrl = responseJSON['upload_url'].replace('/assets{?name,label}', '')
 
                             echo "Upload URL: ${uploadUrl}"
-                            sh """
-                                curl -XPOST -H "Authorization: token ${GITHUB_ACCESS_TOKEN}" \
-                                -H "Accept: application/vnd.github+json" \
-                                -H "X-GitHub-Api-Version: 2022-11-28" \
-                                -H "Content-Type:application/octet-stream" \
-                                "${uploadUrl}/assets?name=${tarFileName}" \
-                                --data-binary "@${tarFileName}"
-                            """
                         } catch (e) {
                             echo "Error en crear GitHub Release: ${e}"
                         }

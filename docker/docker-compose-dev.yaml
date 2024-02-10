@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   dyrtransportes-flask-dev:
-    image: localhost:5000/dyrtransportes/backend/dev/dyrtransportes-flask:latest
+    image: docker-registry-server:5000/dyrtransportes/backend/dev/dyrtransportes-flask:latest
     
     ports:
       - 8081:8081
@@ -21,7 +21,7 @@ services:
 
 
   dyrtransportes-mysql-db:
-    image: localhost:5000/mysql/mysql:8
+    image: docker-registry-server:5000/mysql/mysql:8
 
     restart: always
 
@@ -45,7 +45,7 @@ services:
 
 
   dyrtransportes-adminer:
-    image: localhost:5000/adminer/adminer:latest
+    image: docker-registry-server:5000/adminer/adminer:4.8.1
 
     restart: always
 
