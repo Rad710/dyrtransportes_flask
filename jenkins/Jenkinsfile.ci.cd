@@ -77,6 +77,7 @@ pipeline {
 
                         tag = sh(returnStdout: true, script: 'git describe --tags --abbrev=0').trim()
                         tag = tag.split("\\.")[0..2].join(".")
+                        tag += ".${BUILD_ID}"
                     }
 
                     if (BRANCH_NAME == 'develop') {
