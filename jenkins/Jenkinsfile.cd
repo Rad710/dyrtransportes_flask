@@ -1,8 +1,7 @@
 def username = ''
 def email = ''
 
-def imageName = "dyrtransportes-flask:${BRANCH_NAME.toLowerCase().replaceAll('/', '_')}"
-def tag = ''
+def imageName = ''
 def tagComment = "Jenkins CI/CD Pipeline. Branch: ${BRANCH_NAME}. Build ID: ${BUILD_ID}. Build URL: ${BUILD_URL}"
 
 def dockerImage
@@ -14,11 +13,22 @@ def registry = 'http://localhost:5000'
 def numberCommits = 5
 def commitList = ''
 
+if (TARGET_ENV == 'DEV') {
+    env.TAG += '-dev'
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+    
+} else if (TARGET_ENV == 'RC') {
+    env.TAG += '-rc'
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+
+} else if (TARGET_ENV == 'PROD') {
+    imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
+}
+
 pipeline {
     agent any
 
     options {
-        disableConcurrentBuilds(abortPrevious: true)
         skipDefaultCheckout()
     }
 
@@ -52,28 +62,6 @@ pipeline {
                             print "Parameter: ${param}, Value: ${value}"
                         }
                     }
-
-                    releasePattern = ~/release\/\d+\.\d+\.\d+$/
-
-                    if (BRANCH_NAME ==~ releasePattern) {
-                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
-
-                        tag = BRANCH_NAME.split('/').last() + ".${BUILD_ID}-rc"
-                    }
-
-                    if (BRANCH_NAME == 'main') {
-                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
-
-                        tag = sh(returnStdout: true, script: 'git describe --tags --abbrev=0').trim()
-                        tag = tag.split("\\.")[0..2].join(".")
-                    }
-
-                    if (BRANCH_NAME == 'develop') {
-                        imageName = 'dyrtransportes/backend/dev/dyrtransportes-flask'
-
-                        tag = "0.0.${BUILD_ID}-dev"
-                    }
-
 
                     username = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
                     email = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
@@ -130,39 +118,29 @@ pipeline {
         }
 
         stage('Tag GIT Repo') {
-            when {
-                expression {
-                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
-                }
-            }
             steps {
                 script {
                     echo "Tagging..."
-                    echo "GIT tag: ${tag}. Tag comment: ${tagComment}"
+                    echo "GIT tag: ${tag}. Tag comment: ${TAG_COMMENT}"
                     withCredentials([usernamePassword(credentialsId: 'rad710-jenkins-github-app',
                         usernameVariable: 'GITHUB_APP',
                         passwordVariable: 'GITHUB_ACCESS_TOKEN')]) {  
                     
-                        sh "git tag -a ${tag} -m \"${tagComment}\" "
+                        sh "git tag -a ${TAG} -m \"${TAG_COMMENT}\" "
                         sh "git push https://${GITHUB_APP}:${GITHUB_ACCESS_TOKEN}@github.com/${GITHUB_REPO}.git ${tag}"
-                        sh "git tag -d ${tag}"
+                        sh "git tag -d ${TAG}"
                     }
                 }
             }
         }
 
         stage('Push Docker Registry') {
-            when {
-                expression {
-                    return !tag.isEmpty()
-                }
-            }
             steps {
                 script {
                     echo "Pushing..."
                     docker.withRegistry(registry) {
-                        echo "Push Docker Image: ${imageName} with tag: ${tag}"
-                        dockerImage.push("${tag}")
+                        echo "Push Docker Image: ${imageName} with tag: ${TAG}"
+                        dockerImage.push("${TAG}")
                         dockerImage.push("latest")
                     }
                 }
@@ -170,12 +148,6 @@ pipeline {
         }
 
         stage('Archive Artifact') {
-            when {
-                expression {
-                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
-                }
-            }
-
             steps {
                 script {
                     echo "Archiving..."
@@ -191,7 +163,7 @@ pipeline {
                     sh "docker cp ${containerName}:/usr/share/nginx/html ./artifact"
                     sh "docker compose -f ${dockerComposeFile} down"
 
-                    tarFileName = "${serviceName}-${tag}.tar.gz"
+                    tarFileName = "${serviceName}-${TAG}.tar.gz"
 
                     tar file: tarFileName
                         archive: false
@@ -207,12 +179,6 @@ pipeline {
         }
 
         stage('Create GitHub Release') {
-            when {
-                expression {
-                    return !tag.isEmpty() && BRANCH_NAME != 'develop'
-                }
-            }
-
             steps {
                 script {
                     echo "Releasing..."
@@ -228,10 +194,10 @@ pipeline {
                                 -H "Accept: application/vnd.github+json" \
                                 -H "X-GitHub-Api-Version: 2022-11-28" \
                                 https://api.github.com/repos/${GITHUB_REPO}/releases \
-                                -d '{ "tag_name": "${tag}", \
+                                -d '{ "tag_name": "${TAG}", \
                                     "target_commitish": "${BRANCH_NAME}", \
-                                    "name": "${tag}", \
-                                    "body": "${tagComment}", \
+                                    "name": "${TAG}", \
+                                    "body": "${TAG_COMMENT}", \
                                     "draft": false, \
                                     "prerelease": false, \
                                     "generate_release_notes": true}'
@@ -264,11 +230,6 @@ pipeline {
         }
 
         stage('Deploy Docker Host') {
-            when {
-                expression {
-                    return !tag.isEmpty()
-                }
-            }
             steps {
                 script {
                     echo "Deploying..."
@@ -299,10 +260,7 @@ pipeline {
                     echo 'No docker image to delete. Or failure when deleting!'
                 }
 
-                notificationMessage = tagComment + " Result: ${currentBuild.currentResult}."
-                if (!tag.isEmpty()) {
-                    notificationMessage += " Push to Docker Registry with tag: ${tag}."
-                }
+                notificationMessage = TAG_COMMENT + " Result: ${currentBuild.currentResult}. Push to Docker Registry with tag: ${TAG}"
 
                 blameData = [:]
                 myTags = ['blame_data':['author': username, 'email': email, 'cause': currentBuild.getBuildCauses()[0].shortDescription]]
@@ -314,7 +272,7 @@ pipeline {
 
 
                 // mail to: "rolmedro@gmail.com",
-                //     subject: tagComment,
+                //     subject: TAG_COMMENT,
                 //     body : notificationMessage
 
                 // withSonarQubeEnv("http://localhost:9000") {
