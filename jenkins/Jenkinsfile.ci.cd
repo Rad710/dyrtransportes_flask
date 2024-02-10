@@ -19,6 +19,10 @@ pipeline {
         docker {
             image "dev/python-flask-agent:3.10.13"
             registryUrl "http://docker-registry-server:5000"
+            args """
+                --group-add 999
+                -v /var/run/docker.sock:/var/run/docker.sock
+            """
         }
     }
 
