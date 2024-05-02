@@ -257,7 +257,7 @@ class DriverPayroll(db.Model):
     modification_user = db.Column(db.String(100), nullable=False)
 
     shipment_driver_payroll_code = relationship("Shipment", backref="shipment_driver_payroll_code", cascade="all, delete-orphan")
-    shipment_expense_code = relationship("ShipmentExpenses", backref="shipment_expense_code", cascade="all, delete-orphan")
+    shipment_expense_code = relationship("ShipmentExpense", backref="shipment_expense_code", cascade="all, delete-orphan")
 
 
 class DriverPayrollAudit(db.Model):

@@ -3,9 +3,9 @@ from sqlalchemy import text
 
 from dateutil import parser
 
-from utils.schema import db
+from models.schema import db
 
-from app_database import logger
+from app.app_config import logger
 
 def get_statistics(fecha_inicio, fecha_fin):
     try:

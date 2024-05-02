@@ -1,19 +1,20 @@
-from flask import send_file
-
 import subprocess
 
-from app_database import app, logger, DB_USERNAME, DB_HOST, DB_NAME
-import utils.planillas as planillas
-import utils.cobranzas as cobranzas
-import utils.keywords as nomina
-import utils.precio as precio
-import utils.liquidacion as liquidacion
-import utils.liquidacion_viajes as liquidacion_viajes
-import utils.liquidacion_gastos as liquidacion_gastos
-import utils.exportar as exportar
-import utils.statistics as statistics
-import utils.dinatran as dinatran
-import utils.importar as importar
+from flask import send_file
+
+from app.app_config import logger
+from app.app import app, DB_USERNAME, DB_HOST, DB_NAME
+import api.planillas as planillas
+import api.cobranzas as cobranzas
+import api.keywords as nomina
+import api.precio as precio
+import api.liquidacion as liquidacion
+import api.liquidacion_viajes as liquidacion_viajes
+import api.liquidacion_gastos as liquidacion_gastos
+import api.exportar as exportar
+import api.statistics as statistics
+import api.dinatran as dinatran
+import api.importar as importar
 
 
 @app.route('/')
@@ -114,9 +115,4 @@ def database_backup():
         error_message = f'Error al crear backup {str(e)}'
         logger.warning(error_message)
         return error_message, 500
-
-
-
-if __name__ == '__main__':
-    print('Flask API starting up...')
-    app.run(host='0.0.0.0', port=8085)
+    

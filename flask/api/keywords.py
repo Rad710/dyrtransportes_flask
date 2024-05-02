@@ -2,8 +2,8 @@ from flask import jsonify
 
 from sqlalchemy import distinct
 
-from app_database import logger
-from utils.schema import db, Palabras, Cobranzas, Precios
+from app.app_config import logger
+from models.schema import db, Palabras, Cobranzas, Precios
 
 
 def get_keywords():

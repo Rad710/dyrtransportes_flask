@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from sqlalchemy import distinct, desc
-from app_database import logger
-from utils.schema import db, Liquidaciones
+from app.app_config import logger
+from models.schema import db, Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 
 import re

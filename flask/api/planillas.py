@@ -3,8 +3,8 @@ from sqlalchemy import extract
 
 from dateutil import parser
 
-from app_database import logger
-from utils.schema import db, Planillas
+from app.app_config import logger
+from models.schema import db, Planillas
 
 def post_planilla():
     fecha = request.json.get('fecha')

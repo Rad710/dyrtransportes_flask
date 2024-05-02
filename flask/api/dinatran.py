@@ -3,9 +3,9 @@ from sqlalchemy import text
 
 from dateutil import parser
 
-from app_database import logger
-from utils.schema import db
+from app.app_config import logger
 
+from models.schema import db
 
 def get_informe_dinatran(fecha_inicio, fecha_fin):
     try:

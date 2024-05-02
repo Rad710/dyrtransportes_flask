@@ -2,9 +2,9 @@ from flask import request, jsonify, send_file
 import pandas as pd
 import datetime
 
-from app_database import logger
-from utils.cobranzas import crear_cobranza_liquidacion
-from utils.planillas import agregar_planilla
+from app.app_config import logger
+from api.cobranzas import crear_cobranza_liquidacion
+from api.planillas import agregar_planilla
 
 
 def importar_cobranza():

@@ -2,8 +2,8 @@ from flask import request, jsonify
 
 from dateutil import parser
 
-from app_database import logger
-from utils.schema import db, LiquidacionGastos, Liquidaciones
+from app.app_config import logger
+from models.schema import db, LiquidacionGastos, Liquidaciones
 
 
 def post_liquidacion_gasto():

@@ -3,8 +3,8 @@ from sqlalchemy import and_
 
 from datetime import datetime
 
-from app_database import logger
-from utils.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
+from app.app_config import logger
+from models.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 
 def string_to_int(string, default=0):

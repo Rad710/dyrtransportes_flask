@@ -8,8 +8,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app_database import logger
-from utils.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
+from app.app_config import logger
+from models.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
 
 
 def exportar_cobranza(fecha_creacion):
