@@ -1,6 +1,12 @@
 """
-    Defines the Database Schema
-    Tables: Driver, DriverAudit
+    Defines the Database Schema. Tables
+    * Route, RouteAudit
+    * Product, ProductAudit
+    * Driver, DriverAudit,
+    * ShipmentPayroll, ShipmentPayrollAudit
+    * DriverPayroll, DriverPayrollAudit,
+    * Shipment, ShipmentAudit,
+    * ShipmentExpense, ShipmentExpenseAudit
 """
 
 from flask_sqlalchemy import SQLAlchemy
