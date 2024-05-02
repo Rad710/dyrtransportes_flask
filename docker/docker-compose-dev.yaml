@@ -22,6 +22,11 @@ services:
       - dyrtransportes-backend
 
 
+  # docker run -d --restart=always -v 
+  # /home/rolando/Desktop/dyrtransportes-mysql:/var/lib/mysql
+  # -e MYSQL_ROOT_PASSWORD=root -e MYSQL_PASSWORD=root 
+  # -e MYSQL_DATABASE=dyrtransportes
+  # --name=dyrtransportes-mysql-dev -p 3306:3306 mysql:8
   dyrtransportes-mysql-db:
     image: ${REGISTRY}/mysql/mysql:8
 

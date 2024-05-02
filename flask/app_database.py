@@ -2,12 +2,13 @@ from flask import Flask
 from flask.logging import create_logger
 from flask_cors import CORS
 from flask_caching import Cache
+from flask_migrate import Migrate
 
 import os
 import sys
 from dotenv import load_dotenv
 
-from utils.schema import db
+import utils.schema as schema
 
 app = Flask(__name__)
 logger = create_logger(app)
@@ -32,12 +33,13 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}
 
 
 print("Initializing app...")
-db.init_app(app)
+schema.db.init_app(app)
+migrate = Migrate(app, schema.db)
 
 # Wrap db.create_all() in an app context
 print("Connecting to DB...")
 
 with app.app_context():
-    db.create_all()
+    schema.db.create_all()
 
 CORS(app)
