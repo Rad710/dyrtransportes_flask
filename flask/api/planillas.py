@@ -4,8 +4,13 @@ from sqlalchemy import extract
 from dateutil import parser
 
 from app.app_config import logger
-from models.schema import db, Planillas
+from models.schema import Planillas
+from models.database import db_session
 
+from app.app import app
+
+
+@app.route('/planillas/', methods=['POST'])
 def post_planilla():
     fecha = request.json.get('fecha')
     return agregar_planilla(fecha)
@@ -23,11 +28,11 @@ def agregar_planilla(fecha):
             )
 
             try:
-                db.session.add(new_planilla)
-                db.session.commit()
+                db_session.add(new_planilla)
+                db_session.commit()
                 logger.warning("Nueva entrada en lista de planillas")
             except Exception as e:
-                db.session.rollback()
+                db_session.rollback()
                 logger.warning(f"Error: No se pudo agregar la entrada a la lista de planillas {str(e)}")
                 raise e
         else:
@@ -42,6 +47,7 @@ def agregar_planilla(fecha):
 
 
 # hacer query de todas las fechas de planillas
+@app.route('/planillas/', methods=['GET'])
 def get_planillas():
     try:
         # Query the database to get unique "fecha" values
@@ -56,14 +62,15 @@ def get_planillas():
         return jsonify({"error": error_message}), 500
 
 
+@app.route('/planillas/<fecha>', methods=['DELETE'])
 def delete_planilla(fecha):
     try:
         fecha =  parser.isoparse(fecha).date()
 
         planilla_to_delete = Planillas.query.filter_by(fecha=fecha).first()
         # Delete the planilla
-        db.session.delete(planilla_to_delete)
-        db.session.commit()
+        db_session.delete(planilla_to_delete)
+        db_session.commit()
 
         return jsonify({"success": "Planilla y Cobranzas eliminados exitosamente"}), 200
 
@@ -73,7 +80,7 @@ def delete_planilla(fecha):
         return jsonify({"error": error_message}), 500
 
 
-
+@app.route('/planillas/<year>', methods=['GET'])
 def get_planilla(year):
     try:
         # Filtrar las planillas por año utilizando SQLAlchemy

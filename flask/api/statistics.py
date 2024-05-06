@@ -3,10 +3,14 @@ from sqlalchemy import text
 
 from dateutil import parser
 
-from models.schema import db
+from models.database import db_session
+
 
 from app.app_config import logger
 
+from app.app import app
+
+@app.route('/statistics/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 def get_statistics(fecha_inicio, fecha_fin):
     try:
         ipread1 = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
@@ -31,7 +35,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                             """)
 
         # Execute the query with parameters
-        viajes = db.session.execute(viajes_query, params).fetchall()
+        viajes = db_session.execute(viajes_query, params).fetchall()
 
         facturado_query = text("""
                             SELECT chofer, SUM(importe) as total_facturado 
@@ -41,7 +45,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                             GROUP BY chofer;
                             """)
 
-        gasto_facturado = db.session.execute(facturado_query, params).fetchall()
+        gasto_facturado = db_session.execute(facturado_query, params).fetchall()
 
         no_facturado_query = text("""
                             SELECT chofer, SUM(importe) as total_facturado 
@@ -51,7 +55,7 @@ def get_statistics(fecha_inicio, fecha_fin):
                             GROUP BY chofer;
                             """)
 
-        gasto_no_facturado = db.session.execute(no_facturado_query, params).fetchall()
+        gasto_no_facturado = db_session.execute(no_facturado_query, params).fetchall()
 
         result = {}
         result_total = {'viajes': 0, 'kgOrigen': 0, 'kgDestino': 0, 'totalFletes': 0, 'totalPerdidas': 0,

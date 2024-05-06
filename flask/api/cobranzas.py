@@ -4,13 +4,18 @@ from dateutil import parser
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 
 from app.app_config import logger
-from models.schema import db, Cobranzas, LiquidacionViajes
+from models.schema import Cobranzas, LiquidacionViajes
+from models.database import db_session
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, string_to_int
+from app.app import app
 
 from sqlalchemy.exc import IntegrityError
 
 import re
 
+
+
+@app.route('/cobranzas/', methods=['POST'])
 def post_cobranza():
     cobranza = request.json.get('cobranza')
     return crear_cobranza_liquidacion(cobranza)
@@ -60,11 +65,12 @@ def crear_cobranza_liquidacion(cobranza):
     return jsonify({"success": "Entrada agregada exitosamente a la tabla Cobranzas"}), 200
 
 
+@app.route('/cobranzas/<string:fecha_creacion>', methods=['GET'])
 def get_cobranza(fecha_creacion):
     try:
         fecha_creacion =  parser.isoparse(fecha_creacion).date()
         cobranzas = (
-            db.session.query(Cobranzas, LiquidacionViajes)
+            db_session.query(Cobranzas, LiquidacionViajes)
             .join(LiquidacionViajes, Cobranzas.id == LiquidacionViajes.id)
             .filter(Cobranzas.fecha_creacion == fecha_creacion)
             .order_by(Cobranzas.chofer, Cobranzas.fecha_viaje)
@@ -116,6 +122,7 @@ def get_cobranza(fecha_creacion):
         return jsonify({"error": error_message}), 500
 
 
+@app.route('/cobranzas/<string:id>', methods=['PUT'])
 def put_cobranza(id):
     cobranza = request.json.get('cobranza')
 
@@ -153,10 +160,10 @@ def put_cobranza(id):
     existing_liquidacion.precio_liquidacion = precio_liquidacion
 
     try:
-        db.session.commit()
+        db_session.commit()
         logger.warning('Cobranza actualizada exitosamente')
     except Exception as e:
-        db.session.rollback()
+        db_session.rollback()
         error_message = f"Error al actualizar Cobranzas {str(e)}"
         logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -164,15 +171,16 @@ def put_cobranza(id):
     return jsonify({"success": "Entrada actualizada exitosamente en la tabla Cobranzas"}), 200    
 
 
+@app.route('/cobranza/<string:id>', methods=['DELETE'])
 def delete_cobranza(id):
-    cobranza = db.session.get(Cobranzas, id)
+    cobranza = db_session.get(Cobranzas, id)
     if cobranza:
         try:
-            db.session.delete(cobranza)
-            db.session.commit()
+            db_session.delete(cobranza)
+            db_session.commit()
             return jsonify({'success': 'Cobranza eliminada exitosamente'}), 200
         except Exception as e:
-            db.session.rollback()
+            db_session.rollback()
             error_message = f'Error al eliminar la cobranza {str(e)}'
             logger.warning(error_message)
             return jsonify({'error': error_message}), 500

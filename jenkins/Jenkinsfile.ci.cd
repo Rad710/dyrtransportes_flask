@@ -123,7 +123,7 @@ pipeline {
                 dir("flask") {
                     sh "pylint --exit-zero \
                         --msg-template='{path}:{line}: [{msg_id}, {obj}] {msg} ({symbol})' \
-                        app_database.py flask_app.py utils > pylint.log"
+                        app/app.py utils > pylint.log"
 
                     recordIssues enabledForFailure: true, 
                         aggregatingResults: true, 

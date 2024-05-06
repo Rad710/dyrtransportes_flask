@@ -6,3 +6,5 @@ tempCodeRunnerFile.py
 **/.env
 pylint.log
 .scannerwork/
+.mypy-cache/
+*.log

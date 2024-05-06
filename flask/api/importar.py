@@ -7,6 +7,10 @@ from api.cobranzas import crear_cobranza_liquidacion
 from api.planillas import agregar_planilla
 
 
+from app.app import app
+
+
+@app.route('/importar_cobranza', methods=['POST'])
 def importar_cobranza():
     if 'file' not in request.files:
         return jsonify({"error": "Error, archivo no enviado"}), 400
@@ -82,5 +86,6 @@ def process_row(row):
         raise Exception(
             f"Error en post table cobranzas importadas. Planilla cargada parcialmente. {response['error']}")
 
+@app.route('/exportar_formato_cobranza', methods=['GET'])
 def exportar_formato_cobranza():
     return send_file('files/planilla_formato.xlsx', as_attachment=True, download_name='planilla_formato.xlsx')

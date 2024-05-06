@@ -4,8 +4,9 @@ from sqlalchemy import and_
 from datetime import datetime
 
 from app.app_config import logger
-from models.schema import db, Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
+from models.schema import Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
+from models.database import db_session
 
 def string_to_int(string, default=0):
     try:
@@ -36,13 +37,13 @@ def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
     )
 
     try:
-        db.session.add(new_cobranza)
-        db.session.commit()
+        db_session.add(new_cobranza)
+        db_session.commit()
         logger.warning('Cobranza agregada exitosamente')
         return new_cobranza.id
 
     except Exception as e:
-        db.session.rollback()
+        db_session.rollback()
         logger.warning(f'Error al agregar cobranza {str(e)}')
         raise e
 
@@ -53,11 +54,11 @@ def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion
         id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
         liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, id_liquidacion=id_liquidacion)
         
-        db.session.add(liq)
-        db.session.commit()
+        db_session.add(liq)
+        db_session.commit()
         logger.warning("Nueva entrada en lista de liquidaciones agregada")
     except Exception as e:
-        db.session.rollback()
+        db_session.rollback()
         logger.warning(f"No se pudo cargar nueva entrada en lista de liquidaciones {str(e)}")
         raise e
 
@@ -70,13 +71,13 @@ def agregar_precio(origen, destino, precio, precio_liquidacion):
         new_precio = Precios(origen=origen, destino=destino, precio=precio, precio_liquidacion=precio_liquidacion)
 
         try:
-            db.session.add(new_precio)
-            db.session.commit()
+            db_session.add(new_precio)
+            db_session.commit()
             logger.warning("Nuevo precio en lista de precios")
             return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
         
         except Exception as e:
-            db.session.rollback()
+            db_session.rollback()
             error_message = f"Error al agregar a tabla Precios {str(e)}"
             logger.warning(error_message)
             return jsonify({"error": error_message}), 500
@@ -96,11 +97,11 @@ def agregar_keywords(chofer, chapa, producto, origen, destino):
             new_clave = Palabras(palabra=palabras_clave[tipo], tipo=tipo)
 
             try:
-                db.session.add(new_clave)
-                db.session.commit()
+                db_session.add(new_clave)
+                db_session.commit()
                 logger.warning(f'Nueva entrada en palabras clave de tipo: {tipo}')
             except Exception as e:
-                db.session.rollback()
+                db_session.rollback()
                 logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}: {str(e)}')
 
 
@@ -116,14 +117,14 @@ def agregar_liquidacion(chofer):
         new_liquidacion = Liquidaciones(
             chofer=chofer, fecha_liquidacion=datetime.now())
         try:
-            db.session.add(new_liquidacion)
-            db.session.commit()
+            db_session.add(new_liquidacion)
+            db_session.commit()
             logger.warning("Nueva fecha de liquidacion agregada")
 
             return new_liquidacion.fecha_liquidacion
 
         except Exception as e:
-            db.session.rollback()
+            db_session.rollback()
             logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
             raise e
     else:

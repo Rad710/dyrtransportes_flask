@@ -5,8 +5,12 @@ from dateutil import parser
 
 from app.app_config import logger
 
-from models.schema import db
+from models.database import db_session
 
+from app.app import app
+
+
+@app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 def get_informe_dinatran(fecha_inicio, fecha_fin):
     try:
         fecha_inicio = parser.isoparse(fecha_inicio).date()
@@ -27,7 +31,7 @@ def get_informe_dinatran(fecha_inicio, fecha_fin):
                             GROUP BY chapa""")
 
         # Execute the query with parameters
-        viajes = db.session.execute(viajes_query, params).fetchall()
+        viajes = db_session.execute(viajes_query, params).fetchall()
 
         viajes_parsed = {f'{viaje[0]}': {
             'viajes': viaje[1], 'totalOrigen': viaje[2], 'totalDestino': viaje[3],

@@ -3,11 +3,14 @@ from flask import request, jsonify
 from dateutil import parser
 
 from app.app_config import logger
-from models.schema import db, LiquidacionViajes, Cobranzas, Liquidaciones
+from models.schema import LiquidacionViajes, Cobranzas, Liquidaciones
 from utils.utils import agregar_cobranza, string_to_int
-
+from models.database import init_db
 import re
 
+from app.app import app
+
+@app.route('/liquidacion_viaje', methods=['POST'])
 def post_liquidacion_viaje():
     liquidacion_viaje = request.json.get('liquidacionViaje')
 
@@ -38,23 +41,23 @@ def post_liquidacion_viaje():
         liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, 
                                 id_liquidacion=id_liquidacion)
             
-        db.session.add(liq)
-        db.session.commit()
+        init_db.add(liq)
+        init_db.commit()
         logger.warning("Nueva entrada en lista de liquidaciones agregada")
         return jsonify({'success': 'Liquidaciones Viaje agregado exitosamente'}), 200
     except Exception as e:
-        db.session.rollback()
+        init_db.rollback()
         error_message = f'Error al cargar en tabla Liquidaciones Viajes {str(e)}'
         logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
-
+@app.route('/liquidacion_viajes/<string:chofer>/<string:fecha>', methods=['GET'])
 def get_liquidacion_viajes(chofer, fecha):
     try:
         id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first().id
 
         viajes = (
-            db.session.query(Cobranzas, LiquidacionViajes)
+            init_db.query(Cobranzas, LiquidacionViajes)
             .join(
                 LiquidacionViajes,
                 Cobranzas.id == LiquidacionViajes.id
@@ -83,6 +86,7 @@ def get_liquidacion_viajes(chofer, fecha):
         return jsonify({'error': error_message}), 500
     
 
+@app.route('/liquidacion_viajes/<string:id>', methods=['PUT'])
 def put_liquidacion_viaje(id):
     viaje = request.json.get('liquidacionViaje')
 
@@ -101,8 +105,8 @@ def put_liquidacion_viaje(id):
     precio = viaje['precio']
     precio_liquidacion = viaje['precioLiquidacion']
 
-    existing_cobranza = db.session.get(Cobranzas, id)
-    existing_liquidacion_viaje = db.session.get(LiquidacionViajes, id)
+    existing_cobranza = init_db.get(Cobranzas, id)
+    existing_liquidacion_viaje = init_db.get(LiquidacionViajes, id)
     existing_liquidacion_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
 
     if existing_cobranza is None or existing_liquidacion_viaje is None:
@@ -123,10 +127,10 @@ def put_liquidacion_viaje(id):
     existing_liquidacion_viaje.id_liquidacion = existing_liquidacion_id
 
     try:
-        db.session.commit()
+        init_db.commit()
         logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')
     except Exception as e:
-        db.session.rollback()
+        init_db.rollback()
         error_message = f'Error al actualizar Liquidacion Viaje y Cobranza {str(e)}'
         logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -134,19 +138,20 @@ def put_liquidacion_viaje(id):
     return jsonify({"success": "Entrada actualizada exitosamente en la tabla Cobranzas y LiquidacionViajes"}), 200    
 
 
+@app.route('/liquidacion_viaje/<string:id>', methods=['DELETE'])
 def delete_liquidacion_viaje(id):
-    viaje = db.session.get(LiquidacionViajes, id)
-    cobranza = db.session.get(Cobranzas, id)
+    viaje = init_db.get(LiquidacionViajes, id)
+    cobranza = init_db.get(Cobranzas, id)
 
     try:
         if cobranza.fecha_creacion is None:
-            db.session.delete(cobranza)
+            init_db.delete(cobranza)
 
-        db.session.delete(viaje)
-        db.session.commit()
+        init_db.delete(viaje)
+        init_db.commit()
         return jsonify({'success': 'Viaje eliminado exitosamente'}), 200
     except Exception as e:
-        db.session.rollback()
+        init_db.rollback()
         error_message = f'Error al eliminar Viaje {str(e)}'
         logger.warning(error_message)
         return jsonify({'error': error_message}), 500

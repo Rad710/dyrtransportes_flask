@@ -3,9 +3,13 @@ from flask import request, jsonify
 from dateutil import parser
 
 from app.app_config import logger
-from models.schema import db, LiquidacionGastos, Liquidaciones
+from models.schema import LiquidacionGastos, Liquidaciones
+from models.database import db_session
+
+from app.app import app
 
 
+@app.route('/liquidacion_gasto', methods=['POST'])
 def post_liquidacion_gasto():
     gasto = request.json.get('gasto')
     fecha = parser.isoparse(gasto['fecha']).date()
@@ -26,21 +30,21 @@ def post_liquidacion_gasto():
             id_liquidacion=liq_id
         )
 
-        db.session.add(new_gasto)
-        db.session.commit()
+        db_session.add(new_gasto)
+        db_session.commit()
         return jsonify({'success': 'Liquidacion gasto agregado exitosamente'}), 200
 
     except Exception as e:
-        db.session.rollback()
+        db_session.rollback()
         error_message = f'Error en POST tabla LiquidacionGastos {str(e)}'
         logger.warning(error_message)
         return jsonify({'error': error_message}), 500
 
 
-
+@app.route('/liquidacion_gastos/<string:chofer>/<string:fecha>', methods=['GET'])
 def get_liquidacion_gastos(chofer, fecha):
     try:
-        gastos = db.session.query(LiquidacionGastos, Liquidaciones).join(
+        gastos = db_session.query(LiquidacionGastos, Liquidaciones).join(
             Liquidaciones,
             Liquidaciones.id == LiquidacionGastos.id_liquidacion
         ).filter(
@@ -61,6 +65,7 @@ def get_liquidacion_gastos(chofer, fecha):
         return jsonify({'error': error_message}), 500
 
 
+@app.route('/liquidacion_gasto/<string:id>', methods=['PUT'])
 def put_liquidacion_gasto(id):
     gasto = request.json.get('gasto')
     fecha = parser.isoparse(gasto['fecha']).date()
@@ -68,7 +73,7 @@ def put_liquidacion_gasto(id):
     importe = gasto['importe']
     razon = gasto['razon']
 
-    existing_gasto = db.session.get(LiquidacionGastos, id)
+    existing_gasto = db_session.get(LiquidacionGastos, id)
 
     if existing_gasto is None:
         return jsonify({"error": "No se encontró cobranza a actualizar"}), 500
@@ -78,27 +83,28 @@ def put_liquidacion_gasto(id):
     existing_gasto.importe = importe
     existing_gasto.razon = razon
     try:
-        db.session.commit()
+        db_session.commit()
         logger.warning('Liquidacion Gasto actualizado exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla LiquidacionGastos"}), 200    
 
     except Exception as e:
-        db.session.rollback()
+        db_session.rollback()
         error_message = f"Error al actualizar LiquidacionGasto {str(e)}"
         logger.warning(error_message)
         return jsonify({"error": error_message}), 500
 
 
+@app.route('/liquidacion_gasto/<string:id>', methods=['DELETE'])
 def delete_liquidacion_gasto(id):
-    gasto = db.session.get(LiquidacionGastos, id)
+    gasto = db_session.get(LiquidacionGastos, id)
 
     if gasto:
         try:
-            db.session.delete(gasto)
-            db.session.commit()
+            db_session.delete(gasto)
+            db_session.commit()
             return jsonify({'success': 'LiquidacionGasto eliminado exitosamente'}), 200
         except Exception as e:
-            db.session.rollback()
+            db_session.rollback()
             error_message = f'Error al eliminar LiquidacionGasto {str(e)}'
             logger.warning(error_message)
             return jsonify({'error': error_message}), 500

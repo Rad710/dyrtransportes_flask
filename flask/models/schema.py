@@ -9,16 +9,14 @@
     * ShipmentExpense, ShipmentExpenseAudit
 """
 
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, DateTime, Date, BigInteger
 from sqlalchemy.orm import relationship
-from sqlalchemy import UniqueConstraint
-from sqlalchemy.sql import func
+from sqlalchemy.sql import functions
+from decimal import Decimal
 
+from models.database import Base
 
-db = SQLAlchemy()
-
-class Route(db.Model):
+class Route(Base):
     """(Precios) Represents a transportation route within a system.
 
     Attributes:
@@ -32,27 +30,30 @@ class Route(db.Model):
     * modification_user (str): The user who last modified this route record.
     """
 
-    route_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    origin = db.Column(db.String(100), nullable=False)
-    destination = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    payroll_price = db.Column(db.Numeric(10, 2), nullable=False)
+    __tablename__ = "route"
+
+
+    route_code : Column[int] = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    origin : Column[str] = Column(String(100), nullable=False)
+    destination : Column[str] = Column(String(100), nullable=False)
+    price : Column[Decimal]  = Column(Numeric(10, 2), nullable=False)
+    payroll_price : Column[Decimal] = Column(Numeric(10, 2), nullable=False)
 
     #cannot delete since it's a foreign key
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    deleted : Column[bool] = Column(Boolean, default=False, nullable=False)
+    company_id : Column[str] = Column(String(100), nullable=False)
+    modification_user : Column[str] = Column(String(100), nullable=False)
     
     shipment_route_code = relationship("Shipment", backref="shipment_route_code", cascade="all, delete-orphan")
 
     # __table_args__ = (
     #     UniqueConstraint(origin, destination, creation_user,
-    #                      outdated.filter(outdated == False),
+    #                      outdated.filter(deleted == False),
     #                      name="unique_origin_destination_user"),
     # )
 
 
-class RouteAudit(db.Model):
+class RouteAudit(Base):
     """(Precios) Represents a transportation route within a system.
 
     Attributes:
@@ -67,21 +68,23 @@ class RouteAudit(db.Model):
     * modification_user (str): The user who last modified this route record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
+    __tablename__ = "route_audit"
 
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    route_code = db.Column(db.Integer, ForeignKey('route.route_code'), nullable=False)
-    origin = db.Column(db.String(100), nullable=False)
-    destination = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    payroll_price = db.Column(db.Numeric(10, 2), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
+    origin = Column(String(100), nullable=False)
+    destination = Column(String(100), nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
+    payroll_price = Column(Numeric(10, 2), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
     
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
-class Product(db.Model):
+class Product(Base):
     """(Palabras/Productos) Represents a product within a product management system.
 
     Attributes:
@@ -92,13 +95,16 @@ class Product(db.Model):
     * modification_user (str): The user who last modified this product record.
     """
 
-    product_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    product_name = db.Column(db.String(100), nullable=False)
+    __tablename__ = "product"
+
+
+    product_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    product_name = Column(String(100), nullable=False)
 
     #cannot delete since it's a foreign key
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
     shipment_product_code = relationship("Shipment", backref="shipment_product_code", cascade="all, delete-orphan")
 
@@ -109,7 +115,7 @@ class Product(db.Model):
     # )
 
 
-class ProductAudit(db.Model):
+class ProductAudit(Base):
     """(Palabras/Productos) Represents a product within a product management system.
 
     Attributes:
@@ -122,17 +128,19 @@ class ProductAudit(db.Model):
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
 
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    product_code = db.Column(db.Integer, ForeignKey('product.product_code'), nullable=False)
-    product_name = db.Column(db.String(100), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    __tablename__ = "product_audit"
+
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
+    product_name = Column(String(100), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
     
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
-class Driver(db.Model):
+class Driver(Base):
     """
     (Nomina) This class represents a Driver in the database.
 
@@ -150,14 +158,16 @@ class Driver(db.Model):
     * modification_user (str): The user who last modified the driver record (not nullable, up to 100 characters).
     """
 
-    driver_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    driver_name = db.Column(db.String(100), nullable=False)
-    truck_plate = db.Column(db.String(100), nullable=False)
-    trailer_plate = db.Column(db.String(100), nullable=True)
+    __tablename__ = "driver"
+
+    driver_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    driver_name = Column(String(100), nullable=False)
+    truck_plate = Column(String(100), nullable=False)
+    trailer_plate = Column(String(100), nullable=True)
     # used to deactivate account
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
     driver_payroll_driver_code = relationship("DriverPayroll", backref="driver_payroll_driver_code", cascade="all, delete-orphan")
     shipment_driver_code = relationship("Shipment", backref="shipment_driver_code", cascade="all, delete-orphan")
@@ -167,7 +177,7 @@ class Driver(db.Model):
     )
 
 
-class DriverAudit(db.Model):
+class DriverAudit(Base):
     """
     (Nomina Audit) Driver Audit Table.
 
@@ -181,19 +191,22 @@ class DriverAudit(db.Model):
     * creation_user (str): The username of the user who created the driver record (not nullable, up to 100 characters).
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
+
+    __tablename__ = "driver_audit"
+
     
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    driver_code = db.Column(db.Integer, ForeignKey('driver.driver_code'), nullable=False)
-    driver_name = db.Column(db.String(100), nullable=False)
-    truck_plate = db.Column(db.String(100), nullable=False)
-    trailer_plate = db.Column(db.String(100), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
+    driver_name = Column(String(100), nullable=False)
+    truck_plate = Column(String(100), nullable=False)
+    trailer_plate = Column(String(100), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
-class ShipmentPayroll(db.Model):
+class ShipmentPayroll(Base):
     """
     (Planillas) Represents a payroll record for a shipment.
     Attributes:
@@ -205,19 +218,21 @@ class ShipmentPayroll(db.Model):
     * modification_user (str): The user who created this payroll record.
     """
 
-    payroll_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    creation_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    collected = db.Column(db.Boolean, default=False, nullable=False)
-    collection_timestamp = db.Column(db.DateTime, nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    __tablename__ = "shipment_payroll"
+
+    payroll_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    collected = Column(Boolean, default=False, nullable=False)
+    collection_timestamp = Column(DateTime, nullable=True)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
     shipment_shipment_payroll_code = relationship("Shipment", backref="shipment_shipment_payroll_code", cascade="all, delete-orphan")
 
 
 
-class ShipmentPayrollAudit(db.Model):
+class ShipmentPayrollAudit(Base):
     """
     (Planillas) Represents a payroll record for a shipment. Audit Table
     Attributes:
@@ -231,20 +246,22 @@ class ShipmentPayrollAudit(db.Model):
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
 
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    payroll_code = db.Column(db.Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    creation_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    collected = db.Column(db.Boolean, default=False, nullable=False)
-    collection_timestamp = db.Column(db.DateTime, nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    __tablename__ = "shipment_payroll_audit"
 
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
+    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    collected = Column(Boolean, default=False, nullable=False)
+    collection_timestamp = Column(DateTime, nullable=True)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
+
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
 
-class DriverPayroll(db.Model):
+class DriverPayroll(Base):
     """
     (Liquidaciones) Represents a payroll record for a driver.
     Attributes:
@@ -257,21 +274,24 @@ class DriverPayroll(db.Model):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
+
+    __tablename__ = "driver_payroll"
+
         
-    payroll_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    creation_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    driver_code = db.Column(db.Integer, ForeignKey('driver.driver_code'), nullable=False)
-    paid = db.Column(db.Boolean, default=False, nullable=False)
-    paid_timestamp = db.Column(db.DateTime, nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    payroll_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
+    paid = Column(Boolean, default=False, nullable=False)
+    paid_timestamp = Column(DateTime, nullable=True)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
     shipment_driver_payroll_code = relationship("Shipment", backref="shipment_driver_payroll_code", cascade="all, delete-orphan")
     shipment_expense_code = relationship("ShipmentExpense", backref="shipment_expense_code", cascade="all, delete-orphan")
 
 
-class DriverPayrollAudit(db.Model):
+class DriverPayrollAudit(Base):
     """
     (Liquidaciones) Represents a payroll record for a driver. Audit Table
     Attributes:
@@ -287,20 +307,23 @@ class DriverPayrollAudit(db.Model):
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
     
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    payroll_code = db.Column(db.Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    creation_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    driver_code = db.Column(db.Integer, ForeignKey('driver.driver_code'), nullable=False)
-    paid = db.Column(db.Boolean, default=False, nullable=False)
-    paid_timestamp = db.Column(db.DateTime, nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
-
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    __tablename__ = "driver_payroll_audit"
 
 
-class Shipment(db.Model):
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
+    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
+    paid = Column(Boolean, default=False, nullable=False)
+    paid_timestamp = Column(DateTime, nullable=True)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
+
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+
+
+class Shipment(Base):
     """(Cobranzas) Represents a single product shipment within a transportation system. 
 
     Attributes:
@@ -321,21 +344,23 @@ class Shipment(db.Model):
     * modification_user (str): The user who created this payroll record.
     """
 
-    shipment_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    shipment_date = db.Column(db.Date, nullable=False)
-    driver_code = db.Column(db.Integer, ForeignKey('driver.driver_code'), nullable=False)
-    product_code = db.Column(db.Integer, ForeignKey('product.product_code'), nullable=False)
-    route_code = db.Column(db.Integer, ForeignKey('route.route_code'), nullable=False)
-    price = db.Column(db.Numeric(10, 2), default=0, nullable=False)
-    payroll_price = db.Column(db.Numeric(10, 2), default=0, nullable=False)
-    ticket_code = db.Column(db.String(100), nullable=False)
-    origin_weight = db.Column(db.Integer, nullable=False)
-    destination_weight = db.Column(db.Integer, nullable=False)
-    shipment_payroll_code = db.Column(db.Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    driver_payroll_code = db.Column(db.Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    __tablename__ = "shipment"
+
+    shipment_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    shipment_date = Column(Date, nullable=False)
+    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
+    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
+    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
+    price = Column(Numeric(10, 2), default=0, nullable=False)
+    payroll_price = Column(Numeric(10, 2), default=0, nullable=False)
+    ticket_code = Column(String(100), nullable=False)
+    origin_weight = Column(Integer, nullable=False)
+    destination_weight = Column(Integer, nullable=False)
+    shipment_payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
+    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
     # __table_args__ = (
     #     UniqueConstraint('driver_code', 'ticket_number', 'shipment_date', 
@@ -343,7 +368,7 @@ class Shipment(db.Model):
     # )
 
 
-class ShipmentAudit(db.Model):
+class ShipmentAudit(Base):
     """(Cobranzas) Represents a single product shipment within a transportation system. 
 
     Attributes:
@@ -365,27 +390,31 @@ class ShipmentAudit(db.Model):
     * modification_user (str): The user who created this payroll record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    shipment_code = db.Column(db.Integer, ForeignKey('shipment.shipment_code'), nullable=False)
-    shipment_date = db.Column(db.Date, nullable=False)
-    driver_code = db.Column(db.Integer, ForeignKey('driver.driver_code'), nullable=False)
-    product_code = db.Column(db.Integer, ForeignKey('product.product_code'), nullable=False)
-    route_code = db.Column(db.Integer, ForeignKey('route.route_code'), nullable=False)
-    price = db.Column(db.Numeric(10, 2), default=0, nullable=False)
-    payroll_price = db.Column(db.Numeric(10, 2), default=0, nullable=False)
-    ticket_code = db.Column(db.String(100), nullable=False)
-    origin_weight = db.Column(db.Integer, nullable=False)
-    destination_weight = db.Column(db.Integer, nullable=False)
-    shipment_payroll_code = db.Column(db.Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    driver_payroll_code = db.Column(db.Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
 
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    __tablename__ = "shipment_audit"
 
 
-class ShipmentExpense(db.Model):
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    shipment_code = Column(Integer, ForeignKey('shipment.shipment_code'), nullable=False)
+    shipment_date = Column(Date, nullable=False)
+    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
+    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
+    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
+    price = Column(Numeric(10, 2), default=0, nullable=False)
+    payroll_price = Column(Numeric(10, 2), default=0, nullable=False)
+    ticket_code = Column(String(100), nullable=False)
+    origin_weight = Column(Integer, nullable=False)
+    destination_weight = Column(Integer, nullable=False)
+    shipment_payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
+    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
+
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+
+
+class ShipmentExpense(Base):
     """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
 
     Attributes:
@@ -399,19 +428,22 @@ class ShipmentExpense(db.Model):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
+
+    __tablename__ = "shipment_expense"
+
     
-    expense_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    expense_date = db.Column(db.Date, nullable=False)
-    receipt = db.Column(db.String(100), nullable=True)
-    amount = db.Column(db.BigInteger, nullable=False)
-    reason = db.Column(db.String(100), nullable=True)
-    driver_payroll_code = db.Column(db.Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    expense_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    expense_date = Column(Date, nullable=False)
+    receipt = Column(String(100), nullable=True)
+    amount = Column(BigInteger, nullable=False)
+    reason = Column(String(100), nullable=True)
+    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
 
 
-class ShipmentExpenseAudit(db.Model):
+class ShipmentExpenseAudit(Base):
     """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
 
     Attributes:
@@ -427,51 +459,62 @@ class ShipmentExpenseAudit(db.Model):
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
 
-    audit_code = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    expense_code = db.Column(db.Integer, ForeignKey('shipment_expense.expense_code'), nullable=False)
-    expense_date = db.Column(db.Date, nullable=False)
-    receipt = db.Column(db.String(100), nullable=True)
-    amount = db.Column(db.BigInteger, nullable=False)
-    reason = db.Column(db.String(100), nullable=True)
-    driver_payroll_code = db.Column(db.Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-    company_id = db.Column(db.String(100), nullable=False)
-    modification_user = db.Column(db.String(100), nullable=False)
+    __tablename__ = "shipment_expense_audit"
 
-    audit_timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    expense_code = Column(Integer, ForeignKey('shipment_expense.expense_code'), nullable=False)
+    expense_date = Column(Date, nullable=False)
+    receipt = Column(String(100), nullable=True)
+    amount = Column(BigInteger, nullable=False)
+    reason = Column(String(100), nullable=True)
+    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
+    deleted = Column(Boolean, default=False, nullable=False)
+    company_id = Column(String(100), nullable=False)
+    modification_user = Column(String(100), nullable=False)
+
+    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
 # Old
-class Planillas(db.Model):
-    fecha = db.Column(db.Date, nullable=False, primary_key=True)
+class Planillas(Base):
+    __tablename__ = "planillas"
 
 
-class Precios(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    origen = db.Column(db.String(100), nullable=False)
-    destino = db.Column(db.String(100), nullable=False)
-    precio = db.Column(db.Numeric(10, 2), nullable=False)
-    precio_liquidacion = db.Column(db.Numeric(10, 2), nullable=False)
+    fecha = Column(Date, nullable=False, primary_key=True)
+
+
+class Precios(Base):
+    __tablename__ = "precios"
+
+
+    id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    origen = Column(String(100), nullable=False)
+    destino = Column(String(100), nullable=False)
+    precio = Column(Numeric(10, 2), nullable=False)
+    precio_liquidacion = Column(Numeric(10, 2), nullable=False)
 
     __table_args__ = (
         UniqueConstraint('origen', 'destino', name='uq_origen_destino'),
     )
 
 
-class Cobranzas(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
+class Cobranzas(Base):
+    __tablename__ = "cobranzas"
+
+
+    id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
     liquidacion_viajes = relationship("LiquidacionViajes", backref="liquidacion_viajes", cascade="all, delete-orphan")
-    fecha_viaje = db.Column(db.Date, nullable=False)
-    chofer = db.Column(db.String(100), nullable=False)
-    chapa = db.Column(db.String(100))
-    producto = db.Column(db.String(100))
-    origen = db.Column(db.String(100))
-    destino = db.Column(db.String(100))
-    tiquet = db.Column(db.Integer, nullable=False)
-    kilos_origen = db.Column(db.Integer, nullable=False)
-    kilos_destino = db.Column(db.Integer, nullable=False)
-    precio = db.Column(db.Numeric(10, 2), nullable=False)
-    fecha_creacion = db.Column(db.Date, ForeignKey('planillas.fecha', ondelete='CASCADE'), nullable=True)
+    fecha_viaje = Column(Date, nullable=False)
+    chofer = Column(String(100), nullable=False)
+    chapa = Column(String(100))
+    producto = Column(String(100))
+    origen = Column(String(100))
+    destino = Column(String(100))
+    tiquet = Column(Integer, nullable=False)
+    kilos_origen = Column(Integer, nullable=False)
+    kilos_destino = Column(Integer, nullable=False)
+    precio = Column(Numeric(10, 2), nullable=False)
+    fecha_creacion = Column(Date, ForeignKey('planillas.fecha', ondelete='CASCADE'), nullable=True)
 
     __table_args__ = (
         UniqueConstraint('chofer', 'tiquet', 'fecha_viaje', name='uq_chofer_tiquet_fecha'),
@@ -479,39 +522,47 @@ class Cobranzas(db.Model):
 
 
 tipo_clave = {'chofer/chapa', 'producto', 'origen', 'destino'} #tipos de palabras clave (a usar en tabla PalabraClave)
-class Palabras(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    palabra = db.Column(db.String(100), nullable=False)
-    tipo = db.Column(db.String(100), nullable=False)
+class Palabras(Base):
+    __tablename__ = "palabras"
+
+    id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    palabra = Column(String(100), nullable=False)
+    tipo = Column(String(100), nullable=False)
 
     __table_args__ = (
         UniqueConstraint('palabra', 'tipo', name='uq_palabra_tipo'),
     )
 
 
-class LiquidacionViajes(db.Model):
-    id = db.Column(db.Integer,ForeignKey('cobranzas.id', ondelete='CASCADE'), primary_key=True)
-    precio_liquidacion = db.Column(db.Numeric(10, 2), nullable=False)
+class LiquidacionViajes(Base):
+    __tablename__ = "liquidacion_viajes"
 
-    id_liquidacion = db.Column(db.Integer,ForeignKey('liquidaciones.id', ondelete='CASCADE'), nullable=False)
+    id = Column(Integer,ForeignKey('cobranzas.id', ondelete='CASCADE'), primary_key=True)
+    precio_liquidacion = Column(Numeric(10, 2), nullable=False)
 
-
-
-class LiquidacionGastos(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    fecha = db.Column(db.Date, nullable=False)
-    boleta = db.Column(db.String(100), nullable=True)
-    importe = db.Column(db.BigInteger, nullable=False)
-    razon = db.Column(db.String(100), nullable=True)
-
-    id_liquidacion = db.Column(db.Integer,ForeignKey('liquidaciones.id', ondelete='CASCADE'), nullable=False)
+    id_liquidacion = Column(Integer,ForeignKey('liquidaciones.id', ondelete='CASCADE'), nullable=False)
 
 
-class Liquidaciones(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True, autoincrement=True)
-    chofer = db.Column(db.String(100), nullable=False)
-    fecha_liquidacion = db.Column(db.Date, nullable=False)
-    pagado = db.Column(db.Boolean, default=False, nullable=False)
+
+class LiquidacionGastos(Base):
+    __tablename__ = "liquidacion_gastos"
+
+    id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    fecha = Column(Date, nullable=False)
+    boleta = Column(String(100), nullable=True)
+    importe = Column(BigInteger, nullable=False)
+    razon = Column(String(100), nullable=True)
+
+    id_liquidacion = Column(Integer,ForeignKey('liquidaciones.id', ondelete='CASCADE'), nullable=False)
+
+
+class Liquidaciones(Base):
+    __tablename__ = "liquidaciones"
+
+    id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
+    chofer = Column(String(100), nullable=False)
+    fecha_liquidacion = Column(Date, nullable=False)
+    pagado = Column(Boolean, default=False, nullable=False)
 
     liquidacion_viajes_id = relationship("LiquidacionViajes", backref="liquidacion_viajes_id", cascade="all, delete-orphan")
     liquidacion_gastos_id = relationship("LiquidacionGastos", backref="liquidacion_gastos_id", cascade="all, delete-orphan")

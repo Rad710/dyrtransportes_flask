@@ -9,9 +9,15 @@ from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.app_config import logger
-from models.schema import db, Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
+from models.schema import Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
 
+from models.database import db_session
 
+from app.app import app
+
+from typing import Dict, List
+
+@app.route('/exportar_cobranza/<string:fecha_creacion>', methods=['GET'])
 def exportar_cobranza(fecha_creacion):
     cobranzas_ordenadas = Cobranzas.query.filter_by(fecha_creacion=fecha_creacion).order_by(Cobranzas.producto, Cobranzas.origen, Cobranzas.destino, Cobranzas.chofer, Cobranzas.fecha_viaje).all()
     # Crea un diccionario para almacenar las sumas de subtotales por grupo
@@ -287,6 +293,7 @@ def exportar_cobranza(fecha_creacion):
     return response
 
 
+@app.route('/exportar_informe/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 def exportar_informe_planillas(fecha_inicio, fecha_fin):
     fecha_inicio_parsed = parser.isoparse(fecha_inicio).date()
     fecha_fin_parsed = parser.isoparse(fecha_fin).date()
@@ -373,11 +380,11 @@ def exportar_informe_planillas(fecha_inicio, fecha_fin):
     return response
 
 
+@app.route('/exportar_liquidacion/<string:chofer>/<string:fecha>', methods=['GET'])
 def exportar_liquidacion(chofer, fecha):
     liq_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first().id
 
-    # Perform an inner join between Cobranza and Liquidaciones based on 'chofer' and 'fecha_de_liquidacion'
-    viajes = db.session.query(Cobranzas, LiquidacionViajes).join(
+    viajes = db_session.query(Cobranzas, LiquidacionViajes).join(
         LiquidacionViajes,
         Cobranzas.id == LiquidacionViajes.id
     ).filter(
@@ -385,13 +392,11 @@ def exportar_liquidacion(chofer, fecha):
         LiquidacionViajes.id_liquidacion == liq_id
     ).order_by(Cobranzas.fecha_viaje).all()
 
-    # Perform an inner join between Cobranza and Liquidaciones based on 'chofer' and 'fecha_de_liquidacion'
     gastos_sin_boleta = LiquidacionGastos.query.filter_by(
         id_liquidacion = liq_id, boleta=None).all()
     gastos_con_boleta = LiquidacionGastos.query.filter_by(
         id_liquidacion = liq_id).filter(LiquidacionGastos.boleta.isnot(None)).all()
 
-    # Calcular la longitud máxima de las tres listas
     max_len = max(len(viajes), len(gastos_sin_boleta), len(gastos_con_boleta))
 
     # Rellenar las listas para que tengan la misma longitud con None si es necesario
@@ -407,142 +412,221 @@ def exportar_liquidacion(chofer, fecha):
     workbook = Workbook()
     sheet = workbook.active
 
-    sheet.column_dimensions['A'].width = 2.64
-    sheet.column_dimensions['B'].width = 9.91
-    sheet.column_dimensions['C'].width = 7.91
-    sheet.column_dimensions['D'].width = 9.36
-    sheet.column_dimensions['E'].width = 18
-    sheet.column_dimensions['F'].width = 18
-    sheet.column_dimensions['G'].width = 10.3
-    sheet.column_dimensions['H'].width = 11.0
-    sheet.column_dimensions['I'].width = 8.09
-    sheet.column_dimensions['J'].width = 9.60
-    sheet.column_dimensions['K'].width = 10.27
-    sheet.column_dimensions['L'].width = 10.82
-    sheet.column_dimensions['M'].width = 10.27
-    sheet.column_dimensions['N'].width = 10.36
-    sheet.column_dimensions['O'].width = 8.91
-    sheet.column_dimensions['P'].width = 10.82
+    #define columns 
+    columns = {
+        "code": { "letter": "A", "number": 1 },
+        "shipment_date":  { "letter": "B", "number": 2 },
+        "product": { "letter": "C", "number": 3 },
+        "ticket_number": { "letter": "D", "number": 4 },
+        "origin": { "letter": "E", "number": 5 },
+        "destination": { "letter": "F", "number": 6 },
+        "origin_weight": { "letter": "G", "number": 7 },
+        "destination_weight": { "letter": "H", "number": 8 },
+        "difference": { "letter": "I", "number": 9 },
+        "price_weight": { "letter": "J", "number": 10 },
+        "shipment_amount": { "letter": "K", "number": 11 },
+        "untaxed_expense_date": { "letter": "L", "number": 12 },
+        "untaxed_espense_reason": { "letter": "M", "number": 13 },
+        "untaxed_expense_amount": { "letter": "N", "number": 14 },
+        "taxed_expense_date": { "letter": "O", "number": 15 },
+        "taxed_expense_receipt": { "letter": "P", "number": 16 },
+        "taxed_expense_reason": { "letter": "Q", "number": 17 },
+        "taxed_expense_amount": { "letter": "R", "number": 18 }
+    }
 
-    # Agregar la fecha como la primera fila
-    sheet.append([])  # Agregar una fila en blanco después de la fecha
-    # Agregar una fila en blanco después de la fecha
-    sheet.append(['LIQUIDACION DE FLETES'])
+    columns_length = len(columns)
 
-    # Obtener el rango de columnas con valores None
-    inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 16   # Cambiar al índice de la última columna con valor None
-
-    # Combinar las celdas en el rango de columnas
-    sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
-                      end_row=sheet.max_row, end_column=fin_columna)
-
-    # Centrar el contenido en la celda combinada
-    merged_cell = sheet.cell(row=sheet.max_row, column=inicio_columna)
-    merged_cell.alignment = Alignment(horizontal='center', vertical='center')
-
-    # Aplicar bordes
-    thin_border = Border(left=Side(style='thin'), right=Side(
+    # style
+    border = Border(left=Side(style='thin'), right=Side(
         style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
-    for col in range(1, 17):
+    render_driver_payroll_headers(sheet, columns, chofer, viajes, border)
+    render_driver_payroll_shipment_expense(sheet, columns, results, border)
+    last_row = 5 + max_len
+
+    untaxed_expense_amount_column = columns["untaxed_expense_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
+
+    #Subtotals
+    subtotal_sin_boleta = f'=SUM(${untaxed_expense_amount_column}6:${untaxed_expense_amount_column}{last_row})'
+    subtotal_con_boleta = f'=SUM(${taxed_expense_amount_column}6:${taxed_expense_amount_column}{last_row})'
+    subtotales = [
+        None, None, None, None, None, None, None, None, None, None, None,
+        'Subtotal', None, subtotal_sin_boleta, 'Subtotal', None, None, subtotal_con_boleta
+    ]
+    sheet.append(subtotales)
+
+    for col in range(1, columns_length + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    for col in [columns['untaxed_expense_date']['number'], columns_length]:
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.number_format = "#,##0"
+        cell.border = border
+
+
+    shipment_amount_column = columns["shipment_amount"]["letter"]
+    untaxed_expense_amount_column = columns["untaxed_expense_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
+
+    # TOTAL SHIPMENT-EXPENSE
+    total_gastos = f'=+${untaxed_expense_amount_column}{last_row + 1}+${taxed_expense_amount_column}{last_row + 1}'
+    subtotal_viajes = f'=SUM(${shipment_amount_column}6:${shipment_amount_column}{last_row})'
+    total = [
+        None, None, None, None, None, None, None, None, 'TOTAL FLETES:',
+        None, subtotal_viajes, 'TOTAL GASTOS:', None, None, None, None, None, total_gastos
+    ]
+    sheet.append(total)
+
+    for col in [columns['shipment_amount']['number'], len(columns)]:
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.number_format = "#,##0"
+        cell.border = border
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    sheet.append([None])
+
+    render_driver_payroll_totals(sheet, columns, border, last_row)
+
+    # Save and send Excel file
+    workbook.save(output)
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename={chofer}_Liquidacion_{fecha}.xlsx'
+    logger.warning('Liquidacion %s %s exportada', chofer, fecha)
+    return response
+
+
+def render_driver_payroll_headers(sheet, columns, chofer, viajes, border) :
+    #set column widths
+    sheet.column_dimensions[columns['code']['letter']].width = 2.64
+    sheet.column_dimensions[columns['shipment_date']['letter']].width = 10.6
+    sheet.column_dimensions[columns['product']['letter']].width = 5.00
+    sheet.column_dimensions[columns['ticket_number']['letter']].width = 9.00
+    sheet.column_dimensions[columns['origin']['letter']].width = 16
+    sheet.column_dimensions[columns['destination']['letter']].width = 16
+    sheet.column_dimensions[columns['origin_weight']['letter']].width = 9
+    sheet.column_dimensions[columns['destination_weight']['letter']].width = 9
+    sheet.column_dimensions[columns['difference']['letter']].width = 5
+    sheet.column_dimensions[columns['price_weight']['letter']].width = 7.60
+    sheet.column_dimensions[columns['shipment_amount']['letter']].width = 10.27
+    sheet.column_dimensions[columns['untaxed_expense_date']['letter']].width = 10.82
+    sheet.column_dimensions[columns['untaxed_espense_reason']['letter']].width = 7.0
+    sheet.column_dimensions[columns['untaxed_expense_amount']['letter']].width = 10.27
+    sheet.column_dimensions[columns['taxed_expense_date']['letter']].width = 10.82
+    sheet.column_dimensions[columns['taxed_expense_receipt']['letter']].width = 8.5
+    sheet.column_dimensions[columns['taxed_expense_reason']['letter']].width = 7.0
+    sheet.column_dimensions[columns['taxed_expense_amount']['letter']].width = 10.82
+
+    # Title
+    sheet.append([])
+    sheet.append(['LIQUIDACION DE FLETES'])
+
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=1,
+        end_row=sheet.max_row, end_column=len(columns)
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
+    merged_cell.alignment = Alignment(horizontal='center', vertical='center')
+
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
         cell.font = Font(bold=True)
 
     sheet.row_dimensions[2].height = 21
 
+    chapa = ""
     if viajes and viajes[0]:
         chapa = viajes[0][0].chapa
-    else:
-        chapa = ""
 
-    # Agregar una fila en blanco después de la fecha
+    # Driver Information
     sheet.append(
-        [f'Conductor: {chofer}                Chapa: {chapa}                Fecha: {datetime.now().strftime("%d/%m/%Y")}'])
-    # Obtener el rango de columnas con valores None
-    inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 16   # Cambiar al índice de la última columna con valor None
-
-    # Combinar las celdas en el rango de columnas
-    sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
-                      end_row=sheet.max_row, end_column=fin_columna)
-
-    # Centrar el contenido en la celda combinada
-    merged_cell = sheet.cell(row=sheet.max_row, column=inicio_columna)
+        [f'Conductor: {chofer}                Chapa: {chapa}                Fecha: {datetime.now().strftime("%d/%m/%Y")}']
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=1,
+        end_row=sheet.max_row, end_column=len(columns)
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
     merged_cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    thin_border = Border(left=Side(style='thin'), right=Side(
-        style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    for col in range(1, 17):
+
+    for col in range(1, len(columns) + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
     sheet.row_dimensions[3].height = 21
 
-    sheet.append(['FLETES', None, None, None, None, None, None, None, None, None, None,
-                  'GASTOS (VIATICO/GASOIL)', None, None, None, None])
-
-    # Obtener el rango de columnas con valores None
-    inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 11   # Cambiar al índice de la última columna con valor None
-
-    # Combinar las celdas en el rango de columnas
-    sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
-                      end_row=sheet.max_row, end_column=fin_columna)
-
-    # Centrar el contenido en la celda combinada
-    merged_cell = sheet.cell(row=sheet.max_row, column=inicio_columna)
+    # Columns division
+    sheet.append([
+        'FLETES', None, None, None, None, None, None, None, None, None, None,
+        'GASTOS (VIATICO/GASOIL)', None, None, None, None
+    ])
+    
+    # Merge FLETES title
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=1,
+        end_row=sheet.max_row, end_column=columns['shipment_amount']['number']
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
     merged_cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    thin_border = Border(left=Side(style='thin'), right=Side(
-        style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    for col in range(1, 17):
+    for col in range(1, len(columns) + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
-    # Obtener el rango de columnas con valores None
-    inicio_columna = 12  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 16   # Cambiar al índice de la última columna con valor None
 
-    # Combinar las celdas en el rango de columnas
-    sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
-                      end_row=sheet.max_row, end_column=fin_columna)
-
-    # Centrar el contenido en la celda combinada
-    merged_cell = sheet.cell(row=sheet.max_row, column=inicio_columna)
+    # Merge GASTOS title
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=columns['untaxed_expense_date']['number'],
+        end_row=sheet.max_row, end_column=len(columns)
+    )
+    merged_cell = sheet.cell(
+        row=sheet.max_row, column=columns['untaxed_expense_date']['number']
+    )
     merged_cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    thin_border = Border(left=Side(style='thin'), right=Side(
-        style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    for col in range(1, 17):
+
+    for col in range(1, len(columns) + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
-    # Agregar encabezados
-    encabezados = ['N°', 'Fecha', 'Producto', 'Recepcion N°', 'Origen', 'Destino', 'Kilos Origen', 'Kilos Llegada',
-                   'Dif.', 'Gs. p/ KILO', 'Importe Gs.', 'Fecha', 'Importe Gs.', 'Fecha', 'Boleta N°', 'Importe Gs.']
-    sheet.append(encabezados)
 
-    for col in range(1, 17):
+    # Table Header
+    headers = [
+        'N°', 'Fecha', 'Prod.', 'Recepcion N°', 
+        'Origen', 'Destino', 'Kg. Origen', 'Kg. Llegada',
+        'Dif.', 'Gs. p/ Kg', 'Importe Gs.', 
+        'Fecha', 'Razón', 'Importe Gs.', 
+        'Fecha', 'Boleta N°', 'Razón', 'Importe Gs.'
+    ]
+
+    sheet.append(headers)
+    for col in range(1, len(columns) + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
     sheet.row_dimensions[5].height = 25
+
+
+def render_driver_payroll_shipment_expense(sheet, columns, results, border):
+    origin_weight_column = columns["origin_weight"]["letter"]
+    destination_weight_column = columns["destination_weight"]["letter"]
+    price_weight_column = columns["price_weight"]["letter"]
 
     contador = 1
     for viaje, sin_boleta, con_boleta in results:
@@ -550,15 +634,18 @@ def exportar_liquidacion(chofer, fecha):
 
         if viaje:
             current_row = contador + 5
-            diferencia = f'=+H{current_row}-G{current_row}'
-            total_gs = f'=ROUND(H{current_row}*J{current_row}, 0)'
+            diferencia = f'=+${destination_weight_column}{current_row}-${origin_weight_column}{current_row}'
+            total_gs = f'=ROUND(${destination_weight_column}{current_row}*${price_weight_column}{current_row}, 0)'
 
-            viaje_fila = [viaje[0].fecha_viaje.strftime('%d/%m/%Y'), viaje[0].producto,
-                          viaje[0].tiquet, viaje[0].origen, viaje[0].destino,
-                          viaje[0].kilos_origen, viaje[0].kilos_destino,
-                          diferencia, 
-                          viaje[1].precio_liquidacion,
-                          total_gs]
+            viaje_fila = [
+                viaje[0].fecha_viaje.strftime('%d/%m/%Y'), viaje[0].producto,
+                viaje[0].tiquet, viaje[0].origen, viaje[0].destino,
+                viaje[0].kilos_origen, viaje[0].kilos_destino,
+                diferencia,
+                viaje[1].precio_liquidacion,
+                total_gs
+            ]
+            
             fila.extend(viaje_fila)
 
         else:
@@ -566,225 +653,218 @@ def exportar_liquidacion(chofer, fecha):
 
         if sin_boleta:
             sin_boleta_fila = [sin_boleta.fecha.strftime(
-                '%d/%m/%Y'), sin_boleta.importe]
+                '%d/%m/%Y'), sin_boleta.razon, sin_boleta.importe]
             fila.extend(sin_boleta_fila)
-        else:
-            fila.extend([None] * 2)
-
-        if con_boleta:
-            con_boleta_fila = [con_boleta.fecha.strftime(
-                '%d/%m/%Y'), con_boleta.boleta, con_boleta.importe]
-            fila.extend(con_boleta_fila)
         else:
             fila.extend([None] * 3)
 
+        if con_boleta:
+            con_boleta_fila = [con_boleta.fecha.strftime(
+                '%d/%m/%Y'), con_boleta.boleta, con_boleta.razon, con_boleta.importe]
+            fila.extend(con_boleta_fila)
+        else:
+            fila.extend([None] * 4)
+
         sheet.append(fila)
 
-        for col in range(1, 17):
+        for col in range(1, len(columns) + 1):
             cell = sheet.cell(row=sheet.max_row, column=col)
+            cell.border = border
 
-            if col == 10:
+            if col == columns['price_weight']['number']:
                 cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
             else:
                 cell.number_format = "#,##0"
 
-            thin_border = Border(left=Side(style='thin'), right=Side(
-                style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-            cell.border = thin_border
-
         contador += 1
 
-    last_row = 5 + max_len
-    subtotal_sin_boleta = f'=SUM(M6:M{last_row})'
-    subtotal_con_boleta = f'=SUM(P6:P{last_row})'
-    subtotales = [None, None, None, None, None, None, None, None, None, None,
-                  None, 'Subtotal', subtotal_sin_boleta, None, 'Subtotal', subtotal_con_boleta]
-    sheet.append(subtotales)
 
-    for col in range(1, 17):
-        cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
-        cell.font = Font(bold=True)
+def render_driver_payroll_totals(sheet, columns, border, last_row):
+    price_weight_column = columns["price_weight"]["letter"]
+    shipment_amount_column = columns["shipment_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
 
-    for col in [13, 16]:
-        cell = sheet.cell(row=sheet.max_row, column=col)
-        cell.number_format = "#,##0"
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+    totals_start_column = 7
+    totals_end_column = 12
+    title_end_column = 9
 
-    total_gastos = f'=+M{last_row + 1}+P{last_row + 1}'
-    subtotal_viajes = f'=SUM(K6:K{last_row})'
-    total = [None, None, None, None, None, None, None, None, 'TOTAL FLETES:',
-             None, subtotal_viajes, 'TOTAL GASTOS:', None, None, None, total_gastos]
-    sheet.append(total)
-
-    for col in [11, 16]:
-        cell = sheet.cell(row=sheet.max_row, column=col)
-        cell.number_format = "#,##0"
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
-
-    for col in range(1, 17):
-        cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
-        cell.font = Font(bold=True)
-
-    sheet.append([None])
-
-    total_cobrar = [None, None, None, None, None, None, None,
-                    'TOTAL A COBRAR:', None, None, f'=+K{last_row + 2}-P{last_row + 2}']
+    # PAYROLL TOTAL
+    total_cobrar = [
+        None, None, None, None, None, None,
+        'TOTAL A COBRAR:', None, None,
+        f'=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 2}',
+        None
+    ]
     sheet.append(total_cobrar)
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=title_end_column + 1,
+        end_row=sheet.max_row,
+        end_column=title_end_column + 2
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column
+    )
 
-    for col in range(8, 12):
+    for col in range(columns['origin_weight']['number'], columns['shipment_amount']['number']):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
-        if col == 11:
+        if col == columns['shipment_amount']['number']:
             cell.number_format = "#,##0"
 
-    total_facturar = [None, None, None, None, None, None, None,
-                      'TOTAL A FACTURAR:', None, None, f'=+K{last_row + 2}-P{last_row + 1}']
+
+    total_facturar = [
+        None, None, None, None, None, None,
+        'TOTAL A FACTURAR:', None, None, 
+        f'=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 1}',
+        None
+    ]
     sheet.append(total_facturar)
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=title_end_column + 1,
+        end_row=sheet.max_row, end_column=title_end_column + 2
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column
+    )
 
-    for col in range(8, 12):
+    for col in range(columns['origin_weight']['number'], columns['shipment_amount']['number']):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
-        if col == 11:
+        if col == columns['shipment_amount']['number']:
             cell.number_format = "#,##0"
 
-    sheet.append([None, None, None, None, None, None, None,
-                      'Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4', None, None, None])
-    
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                      end_row=sheet.max_row, end_column=12)
+    sheet.append([
+        None, None, None, None, None, None,
+        'Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4', 
+        None, None, None, None
+    ])
 
-    for col in range(8, 13):
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=totals_start_column,
+        end_row=sheet.max_row, end_column=totals_end_column
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
 
 
     sheet.append([])
-
-    sheet.append([None, None, None, None, None, None, None,
-                    'Descripcion', None, 'Exenta', 'IVA 5%', 'IVA 10%'])
+    sheet.append([
+        None, None, None, None, None, None,
+        'Descripcion', None, None, 'Exenta', 'IVA 5%', 'IVA 10%', None
+    ])
     
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                    end_row=sheet.max_row, end_column=9)
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=totals_start_column,
+        end_row=sheet.max_row, end_column=title_end_column
+    )
 
-    for col in range(8, 13):
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
 
     
-    sheet.append([None, None, None, None, None, None, None,
-                'Servicio de Flete', None, 0, 0, f'=+K{last_row + 5}'])
+    sheet.append([
+        None, None, None, None, None, None,
+        'Servicio de Flete', None, None, 0, 0, f'=+${price_weight_column}{last_row + 5}', None
+    ])
     
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                    end_row=sheet.max_row, end_column=9)
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=totals_start_column,
+        end_row=sheet.max_row, end_column=title_end_column
+    )
 
-    for col in range(8, 13):
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
 
-        if col >= 10:
+        if col >= title_end_column:
             cell.number_format = "#,##0"
 
-    sheet.append([None, None, None, None, None, None, None,
-                None, None, None, None])
+    sheet.append([
+        None, None, None, None, None, None, None,
+        None, None, None, None
+    ])
     
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                end_row=sheet.max_row, end_column=9)
+    sheet.merge_cells(start_row=sheet.max_row, start_column=totals_start_column,
+                end_row=sheet.max_row, end_column=title_end_column)
 
-    for col in range(8, 13):
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
 
-        if col >= 10:
-            cell.number_format = "#,##0"
-
-
-    sheet.append([None, None, None, None, None, None, None,
-                'Subtotal', None, f'=+J{last_row + 9}', 0, f'=+L{last_row + 9}'])
-    
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                end_row=sheet.max_row, end_column=9)
-    
-    for col in range(8, 13):
-        cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
-
-        if col >= 10:
+        if col >= title_end_column:
             cell.number_format = "#,##0"
 
 
-    sheet.append([None, None, None, None, None, None, None,
-            'Total', None, None, None, f'=+J{last_row + 11}+L{last_row + 11}'])
+    sheet.append([
+        None, None, None, None, None, None,
+        'Subtotal', None, None, f'=+J{last_row + 9}', 0, f'=+L{last_row + 9}', None
+    ])
     
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                end_row=sheet.max_row, end_column=9)
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=totals_start_column,
+        end_row=sheet.max_row, end_column=title_end_column
+    )
     
-    for col in range(8, 13):
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
+
+
+    sheet.append([
+        None, None, None, None, None, None,
+        'Total', None, None, None, None, f'=+J{last_row + 11}+L{last_row + 11}', None
+    ])
+    
+    sheet.merge_cells(
+        start_row=sheet.max_row, start_column=totals_start_column,
+        end_row=sheet.max_row, end_column=title_end_column
+    )
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
         cell.font = Font(bold=True)
 
-        if col >= 10:
+        if col >= title_end_column:
             cell.number_format = "#,##0"
 
-    sheet.append([None, None, None, None, None, None, None, None,
-        None, 'IVA 10%', None, f'=+L{last_row + 12}/11'])
+    sheet.append([
+        None, None, None, None, None, None, None,
+        None, None, 'IVA 10%', None, f'=+L{last_row + 12}/11', None
+    ])
     
-    sheet.merge_cells(start_row=sheet.max_row, start_column=8,
-                end_row=sheet.max_row, end_column=9)
+    sheet.merge_cells(start_row=sheet.max_row, start_column=totals_start_column,
+                end_row=sheet.max_row, end_column=title_end_column)
 
-    for col in range(8, 13):
+    for col in range(totals_start_column, totals_end_column + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
-        thin_border = Border(left=Side(style='thin'), right=Side(
-            style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        cell.border = thin_border
+        cell.border = border
         cell.font = Font(bold=True)
 
-        if col >= 10:
-            cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
     
-    # Guardar el archivo Excel en el flujo de salida
-    workbook.save(output)
-    output.seek(0)
-
-    # Crear la respuesta para el cliente con el archivo Excel
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename={chofer}_Liquidacion_{fecha}.xlsx'
-    logger.warning(f'Liquidacion {chofer}_{fecha} exportada')
-
-    return response
 
 
+
+@app.route('/exportar_precios', methods=['GET'])
 def exportar_precios():
     precios = Precios.query.all()
 
