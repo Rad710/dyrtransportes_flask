@@ -5,7 +5,7 @@ from dateutil import parser
 from app.app_config import logger
 from models.schema import LiquidacionViajes, Cobranzas, Liquidaciones
 from utils.utils import agregar_cobranza, string_to_int
-from models.database import init_db
+from models.database import db_session
 import re
 
 from app.app import app
@@ -41,12 +41,12 @@ def post_liquidacion_viaje():
         liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, 
                                 id_liquidacion=id_liquidacion)
             
-        init_db.add(liq)
-        init_db.commit()
+        db_session.add(liq)
+        db_session.commit()
         logger.warning("Nueva entrada en lista de liquidaciones agregada")
         return jsonify({'success': 'Liquidaciones Viaje agregado exitosamente'}), 200
     except Exception as e:
-        init_db.rollback()
+        db_session.rollback()
         error_message = f'Error al cargar en tabla Liquidaciones Viajes {str(e)}'
         logger.warning(error_message)
         return jsonify({'error': error_message}), 500
@@ -57,7 +57,7 @@ def get_liquidacion_viajes(chofer, fecha):
         id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha).first().id
 
         viajes = (
-            init_db.query(Cobranzas, LiquidacionViajes)
+            db_session.query(Cobranzas, LiquidacionViajes)
             .join(
                 LiquidacionViajes,
                 Cobranzas.id == LiquidacionViajes.id
@@ -105,8 +105,8 @@ def put_liquidacion_viaje(id):
     precio = viaje['precio']
     precio_liquidacion = viaje['precioLiquidacion']
 
-    existing_cobranza = init_db.get(Cobranzas, id)
-    existing_liquidacion_viaje = init_db.get(LiquidacionViajes, id)
+    existing_cobranza = db_session.get(Cobranzas, id)
+    existing_liquidacion_viaje = db_session.get(LiquidacionViajes, id)
     existing_liquidacion_id = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
 
     if existing_cobranza is None or existing_liquidacion_viaje is None:
@@ -127,10 +127,10 @@ def put_liquidacion_viaje(id):
     existing_liquidacion_viaje.id_liquidacion = existing_liquidacion_id
 
     try:
-        init_db.commit()
+        db_session.commit()
         logger.warning('Liquidacion Viaje y Cobranza actualizada exitosamente')
     except Exception as e:
-        init_db.rollback()
+        db_session.rollback()
         error_message = f'Error al actualizar Liquidacion Viaje y Cobranza {str(e)}'
         logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -140,18 +140,18 @@ def put_liquidacion_viaje(id):
 
 @app.route('/liquidacion_viaje/<string:id>', methods=['DELETE'])
 def delete_liquidacion_viaje(id):
-    viaje = init_db.get(LiquidacionViajes, id)
-    cobranza = init_db.get(Cobranzas, id)
+    viaje = db_session.get(LiquidacionViajes, id)
+    cobranza = db_session.get(Cobranzas, id)
 
     try:
         if cobranza.fecha_creacion is None:
-            init_db.delete(cobranza)
+            db_session.delete(cobranza)
 
-        init_db.delete(viaje)
-        init_db.commit()
+        db_session.delete(viaje)
+        db_session.commit()
         return jsonify({'success': 'Viaje eliminado exitosamente'}), 200
     except Exception as e:
-        init_db.rollback()
+        db_session.rollback()
         error_message = f'Error al eliminar Viaje {str(e)}'
         logger.warning(error_message)
         return jsonify({'error': error_message}), 500

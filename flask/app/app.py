@@ -22,10 +22,13 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle' : 280}
 
 print("\nInitializing app...")
 from models.database import db_session
-from models.database import init_db
+from models.database import engine
 
 
-init_db()
+print("Init database...")
+import models.schema
+
+models.schema.Base.metadata.create_all(bind=engine)
 # migrate = Migrate(app, db)
 
 # Wrap db.create_all() in an app context

@@ -1,168 +1,213 @@
-from flask import request, jsonify
+from flask import request
+from flask import jsonify
+from flask import Response
+
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+
+from decimal import Decimal
+from sqlalchemy import select
+from sqlalchemy import asc
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError
 
 from app.app_config import logger
 from models.schema import Route
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
+
 from app.app import app
-from sqlalchemy import asc
-from typing import List
 
 from models.database import db_session
 
+# TODO add moficicacion usuario
 
-@app.route('/route', methods=['POST'])
-def post_route():
-    if (not request.data):
-        logger.warning("Route request.data is empty: %s", request.data)
-        return jsonify({"error": "Data could not be received"}), 500
+def validated_route_payload() -> Tuple[str, str, Decimal, Decimal] | None:
+    if (request.data is None):
+        logger.error("[POST|PATCH /route] Route payload is empty")
+        return None
 
-    payload = request.get_json()
+    payload : Dict[str, Any] = request.get_json()
+    logger.debug("[POST|PATCH /route] payload: %s", payload)
 
-    logger.debug("payload: %s", payload)
+    required_fields = ['origin', 'destination', 'price', 'payrollPrice']
+    for field in required_fields:
+        if field not in payload:
+            logger.error("[POST|PATCH /route] payload missing field: %s", field)
+            return None
 
-    origin: str | None = payload['origin']
+    origin = payload['origin']
     destination = payload['destination']
     price = payload['price']
-    payrollPrice = payload['payroll_price']
+    payroll_price = payload['payroll_price']
 
+    if not isinstance(origin, str) or not isinstance(destination, str):
+        logger.error("[POST|PATCH /route] payload type error in 'origin' and 'destination'")
+        return None
+    if not isinstance(price, (int, float)) or not isinstance(payroll_price, (int, float)):
+        logger.error("[POST|PATCH /route] payload type error in 'price' and 'payroll_price'")
+        return None
+
+    if price <= 0 or payroll_price <= 0:
+        logger.error("[POST|PATCH /route] payload value error in 'price' and 'payrollPrice'")
+        return None
+    
+    return origin, destination, Decimal(str(price)), Decimal(str(payroll_price))
+
+
+@app.route('/route', methods=['POST'])
+def post_route() -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    existing_entry: Route | None = Route.query.filter_by(
-        origin=origin, destination=destination, deleted = False
-    ).first()
+    validated_payroll = validated_route_payload()
+    if (validated_payroll is None):
+        return jsonify({"error": "Error al recibir datos de ruta"}), 500
+    
+    origin, destination, price, payroll_price = validated_payroll
 
-    logger.debug("existing_entry: %s", existing_entry)
+    stmt = select(Route).where(
+        Route.origin == origin, Route.destination == destination,
+        Route.deleted == False
+    )
+    existing_entry : Route | None = db_session.scalar(stmt)
 
+    logger.debug("[POST /route] existing_entry: %s", existing_entry)
 
     if existing_entry is not None:
-        logger.warning("Duplicate Route: %s", existing_entry)
-        return jsonify({"error": "Entrada ya existe en la tabla Precios"}), 500
+        logger.error("[POST /route] duplicate in table Route: %s", existing_entry)
+        return jsonify({"error": "Ruta ya existe"}), 500
 
-    new_route = Route(origin=origin, destination=destination,
-                      price=price, payroll_price=payrollPrice,
-                      modification_user=current_user, company_id=company_id)
+    new_route = Route(
+        origin=origin, destination=destination,
+        price=price, payroll_price=payroll_price,
+        modification_user=current_user, company_id=company_id
+    )
 
     try:
         db_session.add(new_route)
         db_session.commit()
-        logger.info("new_route added to Route: %s", new_route)
-        return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
+        logger.info("[POST /route] adding to table Route: %s", new_route)
+        return jsonify({"success": "Ruta agregada exitosamente"}), 200
 
     except OperationalError as e:
         db_session.rollback()
-        logger.error("Error en Tabla Route: problema de conexión con la base de datos %s", e)  # Might be more severe
+        logger.error("[POST /route] adding to table Route: connection %s", e)
 
-        return jsonify({"error": 
-            f"Error en Tabla Route: problema de conexión con la base de datos {str(e)}"
-        }), 503  # Service unavailableposible
+        return jsonify({"error": "Error al agregar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error("Error al agregar a tabla Route %s", e)
-        return jsonify({"error": f"Error al agregar a tabla Route {str(e)}"}), 500
+        logger.error("[POST /route] adding to table Route: %s", e)
+        return jsonify({"error": "Error al agregar ruta"}), 500
 
 
 @app.route('/routes', methods=['GET'])
-def get_route_list():
+def get_route_list() -> Tuple[Response, int]:
+    company_id = ''
+    current_user = ''
+
     try:
-        current_user = ''
-        company_id = ''
-
-        routes: List[Route] = Route.query.filter_by(
-            deleted = False, company_id = company_id
+        stmt = select(
+            Route
+        ).where(
+            Route.deleted == False, Route.company_id == company_id,
         ).order_by(
-            asc(Route.origin),
-            asc(Route.destination)
-        ).all()
+            asc(Route.origin), asc(Route.destination)
+        )
 
-        result = [{
-                'routeCode': route.route_code, 
-                'origin': route.origin, 'destination': route.destination, 
-                'price': route.price, 'payrollPrice': route.payroll_price
-            } for route in routes]
-        
-        logger.info("Returned Route list of length: %s", len(result))
-        
-        return jsonify(result), 200
+        routes : Sequence[Route] = db_session.scalars(stmt).all()
+        logger.info("[GET /routes] fetching routes from table Route len: %s", len(routes))
+        logger.debug("[GET /routes] fetching routes from table Route routes: %s", routes)
+        return jsonify(routes), 200
     
     except SQLAlchemyError as e:
-        logger.error("Error in GET /routes %s", e)
-        return jsonify({"error": f"Error en GET tabla Route {str(e)}"}), 500
+        logger.error("[GET /routes] fetching routes from table Route %s", e)
+        return jsonify({"error": "Error al obtener rutas"}), 500
 
 
 @app.route('/route/<string:route_code>', methods=['GET'])
-def get_route(route_code):
+def get_route(route_code : str) -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
     try:
-        current_user = ''
-        company_id = ''
+        stmt = select(
+            Route
+        ).where(
+            Route.route_code == route_code, Route.deleted == False,
+            Route.company_id == company_id
+        )
 
-        route : Route = Route.query.filter_by(
-            route_code=route_code, deleted=False,
-            company_id=company_id
-            ).first()
-
+        route: Route | None = db_session.scalar(stmt)
         if route is None:
-            return jsonify({"error": "No se encontro precio en tabla Precios"}), 404
+            logger.error("[GET /route] fetching from table Route not found")
+            return jsonify({"error": "No se encontró la routa"}), 404
         
-        result = {
-            'routeCode': route.route_code,
-            'origin': route.origin, 'destination': route.destination,
-            'price': route.price, 'payrollPrice': route.payroll_price
-        }
+        logger.info("[GET /route] fetching from table Route found: %s", route.route_code)
+        logger.debug("[GET /route] fetching from table Route found: %s", route)
 
-        logger.info("Returned matching route with code: %s", result['routeCode'])
-
-        return jsonify(result), 200
+        return jsonify(route), 200
 
     except SQLAlchemyError as e:
-        logger.error("Error in GET /route/<string:code> %s", e)
-        return jsonify({"error": f"Error en GET tabla Route {str(e)}"}), 500
+        logger.error("[GET /route] fetching from table Route %s", e)
+        return jsonify({"error": "No se encontró la routa"}), 500
 
 
-@app.route('/precios/<string:route_code>', methods=['PATCH'])
-def put_precio(route_code):
-    viaje = request.json.get('viaje')
-    origen = viaje['origen']
-    destino = viaje['destino'] 
+@app.route('/route/<string:route_code>', methods=['PATCH'])
+def patch_route(route_code : str) -> Tuple[Response, int]:
+    validated_payroll = validated_route_payload()
+
+    if (validated_payroll is None):
+        return jsonify({"error": "Error al recibir datos"}), 500
     
-    precio = viaje['precio']
-    precio_liquidacion = viaje['precioLiquidacion']
+    origin, destination, price, payroll_price = validated_payroll
+
+    existing_entry : Route | None = db_session.get(Route, route_code)
     
-    entrada = db_session.get(Route, route_code)
-    
-    if entrada:
+    if existing_entry:
         try:
-            entrada.origen = origen
-            entrada.destino = destino
-            entrada.precio = precio
-            entrada.precio_liquidacion = precio_liquidacion
+            existing_entry.origin = origin
+            existing_entry.destination = destination
+            existing_entry.price = price
+            existing_entry.payroll_price = payroll_price
 
             db_session.commit()
-            return jsonify({'success': 'Precio actualizado exitosamente'}), 200
-        except Exception as e:
+            logger.info("[PATCH /route] updating table Route: %s", route_code)
+            return jsonify({'success': 'Ruta actualizada exitosamente'}), 200
+        
+        except OperationalError as e:
             db_session.rollback()
-            error_message = f"Error al actualizar precio {str(e)}"
-            logger.warning(error_message)
-            return jsonify({'error': error_message}), 500
-    else:
-        return jsonify({'error': 'Precio no encontrado'}), 404
+            logger.error("[PATCH /route] updating table Route: connection %s", e)
+
+            return jsonify({"error": "Error al actualizar ruta: problema de conexión"}), 503
+
+        except SQLAlchemyError as e:
+            db_session.rollback()
+            logger.error("[PATCH /route] updating table Route: %s", e)
+            return jsonify({"error": "Error al actualizar ruta"}), 500
+
+    return jsonify({'error': 'Ruta no encontrado'}), 404
 
 
-
-@app.route('/precios/<string:route_code>', methods=['DELETE'])
-def soft_delete_precio(route_code):
-    route = db_session.get(Route, id)
-    
+@app.route('/route/<string:route_code>', methods=['DELETE'])
+def delete_precio(route_code : str) -> Tuple[Response, int]:
+    route : Route | None = db_session.get(Route, id)
     if route:
         try:
             route.deleted = True
             db_session.commit()
-            return jsonify({'success': 'Precio eliminado exitosamente'}), 200
-        except Exception as e:
+            logger.info("[DELETE /route] deleting from table Route: %s", route_code)
+            return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
+
+        except OperationalError as e:
             db_session.rollback()
-            error_message = f"Error al eliminar precio {str(e)}"
-            logger.warning(error_message)
-            return jsonify({'error': error_message}), 500
-    else:
-        return jsonify({'error': 'Precio no encontrado'}), 404
+            logger.error("[DELETE /route] deleting table Route: connection %s", e)
+
+            return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
+
+        except SQLAlchemyError as e:
+            db_session.rollback()
+            logger.error("[DELETE /route] deleting table Route: %s", e)
+            return jsonify({"error": "Error al eliminar ruta"}), 500
+
+    return jsonify({'error': 'Ruta no encontrado'}), 404

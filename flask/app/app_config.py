@@ -20,6 +20,8 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 
 logger = flask.logging.create_logger(app)
+
+logger.handlers.clear()
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 

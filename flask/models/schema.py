@@ -11,11 +11,18 @@
 
 from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, DateTime, Date, BigInteger
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import functions
 from decimal import Decimal
+from dataclasses import dataclass
+from typing import List
+class Base(DeclarativeBase):
+        pass
 
-from models.database import Base
 
+@dataclass
 class Route(Base):
     """(Precios) Represents a transportation route within a system.
 
@@ -32,19 +39,19 @@ class Route(Base):
 
     __tablename__ = "route"
 
-
-    route_code : Column[int] = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    origin : Column[str] = Column(String(100), nullable=False)
-    destination : Column[str] = Column(String(100), nullable=False)
-    price : Column[Decimal]  = Column(Numeric(10, 2), nullable=False)
-    payroll_price : Column[Decimal] = Column(Numeric(10, 2), nullable=False)
+    route_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    origin : Mapped[str] = mapped_column(String(100))
+    destination : Mapped[str] = mapped_column(String(100))
+    price : Mapped[Decimal]  = mapped_column(Numeric(10, 2))
+    payroll_price : Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     #cannot delete since it's a foreign key
-    deleted : Column[bool] = Column(Boolean, default=False, nullable=False)
-    company_id : Column[str] = Column(String(100), nullable=False)
-    modification_user : Column[str] = Column(String(100), nullable=False)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
     
-    shipment_route_code = relationship("Shipment", backref="shipment_route_code", cascade="all, delete-orphan")
+    # adding Mapped[List["Shipment"]] will be serialized relationship
+    shipments = relationship("Shipment", back_populates="route", cascade="all, delete-orphan")
 
     # __table_args__ = (
     #     UniqueConstraint(origin, destination, creation_user,
@@ -71,17 +78,17 @@ class RouteAudit(Base):
     __tablename__ = "route_audit"
 
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
-    origin = Column(String(100), nullable=False)
-    destination = Column(String(100), nullable=False)
-    price = Column(Numeric(10, 2), nullable=False)
-    payroll_price = Column(Numeric(10, 2), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    route_code : Mapped[int] = mapped_column(ForeignKey('route.route_code'))
+    origin : Mapped[str] = mapped_column(String(100))
+    destination : Mapped[str] = mapped_column(String(100))
+    price : Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    payroll_price : Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
     
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    audit_timestamp = mapped_column(DateTime, server_default=functions.now())
 
 
 class Product(Base):
@@ -323,6 +330,8 @@ class DriverPayrollAudit(Base):
     audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
 
 
+
+@dataclass
 class Shipment(Base):
     """(Cobranzas) Represents a single product shipment within a transportation system. 
 
@@ -361,6 +370,10 @@ class Shipment(Base):
     deleted = Column(Boolean, default=False, nullable=False)
     company_id = Column(String(100), nullable=False)
     modification_user = Column(String(100), nullable=False)
+
+
+    route : Mapped["Route"] = relationship(back_populates="shipments")
+
 
     # __table_args__ = (
     #     UniqueConstraint('driver_code', 'ticket_number', 'shipment_date', 

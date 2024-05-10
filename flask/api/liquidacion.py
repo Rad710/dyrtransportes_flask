@@ -3,7 +3,7 @@ from sqlalchemy import distinct, desc
 from app.app_config import logger
 from models.schema import Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
-from models.database import init_db
+from models.database import db_session
 
 import re
 
@@ -45,19 +45,19 @@ def put_liquidacion(id):
     # chofer = liquidacion['chofer']
     pagado = liquidacion['pagado']
 
-    existing_liquidacion = init_db.get(Liquidaciones, id)
+    existing_liquidacion = db_session.get(Liquidaciones, id)
 
     if existing_liquidacion is None:
         return jsonify({"error": "No se encontró Liquidacion a actualizar"}), 404
 
     existing_liquidacion.pagado = pagado
     try:
-        init_db.commit()
+        db_session.commit()
         logger.warning('Liquidacion actualizada exitosamente')
         return jsonify({"success": "Entrada actualizada exitosamente en la tabla Liquidaciones"}), 200    
 
     except Exception as e:
-        init_db.rollback()
+        db_session.rollback()
         error_message = f'Error al actualizar Liquidacion {str(e)}'
         logger.warning(error_message)
         return jsonify({"error": error_message}), 500
@@ -66,7 +66,7 @@ def put_liquidacion(id):
 @app.route('/liquidaciones', methods=['GET'])
 def get_liquidaciones():
     try:
-        liquidaciones = init_db.query(distinct(Liquidaciones.chofer)).all()
+        liquidaciones = db_session.query(distinct(Liquidaciones.chofer)).all()
         liquidaciones = sorted(
             liquidaciones, key=lambda liquidacion: liquidacion)
         return jsonify([liquidacion[0] for liquidacion in liquidaciones]), 200
@@ -84,12 +84,12 @@ def delete_liquidaciones(chofer):
     if liquidaciones:
         try:
             for liquidacion in liquidaciones:
-                init_db.delete(liquidacion)
+                db_session.delete(liquidacion)
 
-            init_db.commit()
+            db_session.commit()
             return jsonify({'success': f'Liquidaciones de {chofer} eliminadas exitosamente'}), 200
         except Exception as e:
-            init_db.rollback()
+            db_session.rollback()
             error_message = f'Error al eliminar Liquidaciones {str(e)}'
             logger.warning(error_message)
             return jsonify({'error': error_message}), 500
@@ -120,11 +120,11 @@ def delete_liquidaciones_chofer(chofer, fecha):
 
     if liquidacion:
         try:
-            init_db.delete(liquidacion)
-            init_db.commit()
+            db_session.delete(liquidacion)
+            db_session.commit()
             return jsonify({'success': f'Liquidaciones de {chofer}/{fecha} eliminadas exitosamente'}), 200
         except Exception as e:
-            init_db.rollback()
+            db_session.rollback()
             error_message = f'Error al eliminar Liquidaciones {str(e)}'
             logger.warning(error_message)
             return jsonify({'error': error_message}), 500
