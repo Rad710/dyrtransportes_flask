@@ -3,11 +3,11 @@ from sqlalchemy import extract
 
 from dateutil import parser
 
-from app.app_config import logger
-from models.schema import Planillas
+from app_config import logger
+from models.models import Planillas
 from models.database import db_session
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/planillas/', methods=['POST'])

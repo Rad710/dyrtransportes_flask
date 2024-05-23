@@ -6,9 +6,9 @@ from dateutil import parser
 from models.database import db_session
 
 
-from app.app_config import logger
+from app_config import logger
 
-from app.app import app
+from app_config import app
 
 @app.route('/statistics/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
 def get_statistics(fecha_inicio, fecha_fin):

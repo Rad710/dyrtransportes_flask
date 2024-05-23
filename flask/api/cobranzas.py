@@ -3,11 +3,11 @@ from flask import request, jsonify
 from dateutil import parser
 from decimal import localcontext, Decimal, ROUND_HALF_UP
 
-from app.app_config import logger
-from models.schema import Cobranzas, LiquidacionViajes
+from app_config import logger
+from app_config import app
+from models.models import Cobranzas, LiquidacionViajes
 from models.database import db_session
 from utils.utils import agregar_cobranza, agregar_liquidacion, agregar_liquidacion_viaje, string_to_int
-from app.app import app
 
 from sqlalchemy.exc import IntegrityError
 

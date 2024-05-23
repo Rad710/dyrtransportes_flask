@@ -8,12 +8,12 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, numbers, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.app_config import logger
-from models.schema import Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
+from app_config import logger
+from models.models import Cobranzas, Precios, LiquidacionViajes, LiquidacionGastos, Liquidaciones
 
 from models.database import db_session
 
-from app.app import app
+from app_config import app
 
 from typing import Dict, List
 

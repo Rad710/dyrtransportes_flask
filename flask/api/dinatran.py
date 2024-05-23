@@ -3,11 +3,11 @@ from sqlalchemy import text
 
 from dateutil import parser
 
-from app.app_config import logger
+from app_config import logger
 
 from models.database import db_session
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/dinatran/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])

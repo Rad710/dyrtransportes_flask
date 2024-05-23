@@ -1,13 +1,13 @@
 from flask import request, jsonify
 from sqlalchemy import distinct, desc
-from app.app_config import logger
-from models.schema import Liquidaciones
+from app_config import logger
+from models.models import Liquidaciones
 from utils.utils import agregar_liquidacion, agregar_keywords
 from models.database import db_session
 
 import re
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/liquidacion', methods=['POST'])

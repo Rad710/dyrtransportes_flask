@@ -2,12 +2,12 @@ from flask import request, jsonify, send_file
 import pandas as pd
 import datetime
 
-from app.app_config import logger
+from app_config import logger
 from api.cobranzas import crear_cobranza_liquidacion
 from api.planillas import agregar_planilla
 
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/importar_cobranza', methods=['POST'])

@@ -2,12 +2,12 @@ from flask import jsonify
 
 from sqlalchemy import distinct
 
-from app.app_config import logger
-from models.schema import Palabras, Cobranzas, Precios
+from app_config import logger
+from models.models import Palabras, Cobranzas, Precios
 
 from models.database import db_session
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/keywords/', methods=['GET'])

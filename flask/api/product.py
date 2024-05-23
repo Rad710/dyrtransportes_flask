@@ -13,10 +13,10 @@ from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
-from app.app_config import logger
-from models.schema import Product
+from app_config import logger
+from models.models import Product
 
-from app.app import app
+from app_config import app
 
 from models.database import db_session
 

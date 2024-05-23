@@ -2,11 +2,11 @@ from flask import request, jsonify
 
 from dateutil import parser
 
-from app.app_config import logger
-from models.schema import LiquidacionGastos, Liquidaciones
+from app_config import logger
+from models.models import LiquidacionGastos, Liquidaciones
 from models.database import db_session
 
-from app.app import app
+from app_config import app
 
 
 @app.route('/liquidacion_gasto', methods=['POST'])

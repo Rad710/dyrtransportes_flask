@@ -2,13 +2,13 @@ from flask import request, jsonify
 
 from dateutil import parser
 
-from app.app_config import logger
-from models.schema import LiquidacionViajes, Cobranzas, Liquidaciones
+from app_config import logger
+from models.models import LiquidacionViajes, Cobranzas, Liquidaciones
 from utils.utils import agregar_cobranza, string_to_int
 from models.database import db_session
 import re
 
-from app.app import app
+from app_config import app
 
 @app.route('/liquidacion_viaje', methods=['POST'])
 def post_liquidacion_viaje():

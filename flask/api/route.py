@@ -13,14 +13,15 @@ from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
-from app.app_config import logger
-from models.schema import Route
+from app_config import logger
+from app_config import app
 
-from app.app import app
+from models.models import Route
+
 
 from models.database import db_session
 
-# TODO add moficicacion usuario
+from dataclasses import asdict
 
 def validated_route_payload() -> Tuple[str, str, Decimal, Decimal] | None:
     if (request.data is None):
@@ -30,7 +31,7 @@ def validated_route_payload() -> Tuple[str, str, Decimal, Decimal] | None:
     payload : Dict[str, Any] = request.get_json()
     logger.debug("[POST|PATCH /route] payload: %s", payload)
 
-    required_fields = ['origin', 'destination', 'price', 'payrollPrice']
+    required_fields = ['origin', 'destination', 'price', 'payroll_price']
     for field in required_fields:
         if field not in payload:
             logger.error("[POST|PATCH /route] payload missing field: %s", field)
@@ -88,7 +89,11 @@ def post_route() -> Tuple[Response, int]:
         db_session.add(new_route)
         db_session.commit()
         logger.info("[POST /route] adding to table Route: %s", new_route)
-        return jsonify({"success": "Ruta agregada exitosamente"}), 200
+        return jsonify(
+            {
+                **asdict(new_route),
+                "success": "Ruta agregada exitosamente"
+            }), 200
 
     except OperationalError as e:
         db_session.rollback()
@@ -150,30 +155,40 @@ def get_route(route_code : str) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("[GET /route] fetching from table Route %s", e)
-        return jsonify({"error": "No se encontró la routa"}), 500
+        return jsonify({"error": "Error de transacción"}), 500
 
 
 @app.route('/route/<string:route_code>', methods=['PATCH'])
 def patch_route(route_code : str) -> Tuple[Response, int]:
-    validated_payroll = validated_route_payload()
+    current_user = ''
+    company_id = ''
 
+    validated_payroll = validated_route_payload()
     if (validated_payroll is None):
         return jsonify({"error": "Error al recibir datos"}), 500
     
     origin, destination, price, payroll_price = validated_payroll
 
     existing_entry : Route | None = db_session.get(Route, route_code)
-    
     if existing_entry:
+        if existing_entry.company_id != company_id:
+            logger.error("[PATCH /route] updating table Route: invalid company_id: %s", company_id)
+            return jsonify({"error": "Error al actualizar ruta"}), 503
+
         try:
             existing_entry.origin = origin
             existing_entry.destination = destination
             existing_entry.price = price
             existing_entry.payroll_price = payroll_price
+            existing_entry.modification_user = current_user
 
             db_session.commit()
             logger.info("[PATCH /route] updating table Route: %s", route_code)
-            return jsonify({'success': 'Ruta actualizada exitosamente'}), 200
+            return jsonify(
+            {
+                **asdict(existing_entry),
+                "success": "Ruta actualizada exitosamente"
+            }), 200
         
         except OperationalError as e:
             db_session.rollback()
@@ -190,7 +205,7 @@ def patch_route(route_code : str) -> Tuple[Response, int]:
 
 
 @app.route('/route/<string:route_code>', methods=['DELETE'])
-def delete_precio(route_code : str) -> Tuple[Response, int]:
+def delete_route(route_code : str) -> Tuple[Response, int]:
     route : Route | None = db_session.get(Route, id)
     if route:
         try:
@@ -202,7 +217,6 @@ def delete_precio(route_code : str) -> Tuple[Response, int]:
         except OperationalError as e:
             db_session.rollback()
             logger.error("[DELETE /route] deleting table Route: connection %s", e)
-
             return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
 
         except SQLAlchemyError as e:
