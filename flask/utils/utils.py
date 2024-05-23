@@ -3,8 +3,8 @@ from sqlalchemy import and_
 
 from datetime import datetime
 
-from app.app_config import logger
-from models.schema import Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
+from app_config import logger
+from models.models import Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
 from models.database import db_session
 

@@ -9,15 +9,18 @@
     * ShipmentExpense, ShipmentExpenseAudit
 """
 
-from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, DateTime, Date, BigInteger
+from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, Date, BigInteger, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import functions
+from datetime import datetime, date
 from decimal import Decimal
+from typing import Optional
 from dataclasses import dataclass
-from typing import List
+
+
 class Base(DeclarativeBase):
         pass
 
@@ -36,13 +39,12 @@ class Route(Base):
     * company_id (str): The company who created this route record.
     * modification_user (str): The user who last modified this route record.
     """
-
     __tablename__ = "route"
 
     route_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     origin : Mapped[str] = mapped_column(String(100))
     destination : Mapped[str] = mapped_column(String(100))
-    price : Mapped[Decimal]  = mapped_column(Numeric(10, 2))
+    price : Mapped[Decimal] = mapped_column(Numeric(10, 2))
     payroll_price : Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     #cannot delete since it's a foreign key
@@ -50,8 +52,11 @@ class Route(Base):
     company_id : Mapped[str] = mapped_column(String(100))
     modification_user : Mapped[str] = mapped_column(String(100))
     
-    # adding Mapped[List["Shipment"]] will be serialized relationship
-    shipments = relationship("Shipment", back_populates="route", cascade="all, delete-orphan")
+    # Mapped[List["Shipment"]] will be serialized if added
+    route_shipments = relationship("Shipment", back_populates="shipment_route")
+
+    # Mapped[List["RouteAudit"]]
+    route_audits = relationship("RouteAudit", back_populates="audit_route")
 
     # __table_args__ = (
     #     UniqueConstraint(origin, destination, creation_user,
@@ -59,7 +64,7 @@ class Route(Base):
     #                      name="unique_origin_destination_user"),
     # )
 
-
+@dataclass
 class RouteAudit(Base):
     """(Precios) Represents a transportation route within a system.
 
@@ -77,7 +82,6 @@ class RouteAudit(Base):
     """
     __tablename__ = "route_audit"
 
-
     audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     route_code : Mapped[int] = mapped_column(ForeignKey('route.route_code'))
     origin : Mapped[str] = mapped_column(String(100))
@@ -88,9 +92,13 @@ class RouteAudit(Base):
     company_id : Mapped[str] = mapped_column(String(100))
     modification_user : Mapped[str] = mapped_column(String(100))
     
-    audit_timestamp = mapped_column(DateTime, server_default=functions.now())
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+
+    # Mapped["Route"]
+    audit_route = relationship("Route", back_populates="route_audits")
 
 
+@dataclass
 class Product(Base):
     """(Palabras/Productos) Represents a product within a product management system.
 
@@ -101,19 +109,19 @@ class Product(Base):
     * company_id (str): The company who created this product record.
     * modification_user (str): The user who last modified this product record.
     """
-
     __tablename__ = "product"
 
+    product_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_name : Mapped[str] = mapped_column(String(100))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    product_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    product_name = Column(String(100), nullable=False)
+    # Mapped[List["Shipment"]]
+    product_shipments = relationship("Shipment", back_populates="shipment_product")
 
-    #cannot delete since it's a foreign key
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
-
-    shipment_product_code = relationship("Shipment", backref="shipment_product_code", cascade="all, delete-orphan")
+    # Mapped[List["ProductAudit"]]
+    product_audits = relationship("ProductAudit", back_populates="audit_product")
 
     # __table_args__ = (
     #     UniqueConstraint(product_name, company_id,
@@ -121,7 +129,7 @@ class Product(Base):
     #                      name="unique_product_user"),
     # )
 
-
+@dataclass
 class ProductAudit(Base):
     """(Palabras/Productos) Represents a product within a product management system.
 
@@ -134,19 +142,22 @@ class ProductAudit(Base):
     * modification_user (str): The user who last modified this product record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-
     __tablename__ = "product_audit"
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
-    product_name = Column(String(100), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_code : Mapped[int] = mapped_column(ForeignKey('product.product_code'))
+    product_name : Mapped[str] = mapped_column(String(100))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
     
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+
+    # Mapped["Product"]
+    audit_product = relationship("Product", back_populates="product_audits")
 
 
+@dataclass
 class Driver(Base):
     """
     (Nomina) This class represents a Driver in the database.
@@ -164,26 +175,31 @@ class Driver(Base):
     * company_id (str): The company id who created the driver record (not nullable, up to 100 characters).
     * modification_user (str): The user who last modified the driver record (not nullable, up to 100 characters).
     """
-
     __tablename__ = "driver"
 
-    driver_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    driver_name = Column(String(100), nullable=False)
-    truck_plate = Column(String(100), nullable=False)
-    trailer_plate = Column(String(100), nullable=True)
+    driver_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    driver_name : Mapped[str] = mapped_column(String(100))
+    truck_plate : Mapped[str] = mapped_column(String(100))
+    trailer_plate : Mapped[Optional[str]] = mapped_column(String(100))
     # used to deactivate account
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    driver_payroll_driver_code = relationship("DriverPayroll", backref="driver_payroll_driver_code", cascade="all, delete-orphan")
-    shipment_driver_code = relationship("Shipment", backref="shipment_driver_code", cascade="all, delete-orphan")
+    # Mapped[List["DriverPayroll"]]
+    driver_payrolls = relationship("DriverPayroll", back_populates="payroll_driver")
+
+    # Mapped[List["Shipment"]]
+    driver_shipments = relationship("Shipment", back_populates="shipment_driver")
+
+    # Mapped[List["DriverAudit"]]
+    driver_audits = relationship("DriverAudit", back_populates="audit_driver")
 
     __table_args__ = (
         UniqueConstraint("driver_name", "company_id"),
     )
 
-
+@dataclass
 class DriverAudit(Base):
     """
     (Nomina Audit) Driver Audit Table.
@@ -198,21 +214,23 @@ class DriverAudit(Base):
     * creation_user (str): The username of the user who created the driver record (not nullable, up to 100 characters).
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-
     __tablename__ = "driver_audit"
-
     
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    driver_name = Column(String(100), nullable=False)
-    truck_plate = Column(String(100), nullable=False)
-    trailer_plate = Column(String(100), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    driver_code : Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    driver_name : Mapped[str] = mapped_column(String(100))
+    truck_plate : Mapped[str] = mapped_column(String(100))
+    trailer_plate : Mapped[Optional[str]] = mapped_column(String(100))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+
+    # Mapped["Driver"]
+    audit_driver = relationship("Driver", back_populates="driver_audits")
 
 
+@dataclass
 class ShipmentPayroll(Base):
     """
     (Planillas) Represents a payroll record for a shipment.
@@ -224,21 +242,23 @@ class ShipmentPayroll(Base):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
-
     __tablename__ = "shipment_payroll"
 
-    payroll_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
-    collected = Column(Boolean, default=False, nullable=False)
-    collection_timestamp = Column(DateTime, nullable=True)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    payroll_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    creation_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+    collected : Mapped[bool] = mapped_column(default=False)
+    collection_timestamp : Mapped[Optional[datetime]] = mapped_column(DateTime)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    shipment_shipment_payroll_code = relationship("Shipment", backref="shipment_shipment_payroll_code", cascade="all, delete-orphan")
+    # Mapped[List["Shipment"]]
+    payroll_shipments = relationship("Shipment", back_populates="shipment_payroll")
 
-
-
+    # Mapped[List["ShipmentPayrollAudit"]]
+    shipment_payroll_audits = relationship("ShipmentPayrollAudit", back_populates="audit_shipment_payroll")
+    
+@dataclass
 class ShipmentPayrollAudit(Base):
     """
     (Planillas) Represents a payroll record for a shipment. Audit Table
@@ -252,22 +272,24 @@ class ShipmentPayrollAudit(Base):
     * modification_user (str): The user who created this payroll record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-
     __tablename__ = "shipment_payroll_audit"
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
-    collected = Column(Boolean, default=False, nullable=False)
-    collection_timestamp = Column(DateTime, nullable=True)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    payroll_code : Mapped[int] = mapped_column(ForeignKey('shipment_payroll.payroll_code'))
+    creation_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+    collected : Mapped[bool] = mapped_column(default=False)
+    collection_timestamp : Mapped[Optional[datetime]] = mapped_column(DateTime)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
 
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    # Mapped["ShipmentPayroll"]
+    audit_shipment_payroll = relationship("ShipmentPayroll", back_populates="shipment_payroll_audits")
 
 
 
+@dataclass
 class DriverPayroll(Base):
     """
     (Liquidaciones) Represents a payroll record for a driver.
@@ -281,23 +303,30 @@ class DriverPayroll(Base):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
-
     __tablename__ = "driver_payroll"
 
-        
-    payroll_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
-    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    paid = Column(Boolean, default=False, nullable=False)
-    paid_timestamp = Column(DateTime, nullable=True)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    payroll_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    creation_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+    driver_code : Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    paid : Mapped[bool] = mapped_column(default=False)
+    paid_timestamp : Mapped[Optional[datetime]] = mapped_column(DateTime)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    shipment_driver_payroll_code = relationship("Shipment", backref="shipment_driver_payroll_code", cascade="all, delete-orphan")
-    shipment_expense_code = relationship("ShipmentExpense", backref="shipment_expense_code", cascade="all, delete-orphan")
+    # Mapped["Driver"]
+    payroll_driver = relationship("Driver", back_populates="driver_payrolls")
 
+    # Mapped[List["Shipment"]]
+    driver_shipments = relationship("Shipment", back_populates="shipment_driver_payroll")
 
+    # Mapped[List["ShipmentExpense"]]
+    driver_payroll_shipment_expenses = relationship("ShipmentExpense", back_populates="shipment_expense_driver_payroll")
+
+    # Mapped[List["DriverPayrollAudit"]]
+    driver_payroll_audits = relationship("DriverPayrollAudit", back_populates="audit_driver_payroll")
+
+@dataclass
 class DriverPayrollAudit(Base):
     """
     (Liquidaciones) Represents a payroll record for a driver. Audit Table
@@ -313,21 +342,22 @@ class DriverPayrollAudit(Base):
     * modification_user (str): The user who created this payroll record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-    
     __tablename__ = "driver_payroll_audit"
 
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    payroll_code : Mapped[int] = mapped_column(ForeignKey('driver_payroll.payroll_code'))
+    creation_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
+    driver_code : Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    paid : Mapped[bool] = mapped_column(default=False)
+    paid_timestamp : Mapped[Optional[datetime]] = mapped_column(DateTime)
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    creation_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
-    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    paid = Column(Boolean, default=False, nullable=False)
-    paid_timestamp = Column(DateTime, nullable=True)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
 
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    # Mapped["DriverPayroll"]
+    audit_driver_payroll = relationship("DriverPayroll", back_populates="driver_payroll_audits")
 
 
 
@@ -352,35 +382,48 @@ class Shipment(Base):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
-
     __tablename__ = "shipment"
 
-    shipment_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    shipment_date = Column(Date, nullable=False)
-    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
-    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
-    price = Column(Numeric(10, 2), default=0, nullable=False)
-    payroll_price = Column(Numeric(10, 2), default=0, nullable=False)
-    ticket_code = Column(String(100), nullable=False)
-    origin_weight = Column(Integer, nullable=False)
-    destination_weight = Column(Integer, nullable=False)
-    shipment_payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    shipment_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    shipment_date : Mapped[date] = mapped_column(Date)
+    driver_code : Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    product_code : Mapped[int] = mapped_column(ForeignKey('product.product_code'))
+    route_code : Mapped[int] = mapped_column(ForeignKey('route.route_code'))
+    price : Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    payroll_price : Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    ticket_code : Mapped[str] = mapped_column(String(100))
+    origin_weight : Mapped[int] = mapped_column()
+    destination_weight : Mapped[int] = mapped_column()
+    shipment_payroll_code : Mapped[int] = mapped_column(ForeignKey('shipment_payroll.payroll_code'))
+    driver_payroll_code : Mapped[int] = mapped_column(ForeignKey('driver_payroll.payroll_code'))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
+    # Mapped["Route"]
+    shipment_route = relationship("Route", back_populates="route_shipments")
 
-    route : Mapped["Route"] = relationship(back_populates="shipments")
+    # Mapped["Product"]
+    shipment_product = relationship("Product", back_populates="product_shipments")
 
+    # Mapped["Driver"]
+    shipment_driver = relationship("Driver", back_populates="driver_shipments")
+
+    # Mapped["ShipmentPayroll"]
+    shipment_payroll = relationship("ShipmentPayroll", back_populates="payroll_shipments")
+
+    # Mapped["DriverPayroll"]
+    shipment_driver_payroll = relationship("DriverPayroll", back_populates="driver_shipments")
+
+     # Mapped[List["ShipmentAudit"]]
+    shipment_audits = relationship("ShipmentAudit", back_populates="audit_shipment")
 
     # __table_args__ = (
     #     UniqueConstraint('driver_code', 'ticket_number', 'shipment_date', 
     #                      name='unique_driver_ticket_date'),
     # )
 
-
+@dataclass
 class ShipmentAudit(Base):
     """(Cobranzas) Represents a single product shipment within a transportation system. 
 
@@ -403,30 +446,32 @@ class ShipmentAudit(Base):
     * modification_user (str): The user who created this payroll record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-
     __tablename__ = "shipment_audit"
 
+    audit_code : Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    shipment_code : Mapped[int] = mapped_column(Integer, ForeignKey('shipment.shipment_code'))
+    shipment_date : Mapped[date] = mapped_column(Date)
+    driver_code : Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    product_code : Mapped[int] = mapped_column(ForeignKey('product.product_code'))
+    route_code : Mapped[int] = mapped_column(ForeignKey('route.route_code'))
+    price  : Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    payroll_price  : Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    ticket_code : Mapped[str] = mapped_column(String(100))
+    origin_weight : Mapped[int] = mapped_column()
+    destination_weight : Mapped[int] = mapped_column()
+    shipment_payroll_code : Mapped[int] = mapped_column(ForeignKey('shipment_payroll.payroll_code'))
+    driver_payroll_code : Mapped[int] = mapped_column(ForeignKey('driver_payroll.payroll_code'))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id  : Mapped[str] = mapped_column(String(100))
+    modification_user  : Mapped[str] = mapped_column(String(100))
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    shipment_code = Column(Integer, ForeignKey('shipment.shipment_code'), nullable=False)
-    shipment_date = Column(Date, nullable=False)
-    driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
-    route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
-    price = Column(Numeric(10, 2), default=0, nullable=False)
-    payroll_price = Column(Numeric(10, 2), default=0, nullable=False)
-    ticket_code = Column(String(100), nullable=False)
-    origin_weight = Column(Integer, nullable=False)
-    destination_weight = Column(Integer, nullable=False)
-    shipment_payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_timestamp : Mapped[datetime] = mapped_column(DateTime, server_default=functions.now())
 
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    # Mapped["Shipment"]
+    audit_shipment = relationship("Shipment", back_populates="shipment_audits")
 
 
+@dataclass
 class ShipmentExpense(Base):
     """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
 
@@ -441,21 +486,26 @@ class ShipmentExpense(Base):
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
     """
-
     __tablename__ = "shipment_expense"
-
     
-    expense_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    expense_date = Column(Date, nullable=False)
-    receipt = Column(String(100), nullable=True)
-    amount = Column(BigInteger, nullable=False)
-    reason = Column(String(100), nullable=True)
-    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    expense_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    expense_date : Mapped[date] = mapped_column(Date)
+    receipt : Mapped[Optional[str]] = mapped_column(String(100))
+    amount : Mapped[Decimal] = mapped_column(Numeric(20, 0))
+    reason : Mapped[Optional[str]] = mapped_column(String(100))
+    driver_payroll_code : Mapped[int] = mapped_column(ForeignKey('driver_payroll.payroll_code'))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
+
+    # Mapped["DriverPayroll"]
+    shipment_expense_driver_payroll = relationship("DriverPayroll", back_populates="driver_payroll_shipment_expenses")
+
+    # Mapped[List["ShipmentExpenseAudit"]]
+    shipment_expense_audits = relationship("ShipmentExpenseAudit", back_populates="audit_shipment_expense")
 
 
+@dataclass
 class ShipmentExpenseAudit(Base):
     """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
 
@@ -471,21 +521,23 @@ class ShipmentExpenseAudit(Base):
     * modification_user (str): The user who created this payroll record.
     * audit_timestamp (datetime): The time at which this route record was modified.
     """
-
     __tablename__ = "shipment_expense_audit"
 
-    audit_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    expense_code = Column(Integer, ForeignKey('shipment_expense.expense_code'), nullable=False)
-    expense_date = Column(Date, nullable=False)
-    receipt = Column(String(100), nullable=True)
-    amount = Column(BigInteger, nullable=False)
-    reason = Column(String(100), nullable=True)
-    driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    deleted = Column(Boolean, default=False, nullable=False)
-    company_id = Column(String(100), nullable=False)
-    modification_user = Column(String(100), nullable=False)
+    audit_code : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    expense_code : Mapped[int] = mapped_column(ForeignKey('shipment_expense.expense_code'))
+    expense_date : Mapped[date] = mapped_column(Date)
+    receipt : Mapped[Optional[str]] = mapped_column(String(100))
+    amount : Mapped[Decimal] = mapped_column(Numeric(20, 0))
+    reason : Mapped[Optional[str]] = mapped_column(String(100))
+    driver_payroll_code : Mapped[int] = mapped_column(ForeignKey('driver_payroll.payroll_code'))
+    deleted : Mapped[bool] = mapped_column(default=False)
+    company_id : Mapped[str] = mapped_column(String(100))
+    modification_user : Mapped[str] = mapped_column(String(100))
 
-    audit_timestamp = Column(DateTime, server_default=functions.now(), nullable=False)
+    audit_timestamp : Mapped[datetime] = mapped_column(server_default=functions.now())
+
+    # Mapped["Shipment"]
+    audit_shipment_expense = relationship("ShipmentExpense", back_populates="shipment_expense_audits")
 
 
 # Old
