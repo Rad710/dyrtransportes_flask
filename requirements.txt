@@ -13,3 +13,4 @@ Alembic==1.13.1
 Flask-Migrate==4.0.7
 mypy=1.6.1
 alembic==1.13.1
+pylint==3.2.2
