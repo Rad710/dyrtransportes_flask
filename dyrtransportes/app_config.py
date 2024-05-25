@@ -8,8 +8,6 @@ from flask_caching import Cache
 import flask.logging
 from pathlib import Path
 
-# from flask_migrate import Migrate
-
 app : Flask = Flask(__name__)
 
 project_root_path = Path(__file__).parent.absolute()

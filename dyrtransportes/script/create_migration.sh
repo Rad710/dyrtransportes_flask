@@ -1,0 +1,1 @@
+alembic -c dyrtransportes/migrations/alembic.ini revision --autogenerate -m "new_migration"
