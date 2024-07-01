@@ -31,8 +31,8 @@ from app_config import db_session
 from dataclasses import asdict
 
 
-@app.route('/route/<string:route_code>', methods=['GET'])
-def get_route(route_code: str) -> Tuple[Response, int]:
+@app.route('/route/<int:route_code>', methods=['GET'])
+def get_route(route_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
     try:
@@ -124,11 +124,11 @@ def post_route() -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payroll = validated_route_payload()
-    if (validated_payroll is None):
+    validated_payload = validated_route_payload()
+    if (validated_payload is None):
         return jsonify({"error": "Error al recibir datos de ruta"}), 500
 
-    origin, destination, price, payroll_price = validated_payroll
+    origin, destination, price, payroll_price = validated_payload
 
     stmt = select(Route).where(
         Route.origin == origin, Route.destination == destination,
@@ -171,16 +171,16 @@ def post_route() -> Tuple[Response, int]:
         return jsonify({"error": "Error al agregar ruta"}), 500
 
 
-@app.route('/route/<string:route_code>', methods=['PATCH'])
-def patch_route(route_code: str) -> Tuple[Response, int]:
+@app.route('/route/<int:route_code>', methods=['PATCH'])
+def patch_route(route_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payroll = validated_route_payload()
-    if (validated_payroll is None):
+    validated_payload = validated_route_payload()
+    if (validated_payload is None):
         return jsonify({"error": "Error al recibir datos"}), 500
 
-    origin, destination, price, payroll_price = validated_payroll
+    origin, destination, price, payroll_price = validated_payload
 
     existing_entry: Route | None = db_session.get(Route, route_code)
     if existing_entry is None:
@@ -230,15 +230,15 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
 
     if existing_entry.company_id != company_id:
         logger.error(
-            "[PATCH /route] updating table Route: invalid company_id: %s", company_id)
-        return jsonify({"error": "Error al actualizar ruta"}), 503
+            "[PATCH /route] deleting table Route: invalid company_id: %s", company_id)
+        return jsonify({"error": "Error al eliminar ruta"}), 503
 
     try:
         existing_entry.deleted = True
         existing_entry.modification_user = current_user
         db_session.commit()
         logger.info(
-            "[DELETE /route] deleting from table Route: %s", route_code)
+            "[DELETE /route] deleting table Route: %s", route_code)
         return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
 
     except OperationalError as e:
@@ -274,8 +274,8 @@ def delete_routes() -> Tuple[Response, int]:
 
             if route.company_id != company_id:
                 logger.error(
-                    "[PATCH /route] updating table Route: invalid company_id: %s", company_id)
-                return jsonify({"error": "Error al actualizar ruta"}), 503
+                    "[PATCH /route] deleting table Route: invalid company_id: %s", company_id)
+                return jsonify({"error": "Error al eliminar ruta"}), 503
 
             route.deleted = True
             route.modification_user = current_user

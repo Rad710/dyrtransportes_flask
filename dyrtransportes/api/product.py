@@ -1,11 +1,13 @@
 from flask import request
 from flask import jsonify
 from flask import Response
+from flask import make_response
 
 from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
+from typing import List
 
 from decimal import Decimal
 from sqlalchemy import select
@@ -13,108 +15,48 @@ from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
+import io
+from openpyxl import Workbook
+from openpyxl.styles import numbers, Border, Side
+from openpyxl.utils import get_column_letter
+
 from app_config import logger
+from app_config import app
+
 from models import Product
 
-from app_config import app
 
 from app_config import db_session
 
-
-def validated_product_payload() -> Tuple[str, str, Decimal, Decimal] | None:
-    if (request.data is None):
-        logger.error("[POST /product] Product payload is empty")
-        return None
-    
-    # shipment_code = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    # shipment_date = Column(Date, nullable=False)
-    # driver_code = Column(Integer, ForeignKey('driver.driver_code'), nullable=False)
-    # product_code = Column(Integer, ForeignKey('product.product_code'), nullable=False)
-    # route_code = Column(Integer, ForeignKey('route.route_code'), nullable=False)
-    # price = Column(Numeric(10, 2), default=0, nullable=False)
-    # payroll_price = Column(Numeric(10, 2), default=0, nullable=False)
-    # ticket_code = Column(String(100), nullable=False)
-    # origin_weight = Column(Integer, nullable=False)
-    # destination_weight = Column(Integer, nullable=False)
-    # shipment_payroll_code = Column(Integer, ForeignKey('shipment_payroll.payroll_code'), nullable=False)
-    # driver_payroll_code = Column(Integer, ForeignKey('driver_payroll.payroll_code'), nullable=False)
-    # deleted = Column(Boolean, default=False, nullable=False)
-    # company_id = Column(String(100), nullable=False)
-    # modification_user = Column(String(100), nullable=False)
-
-    payload : Dict[str, Any] = request.get_json()
-    logger.debug("[POST /product] payload: %s", payload)
-
-    required_fields = ['origin', 'destination', 'price', 'payrollPrice']
-    for field in required_fields:
-        if field not in payload:
-            logger.error("[POST /product] payload missing field: %s", field)
-            return None
-
-    origin = payload['origin']
-    destination = payload['destination']
-    price = payload['price']
-    payroll_price = payload['payroll_price']
-
-    if not isinstance(origin, str) or not isinstance(destination, str):
-        logger.error("[POST /product] payload type error in 'origin' and 'destination'")
-        return None
-    if not isinstance(price, (int, float)) or not isinstance(payroll_price, (int, float)):
-        logger.error("[POST /product] payload type error in 'price' and 'payroll_price'")
-        return None
-
-    if price <= 0 or payroll_price <= 0:
-        logger.error("[POST /product] payload value error in 'price' and 'payrollPrice'")
-        return None
-    
-    return origin, destination, Decimal(str(price)), Decimal(str(payroll_price))
+from dataclasses import asdict
 
 
-@app.route('/product', methods=['POST'])
-def post_product() -> Tuple[Response, int]:
+@app.route('/product/<int:product_code>', methods=['GET'])
+def get_product(product_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
-
-    validated_payroll = validated_product_payload()
-    if (validated_payroll is None):
-        return jsonify({"error": "Error al recibir datos de producto"}), 500
-    
-    origin, destination, price, payroll_price = validated_payroll
-
-    stmt = select(product).where(
-        product.origin == origin, product.destination == destination,
-        product.deleted == False
-    )
-    existing_entry : product | None = db_session.scalar(stmt)
-
-    logger.debug("[POST /product] existing_entry: %s", existing_entry)
-
-    if existing_entry is not None:
-        logger.error("[POST /product] duplicate in table product: %s", existing_entry)
-        return jsonify({"error": "Ruta ya existe"}), 500
-
-    new_product = product(
-        origin=origin, destination=destination,
-        price=price, payroll_price=payroll_price,
-        modification_user=current_user, company_id=company_id
-    )
-
     try:
-        db_session.add(new_product)
-        db_session.commit()
-        logger.info("[POST /product] adding to table product: %s", new_product)
-        return jsonify({"success": "Ruta agregada exitosamente"}), 200
+        stmt = select(Product).where(
+            Product.product_code == product_code, Product.deleted == False,
+            Product.company_id == company_id
+        )
 
-    except OperationalError as e:
-        db_session.rollback()
-        logger.error("[POST /product] adding to table product: connection %s", e)
+        product: Product | None = db_session.scalar(stmt)
+        if product is None:
+            logger.error(
+                "[GET /product] fetching from table Product not found")
+            return jsonify({"error": "No se encontró el producto"}), 404
 
-        return jsonify({"error": "Error al agregar ruta: problema de conexión"}), 503
+        logger.info(
+            "[GET /product] fetching from table Product found: %s", product.product_code)
+        logger.debug(
+            "[GET /product] fetching from table Product found: %s", product)
+
+        return jsonify(product), 200
 
     except SQLAlchemyError as e:
-        db_session.rollback()
-        logger.error("[POST /product] adding to table product: %s", e)
-        return jsonify({"error": "Error al agregar ruta"}), 500
+        logger.error("[GET /product] fetching from table Product %s", e)
+        return jsonify({"error": "Error de transacción"}), 500
 
 
 @app.route('/products', methods=['GET'])
@@ -123,79 +65,171 @@ def get_product_list() -> Tuple[Response, int]:
     current_user = ''
 
     try:
-        stmt = select(
-            product
-        ).where(
-            product.deleted == False, product.company_id == company_id,
+        stmt = select(Product).where(
+            Product.deleted == False,
+            Product.company_id == company_id,
         ).order_by(
-            asc(product.origin), asc(product.destination)
+            asc(Product.product_name)
         )
 
-        products : Sequence[product] = db_session.scalars(stmt).all()
-        logger.info("[GET /products] fetching products from table product len: %s", len(products))
-        logger.debug("[GET /products] fetching products from table product products: %s", products)
+        products: Sequence[Product] = db_session.scalars(stmt).all()
+        logger.info(
+            "[GET /products] fetching products from table Product len: %s", len(products))
+        logger.debug(
+            "[GET /products] fetching products from table Product products: %s", products)
         return jsonify(products), 200
-    
+
     except SQLAlchemyError as e:
-        logger.error("[GET /products] fetching products from table product %s", e)
-        return jsonify({"error": "Error al obtener rutas"}), 500
+        logger.error(
+            "[GET /products] fetching products from table Product %s", e)
+        return jsonify({"error": "Error al obtener productos"}), 500
 
 
-@app.route('/product/<string:product_code>', methods=['PATCH'])
-def patch_product(product_code : str) -> Tuple[Response, int]:
-    validated_payroll = validated_product_payload()
+def validated_product_payload() -> str | None:
+    if ((request.data is None) or (not request.is_json)):
+        logger.error("[POST|PATCH /product] Product payload is empty")
+        return None
 
-    if (validated_payroll is None):
+    payload: Dict[str, str] = request.get_json()
+    logger.debug("[POST|PATCH /product] payload: %s", payload)
+
+    if "product_name" not in payload:
+        logger.error(
+            "[POST|PATCH /product] payload missing field: product_name")
+        return None
+
+    product_name = payload["product_name"]
+    return product_name
+
+
+@app.route('/product', methods=['POST'])
+def post_product() -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
+
+    validated_payload = validated_product_payload()
+    if (validated_payload is None):
+        return jsonify({"error": "Error al recibir datos del producto"}), 500
+
+    product_name = validated_payload
+
+    stmt = select(Product).where(
+        Product.product_name == product_name,
+        Product.deleted == False
+    )
+
+    existing_entry: Product | None = db_session.scalar(stmt)
+
+    logger.debug("[POST /product] existing_entry: %s", existing_entry)
+
+    if existing_entry is not None:
+        logger.error(
+            "[POST /product] duplicate in table Product: %s", existing_entry)
+        return jsonify({"error": "Producto ya existe"}), 500
+
+    new_product = Product(
+        product_name=product_name,
+        modification_user=current_user, company_id=company_id
+    )
+
+    try:
+        db_session.add(new_product)
+        db_session.commit()
+        logger.info("[POST /product] adding to table Product: %s", new_product)
+        return jsonify(
+            {
+                **asdict(new_product),
+                "success": "Producto agregado exitosamente"
+            }), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[POST /product] adding to table Product: connection %s", e)
+
+        return jsonify({"error": "Error al agregar producto: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("[POST /product] adding to table Product: %s", e)
+        return jsonify({"error": "Error al agregar producto"}), 500
+
+
+@app.route('/product/<int:product_code>', methods=['PATCH'])
+def patch_product(product_code: int) -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
+
+    validated_payload = validated_product_payload()
+    if (validated_payload is None):
         return jsonify({"error": "Error al recibir datos"}), 500
-    
-    origin, destination, price, payroll_price = validated_payroll
 
-    existing_entry : product | None = db_session.get(product, product_code)
-    
-    if existing_entry:
-        try:
-            existing_entry.origin = origin
-            existing_entry.destination = destination
-            existing_entry.price = price
-            existing_entry.payroll_price = payroll_price
+    product_name = validated_payload
 
-            db_session.commit()
-            logger.info("[PATCH /product] updating table product: %s", product_code)
-            return jsonify({'success': 'Ruta actualizada exitosamente'}), 200
-        
-        except OperationalError as e:
-            db_session.rollback()
-            logger.error("[PATCH /product] updating table product: connection %s", e)
+    existing_entry: Product | None = db_session.get(Product, product_code)
+    if existing_entry is None:
+        return jsonify({'error': 'Producto no encontrado'}), 404
 
-            return jsonify({"error": "Error al actualizar ruta: problema de conexión"}), 503
+    if existing_entry.company_id != company_id:
+        logger.error(
+            "[PATCH /producto] updating table Producto: invalid company_id: %s", company_id)
+        return jsonify({"error": "Error al actualizar producto"}), 503
 
-        except SQLAlchemyError as e:
-            db_session.rollback()
-            logger.error("[PATCH /product] updating table product: %s", e)
-            return jsonify({"error": "Error al actualizar ruta"}), 500
+    try:
+        existing_entry.product_name = product_name
+        existing_entry.modification_user = current_user
 
-    return jsonify({'error': 'Ruta no encontrado'}), 404
+        db_session.commit()
+        logger.info(
+            "[PATCH /producto] updating table Producto: %s", product_code)
+        return jsonify(
+            {
+                **asdict(existing_entry),
+                "success": "Producto actualizado exitosamente"
+            }), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[PATCH /producto] updating table Producto: connection %s", e)
+
+        return jsonify({"error": "Error al actualizar producto: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("[PATCH /producto] updating table producto: %s", e)
+        return jsonify({"error": "Error al actualizar producto"}), 500
 
 
-@app.route('/product/<string:product_code>', methods=['DELETE'])
-def delete_precio(product_code : str) -> Tuple[Response, int]:
-    product : product | None = db_session.get(product, id)
-    if product:
-        try:
-            product.deleted = True
-            db_session.commit()
-            logger.info("[DELETE /product] deleting from table product: %s", product_code)
-            return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
+@app.route('/product/<int:product_code>', methods=['DELETE'])
+def delete_product(product_code: int) -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
 
-        except OperationalError as e:
-            db_session.rollback()
-            logger.error("[DELETE /product] deleting table product: connection %s", e)
+    existing_entry: Product | None = db_session.get(Product, product_code)
+    if existing_entry is None:
+        return jsonify({'error': 'Producto no encontrado'}), 404
 
-            return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
+    if existing_entry.company_id != company_id:
+        logger.error(
+            "[PATCH /product] deleting table Producto: invalid company_id: %s", company_id)
+        return jsonify({"error": "Error al eliminar producto"}), 503
 
-        except SQLAlchemyError as e:
-            db_session.rollback()
-            logger.error("[DELETE /product] deleting table product: %s", e)
-            return jsonify({"error": "Error al eliminar ruta"}), 500
+    try:
+        existing_entry.deleted = True
+        existing_entry.modification_user = current_user
+        db_session.commit()
+        logger.info(
+            "[DELETE /product] deleting table Producto: %s", product_code)
+        return jsonify({'success': 'Producto eliminada exitosamente'}), 200
 
-    return jsonify({'error': 'Ruta no encontrado'}), 404
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[DELETE /producto] deleting table Producto: connection %s", e)
+        return jsonify({"error": "Error al eliminar producto: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("[DELETE /producto] deleting table Producto: %s", e)
+        return jsonify({"error": "Error al eliminar producto"}), 500
