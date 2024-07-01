@@ -166,25 +166,38 @@ def patch_product(product_code: int) -> Tuple[Response, int]:
 
     product_name = validated_payload
 
-    existing_entry: Product | None = db_session.get(Product, product_code)
-    if existing_entry is None:
+    stmt = select(Product).where(
+        Product.product_name == product_name,
+        Product.deleted == False
+    )
+
+    existing_entry: Product | None = db_session.scalar(stmt)
+    logger.debug("[PATCH /product] existing_entry: %s", existing_entry)
+
+    if existing_entry is not None:
+        logger.error(
+            "[PATCH /product] duplicate in table Product: %s", existing_entry)
+        return jsonify({"error": "Producto ya existe"}), 500
+
+    entry_to_update: Product | None = db_session.get(Product, product_code)
+    if entry_to_update is None:
         return jsonify({'error': 'Producto no encontrado'}), 404
 
-    if existing_entry.company_id != company_id:
+    if entry_to_update.company_id != company_id:
         logger.error(
             "[PATCH /producto] updating table Producto: invalid company_id: %s", company_id)
         return jsonify({"error": "Error al actualizar producto"}), 503
 
     try:
-        existing_entry.product_name = product_name
-        existing_entry.modification_user = current_user
+        entry_to_update.product_name = product_name
+        entry_to_update.modification_user = current_user
 
         db_session.commit()
         logger.info(
             "[PATCH /producto] updating table Producto: %s", product_code)
         return jsonify(
             {
-                **asdict(existing_entry),
+                **asdict(entry_to_update),
                 "success": "Producto actualizado exitosamente"
             }), 200
 

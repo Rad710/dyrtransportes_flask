@@ -182,27 +182,40 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
 
     origin, destination, price, payroll_price = validated_payload
 
-    existing_entry: Route | None = db_session.get(Route, route_code)
-    if existing_entry is None:
+    stmt = select(Route).where(
+        Route.origin == origin, Route.destination == destination,
+        Route.deleted == False
+    )
+    existing_entry: Route | None = db_session.scalar(stmt)
+
+    logger.debug("[PATCH /route] existing_entry: %s", existing_entry)
+
+    if existing_entry is not None:
+        logger.error(
+            "[PATCH /route] duplicate in table Route: %s", existing_entry)
+        return jsonify({"error": "Ruta ya existe"}), 500
+
+    entry_to_update: Route | None = db_session.get(Route, route_code)
+    if entry_to_update is None:
         return jsonify({'error': 'Ruta no encontrado'}), 404
 
-    if existing_entry.company_id != company_id:
+    if entry_to_update.company_id != company_id:
         logger.error(
             "[PATCH /route] updating table Route: invalid company_id: %s", company_id)
         return jsonify({"error": "Error al actualizar ruta"}), 503
 
     try:
-        existing_entry.origin = origin
-        existing_entry.destination = destination
-        existing_entry.price = price
-        existing_entry.payroll_price = payroll_price
-        existing_entry.modification_user = current_user
+        entry_to_update.origin = origin
+        entry_to_update.destination = destination
+        entry_to_update.price = price
+        entry_to_update.payroll_price = payroll_price
+        entry_to_update.modification_user = current_user
 
         db_session.commit()
         logger.info("[PATCH /route] updating table Route: %s", route_code)
         return jsonify(
             {
-                **asdict(existing_entry),
+                **asdict(entry_to_update),
                 "success": "Ruta actualizada exitosamente"
             }), 200
 
