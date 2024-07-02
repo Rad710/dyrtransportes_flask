@@ -174,7 +174,7 @@ def patch_product(product_code: int) -> Tuple[Response, int]:
     existing_entry: Product | None = db_session.scalar(stmt)
     logger.debug("[PATCH /product] existing_entry: %s", existing_entry)
 
-    if existing_entry is not None:
+    if (existing_entry is not None) and (existing_entry.product_code != product_code):
         logger.error(
             "[PATCH /product] duplicate in table Product: %s", existing_entry)
         return jsonify({"error": "Producto ya existe"}), 500

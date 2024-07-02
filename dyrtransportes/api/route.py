@@ -190,7 +190,7 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
 
     logger.debug("[PATCH /route] existing_entry: %s", existing_entry)
 
-    if existing_entry is not None:
+    if (existing_entry is not None) and (existing_entry.route_code != route_code):
         logger.error(
             "[PATCH /route] duplicate in table Route: %s", existing_entry)
         return jsonify({"error": "Ruta ya existe"}), 500
