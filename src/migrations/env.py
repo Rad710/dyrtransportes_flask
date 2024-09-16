@@ -9,10 +9,10 @@ from pathlib import Path
 
 from alembic import context
 
-from dyrtransportes.models import Base
+from src.models import Base
 
-project_root_path = Path(__file__).parent.absolute().parent
-load_dotenv(f'{project_root_path}/.env')
+project_root_path = Path(__file__).parent.absolute().parents[1]
+load_dotenv(f'{project_root_path}/.flask.env')
 
 DB_USERNAME = os.getenv('DB_USERNAME')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
@@ -20,10 +20,17 @@ DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 DB_NAME = os.getenv('DB_NAME')
 
+if (None in [DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
+    print(".flask.env file is missing")
+
+connection_string = f"mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+print("Using connection string: ", connection_string)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", f"mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+config.set_main_option("sqlalchemy.url", connection_string)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
