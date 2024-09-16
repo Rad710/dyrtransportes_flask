@@ -171,8 +171,8 @@ def post_route() -> Tuple[Response, int]:
         return jsonify({"error": "Error al agregar ruta"}), 500
 
 
-@app.route('/route/<int:route_code>', methods=['PATCH'])
-def patch_route(route_code: int) -> Tuple[Response, int]:
+@app.route('/route/<int:route_code>', methods=['PUT'])
+def put_route(route_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
@@ -188,11 +188,11 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
     )
     existing_entry: Route | None = db_session.scalar(stmt)
 
-    logger.debug("[PATCH /route] existing_entry: %s", existing_entry)
+    logger.debug("[PUT /route] existing_entry: %s", existing_entry)
 
     if (existing_entry is not None) and (existing_entry.route_code != route_code):
         logger.error(
-            "[PATCH /route] duplicate in table Route: %s", existing_entry)
+            "[PUT /route] duplicate in table Route: %s", existing_entry)
         return jsonify({"error": "Ruta ya existe"}), 500
 
     entry_to_update: Route | None = db_session.get(Route, route_code)
@@ -201,7 +201,7 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
 
     if entry_to_update.company_id != company_id:
         logger.error(
-            "[PATCH /route] updating table Route: invalid company_id: %s", company_id)
+            "[PUT /route] updating table Route: invalid company_id: %s", company_id)
         return jsonify({"error": "Error al actualizar ruta"}), 503
 
     try:
@@ -212,7 +212,7 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
         entry_to_update.modification_user = current_user
 
         db_session.commit()
-        logger.info("[PATCH /route] updating table Route: %s", route_code)
+        logger.info("[PUT /route] updating table Route: %s", route_code)
         return jsonify(
             {
                 **asdict(entry_to_update),
@@ -222,13 +222,13 @@ def patch_route(route_code: int) -> Tuple[Response, int]:
     except OperationalError as e:
         db_session.rollback()
         logger.error(
-            "[PATCH /route] updating table Route: connection %s", e)
+            "[PUT /route] updating table Route: connection %s", e)
 
         return jsonify({"error": "Error al actualizar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error("[PATCH /route] updating table Route: %s", e)
+        logger.error("[PUT /route] updating table Route: %s", e)
         return jsonify({"error": "Error al actualizar ruta"}), 500
 
 
@@ -310,12 +310,14 @@ def delete_routes() -> Tuple[Response, int]:
         return jsonify({"error": "Error al eliminar ruta"}), 500
 
 
-@app.route('/export_routes', methods=['GET'])
+@app.route('/export-routes', methods=['GET'])
 def export_routes() -> Tuple[Response, int]:
     company_id = ''
 
     # PARAMS LIST
-    route_code_list_params: List[str] = request.args.getlist('route_list[]')
+    route_code_list_params: List[str] | None = request.args.getlist(
+        'route_list[]')
+    print(route_code_list_params)
     if len(route_code_list_params) > 0:
         try:
             stmt = select(Route).where(
@@ -328,16 +330,15 @@ def export_routes() -> Tuple[Response, int]:
 
             route_list = db_session.scalars(stmt).all()
             logger.debug(
-                "[GET /export_routes] fetching routes from table Route routes: %s", route_list)
+                "[GET /export-routes] fetching routes from table Route routes: %s", route_list)
 
         except Exception as e:
-            logger.error("[GET /export_routes] params error: %s", e)
+            logger.error("[GET /export-routes] params error: %s", e)
             return jsonify({"error": "Error de parámetros"}), 500
 
-    # IMPORT ALL
-    if len(route_code_list_params) == 0:
+    else:  # IMPORT ALL
         route_response, code = get_route_list()
-        logger.debug("[GET /export_routes] jsonify response: %s",
+        logger.debug("[GET /export-routes] jsonify response: %s",
                      route_response.get_json())
 
         if code != 200 or not route_response.is_json or route_response.json is None:

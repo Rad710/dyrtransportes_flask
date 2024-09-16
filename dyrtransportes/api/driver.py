@@ -1,6 +1,8 @@
 from flask import request
 from flask import jsonify
 from flask import Response
+from flask import make_response
+
 
 from typing import Dict
 from typing import Sequence
@@ -11,10 +13,21 @@ from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+from typing import List
+
 from app_config import logger
 from app_config import app
 
 from models import Driver
+
+import io
+from openpyxl import Workbook
+from openpyxl.styles import numbers, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 from app_config import db_session
@@ -28,7 +41,7 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
     company_id = ''
     try:
         stmt = select(Driver).where(
-            Driver.driver_code == driver_code, Driver.deleted == False,
+            Driver.driver_code == driver_code,
             Driver.company_id == company_id
         )
 
@@ -56,7 +69,6 @@ def get_driver_list():
 
     try:
         stmt = select(Driver).where(
-            Driver.deleted == False,
             Driver.company_id == company_id,
         ).order_by(
             asc(Driver.driver_name), asc(Driver.driver_surname)
@@ -134,8 +146,8 @@ def post_driver() -> Tuple[Response, int]:
         return jsonify({"error": "Error al agregar conductor"}), 500
 
 
-@app.route('/driver/<int:driver_code>', methods=['PATCH'])
-def patch_driver(driver_code: int) -> Tuple[Response, int]:
+@app.route('/driver/<int:driver_code>', methods=['PUT'])
+def put_driver(driver_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
@@ -149,7 +161,7 @@ def patch_driver(driver_code: int) -> Tuple[Response, int]:
 
     if existing_entry.company_id != company_id:
         logger.error(
-            "[PATCH /driver] updating table Driver: invalid company_id: %s", company_id)
+            "[PUT /driver] updating table Driver: invalid company_id: %s", company_id)
         return jsonify({"error": "Error al actualizar conductor"}), 503
 
     try:
@@ -161,23 +173,23 @@ def patch_driver(driver_code: int) -> Tuple[Response, int]:
         existing_entry.modification_user = current_user
 
         db_session.commit()
-        logger.info("[PATCH /driver] updating table Driver: %s", driver_code)
+        logger.info("[PUT /driver] updating table Driver: %s", driver_code)
         return jsonify(
             {
                 **asdict(existing_entry),
-                "success": "Conductor actualizada exitosamente"
+                "success": "Conductor actualizado exitosamente"
             }), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error(
-            "[PATCH /driver] updating table Driver: connection %s", e)
+            "[PUT /driver] updating table Driver: connection %s", e)
 
         return jsonify({"error": "Error al actualizar conductor: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error("[PATCH /driver] updating table Driver: %s", e)
+        logger.error("[PUT /driver] updating table Driver: %s", e)
         return jsonify({"error": "Error al actualizar conductor"}), 500
 
 
@@ -192,7 +204,7 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
 
     if existing_entry.company_id != company_id:
         logger.error(
-            "[PATCH /driver] deleting table Driver: invalid company_id: %s", company_id)
+            "[DELETE /driver] deleting table Driver: invalid company_id: %s", company_id)
         return jsonify({"error": "Error al eliminar conductor"}), 503
 
     try:
@@ -201,7 +213,7 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
         db_session.commit()
         logger.info(
             "[DELETE /driver] deleting from table Driver: %s", driver_code)
-        return jsonify({'success': 'Conductor eliminada exitosamente'}), 200
+        return jsonify({'success': 'Conductor eliminado exitosamente'}), 200
 
     except OperationalError as e:
         db_session.rollback()
@@ -213,3 +225,102 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
         db_session.rollback()
         logger.error("[DELETE /driver] deleting table Driver: %s", e)
         return jsonify({"error": "Error al eliminar conductor"}), 500
+
+
+@app.route('/driver/<int:driver_code>', methods=['PATCH'])
+def reactivate_driver(driver_code: int) -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
+
+    existing_entry: Driver | None = db_session.get(Driver, driver_code)
+    if existing_entry is None:
+        return jsonify({'error': 'Conductor no encontrado'}), 404
+
+    if existing_entry.company_id != company_id:
+        logger.error(
+            "[PATCH /driver] reactivating table Driver: invalid company_id: %s", company_id)
+        return jsonify({"error": "Error al reactivar conductor"}), 503
+
+    try:
+        existing_entry.deleted = False
+        existing_entry.modification_user = current_user
+        db_session.commit()
+        logger.info(
+            "[PATCH /driver] reactivating from table Driver: %s", driver_code)
+        return jsonify({'success': 'Conductor eliminado exitosamente'}), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[PATCH /driver] reactivating table driver: connection %s", e)
+        return jsonify({"error": "Error al reactivar conductor: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("[PATCH /driver] reactivating table Driver: %s", e)
+        return jsonify({"error": "Error al reactivar conductor"}), 500
+
+
+@app.route('/export-drivers', methods=['GET'])
+def export_drivers() -> Tuple[Response, int]:
+    company_id = ''
+
+    stmt = select(Driver).where(
+        Driver.company_id == company_id,
+        Driver.deleted == False,
+    ).order_by(
+        asc(Driver.driver_name), asc(Driver.driver_surname)
+    )
+
+    driver_list: Sequence[Driver] = db_session.scalars(stmt).all()
+
+    logger.debug(
+        "[GET /export-drivers] fetching drivers from table Driver routes: %s", driver_list)
+
+    # Create file
+    output = io.BytesIO()
+    workbook = Workbook(write_only=False, iso_dates=False)
+    sheet = workbook.active
+
+    headers = ['C.I.', 'Nombre', 'Chapa Camión', 'Chapa Carreta']
+    sheet.append(headers)
+
+    for col_idx in range(1, 5):
+        sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+
+    # Estilo de borde
+    border_style = Border(left=Side(style='thin'),
+                          right=Side(style='thin'),
+                          top=Side(style='thin'),
+                          bottom=Side(style='thin'))
+
+    # Aplicar el estilo de borde a cada celda en la fila
+    for cell in sheet[sheet.max_row]:
+        cell.border = border_style
+
+    # Agregar filas de datos
+    for driver in driver_list:
+        row = [driver.driver_id, driver.driver_name,
+               driver.truck_plate, driver.trailer_plate]
+
+        sheet.append(row)
+
+        for i in range(3, 5):
+            cell = sheet.cell(row=sheet.max_row, column=i)
+            cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED1  # type: ignore
+
+        # Aplicar el estilo de borde a cada celda en la fila
+        for cell in sheet[sheet.max_row]:
+            cell.border = border_style
+
+    # Guardar el archivo Excel en el flujo de salida
+    workbook.save(output)
+    output.seek(0)
+
+    # Crear la respuesta para el cliente con el archivo Excel
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = 'attachment; filename=nómina_de_choferes.xlsx'
+
+    logger.warning("Nómina de Choferes exportada")
+    return response, 200
