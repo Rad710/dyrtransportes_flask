@@ -1,10 +1,10 @@
-D y R Transportes Web - Backendend with Flask and MySQL (ORM mysqlalchemy).
+D y R Transportes Web - Backendend with Flask and MySQL (ORM sqlalchemy).
 
 Works as an API that allows requests to the database
 
 
 Configuration:
-```.flask.env
+```.env
 DB_USERNAME=root
 DB_PASSWORD=root
 DB_HOST=127.0.0.1

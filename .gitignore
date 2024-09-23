@@ -2,7 +2,7 @@
 utils/__pycache__
 __pycache__
 tempCodeRunnerFile.py
-.flask.env
+.env.production
 pylint.log
 .scannerwork/
 .mypy-cache/
