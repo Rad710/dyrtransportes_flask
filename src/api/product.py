@@ -1,24 +1,15 @@
 from flask import request
 from flask import jsonify
 from flask import Response
-from flask import make_response
 
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
-from typing import List
 
-from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
-
-import io
-from openpyxl import Workbook
-from openpyxl.styles import numbers, Border, Side
-from openpyxl.utils import get_column_letter
 
 from app_config import logger
 from app_config import app
@@ -85,21 +76,25 @@ def get_product_list() -> Tuple[Response, int]:
         return jsonify({"error": "Error al obtener productos"}), 500
 
 
-def validated_product_payload() -> str | None:
+def validated_product_payload() -> Product | None:
     if ((request.data is None) or (not request.is_json)):
         logger.error("[POST|PATCH /product] Product payload is empty")
         return None
 
-    payload: Dict[str, str] = request.get_json()
+    try:
+        payload = Product(**request.get_json())
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("[POST|PATCH /product] Invalid payload: %s", e)
+        return None
+
     logger.debug("[POST|PATCH /product] payload: %s", payload)
 
-    if "product_name" not in payload:
+    if payload.product_name is None:
         logger.error(
             "[POST|PATCH /product] payload missing field: product_name")
         return None
 
-    product_name = payload["product_name"]
-    return product_name
+    return payload
 
 
 @app.route('/product', methods=['POST'])
@@ -107,14 +102,15 @@ def post_product() -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_product_payload()
-    if (validated_payload is None):
+    payload = validated_product_payload()
+    if (payload is None):
         return jsonify({"error": "Error al recibir datos del producto"}), 500
 
-    product_name = validated_payload
+    payload.modification_user = current_user
+    payload.company_id = company_id
 
     stmt = select(Product).where(
-        Product.product_name == product_name,
+        Product.product_name == payload.product_name,
         Product.deleted == False
     )
 
@@ -127,18 +123,13 @@ def post_product() -> Tuple[Response, int]:
             "[POST /product] duplicate in table Product: %s", existing_entry)
         return jsonify({"error": "Producto ya existe"}), 500
 
-    new_product = Product(
-        product_name=product_name,
-        modification_user=current_user, company_id=company_id
-    )
-
     try:
-        db_session.add(new_product)
+        db_session.add(payload)
         db_session.commit()
-        logger.info("[POST /product] adding to table Product: %s", new_product)
+        logger.info("[POST /product] adding to table Product: %s", payload)
         return jsonify(
             {
-                **asdict(new_product),
+                **asdict(payload),
                 "success": "Producto agregado exitosamente"
             }), 200
 
@@ -160,14 +151,12 @@ def patch_product(product_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_product_payload()
-    if (validated_payload is None):
+    payload = validated_product_payload()
+    if (payload is None):
         return jsonify({"error": "Error al recibir datos"}), 500
 
-    product_name = validated_payload
-
     stmt = select(Product).where(
-        Product.product_name == product_name,
+        Product.product_name == payload.product_name,
         Product.deleted == False
     )
 
@@ -189,7 +178,7 @@ def patch_product(product_code: int) -> Tuple[Response, int]:
         return jsonify({"error": "Error al actualizar producto"}), 503
 
     try:
-        entry_to_update.product_name = product_name
+        entry_to_update.product_name = payload.product_name
         entry_to_update.modification_user = current_user
 
         db_session.commit()

@@ -33,7 +33,6 @@ from dataclasses import asdict
 
 @app.route('/route/<int:route_code>', methods=['GET'])
 def get_route(route_code: int) -> Tuple[Response, int]:
-    current_user = ''
     company_id = ''
     try:
         stmt = select(Route).where(
@@ -60,7 +59,6 @@ def get_route(route_code: int) -> Tuple[Response, int]:
 @app.route('/routes', methods=['GET'])
 def get_route_list() -> Tuple[Response, int]:
     company_id = ''
-    current_user = ''
 
     try:
         stmt = select(Route).where(
@@ -82,41 +80,47 @@ def get_route_list() -> Tuple[Response, int]:
         return jsonify({"error": "Error al obtener rutas"}), 500
 
 
-def validated_route_payload() -> Tuple[str, str, Decimal, Decimal] | None:
+def validated_route_payload() -> Route | None:
     if ((request.data is None) or (not request.is_json)):
         logger.error("[POST|PATCH /route] Route payload is empty")
         return None
 
-    payload: Dict[str, Any] = request.get_json()
+    try:
+        # create class using dict json
+        payload = Route(**request.get_json())
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("[POST|PATCH /product] Invalid payload: %s", e)
+        return None
+
     logger.debug("[POST|PATCH /route] payload: %s", payload)
 
+    # validate required fields
     required_fields = ['origin', 'destination', 'price', 'payroll_price']
-    for field in required_fields:
-        if field not in payload:
-            logger.error(
-                "[POST|PATCH /route] payload missing field: %s", field)
-            return None
+    missing_field = any(getattr(payload, field)
+                        is None for field in required_fields)
+    if missing_field:
+        logger.error(
+            "[POST|PATCH /route] payload missing required fields: %s", payload)
+        return None
 
-    origin = payload['origin']
-    destination = payload['destination']
-    price = payload['price']
-    payroll_price = payload['payroll_price']
-
-    if not isinstance(origin, str) or not isinstance(destination, str):
+    if not isinstance(payload.origin, str) or not isinstance(payload.destination, str):
         logger.error(
             "[POST|PATCH /route] payload type error in 'origin' and 'destination'")
         return None
-    if not isinstance(price, (int, float)) or not isinstance(payroll_price, (int, float)):
+    if not isinstance(payload.price, (int, float)) or not isinstance(payload.payroll_price, (int, float)):
         logger.error(
             "[POST|PATCH /route] payload type error in 'price' and 'payroll_price'")
         return None
 
-    if price < 0 or payroll_price < 0:
+    # cast received as float to Decimal. TODO: check if required to receive as string?
+    payload.price = Decimal(payload.price)
+    payload.payroll_price = Decimal(payload.payroll_price)
+    if payload.price < 0 or payload.payroll_price < 0:
         logger.error(
             "[POST|PATCH /route] payload value error in 'price' and 'payrollPrice'")
         return None
 
-    return origin, destination, Decimal(str(price)), Decimal(str(payroll_price))
+    return payload
 
 
 @app.route('/route', methods=['POST'])
@@ -124,38 +128,22 @@ def post_route() -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_route_payload()
-    if (validated_payload is None):
+    # validate payload
+    payload = validated_route_payload()
+    if (payload is None):
         return jsonify({"error": "Error al recibir datos de ruta"}), 500
 
-    origin, destination, price, payroll_price = validated_payload
+    payload.modification_user = current_user
+    payload.company_id = company_id
 
-    stmt = select(Route).where(
-        Route.origin == origin, Route.destination == destination,
-        Route.deleted == False
-    )
-    existing_entry: Route | None = db_session.scalar(stmt)
-
-    logger.debug("[POST /route] existing_entry: %s", existing_entry)
-
-    if existing_entry is not None:
-        logger.error(
-            "[POST /route] duplicate in table Route: %s", existing_entry)
-        return jsonify({"error": "Ruta ya existe"}), 500
-
-    new_route = Route(
-        origin=origin, destination=destination,
-        price=price, payroll_price=payroll_price,
-        modification_user=current_user, company_id=company_id
-    )
-
+    # add to database
     try:
-        db_session.add(new_route)
+        db_session.add(payload)
         db_session.commit()
-        logger.info("[POST /route] adding to table Route: %s", new_route)
+        logger.info("[POST /route] adding to table Route: %s", payload)
         return jsonify(
             {
-                **asdict(new_route),
+                **asdict(payload),
                 "success": "Ruta agregada exitosamente"
             }), 200
 
@@ -176,25 +164,12 @@ def put_route(route_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_route_payload()
-    if (validated_payload is None):
+    # validate
+    payload = validated_route_payload()
+    if (payload is None):
         return jsonify({"error": "Error al recibir datos"}), 500
 
-    origin, destination, price, payroll_price = validated_payload
-
-    stmt = select(Route).where(
-        Route.origin == origin, Route.destination == destination,
-        Route.deleted == False
-    )
-    existing_entry: Route | None = db_session.scalar(stmt)
-
-    logger.debug("[PUT /route] existing_entry: %s", existing_entry)
-
-    if (existing_entry is not None) and (existing_entry.route_code != route_code):
-        logger.error(
-            "[PUT /route] duplicate in table Route: %s", existing_entry)
-        return jsonify({"error": "Ruta ya existe"}), 500
-
+    # get entry to update
     entry_to_update: Route | None = db_session.get(Route, route_code)
     if entry_to_update is None:
         return jsonify({'error': 'Ruta no encontrado'}), 404
@@ -205,10 +180,10 @@ def put_route(route_code: int) -> Tuple[Response, int]:
         return jsonify({"error": "Error al actualizar ruta"}), 503
 
     try:
-        entry_to_update.origin = origin
-        entry_to_update.destination = destination
-        entry_to_update.price = price
-        entry_to_update.payroll_price = payroll_price
+        entry_to_update.origin = payload.origin
+        entry_to_update.destination = payload.destination
+        entry_to_update.price = payload.price
+        entry_to_update.payroll_price = payload.payroll_price
         entry_to_update.modification_user = current_user
 
         db_session.commit()
@@ -312,39 +287,14 @@ def delete_routes() -> Tuple[Response, int]:
 
 @app.route('/export-routes', methods=['GET'])
 def export_routes() -> Tuple[Response, int]:
-    company_id = ''
+    route_response, code = get_route_list()
+    logger.debug("[GET /export-routes] jsonify response: %s",
+                 route_response.get_json())
 
-    # PARAMS LIST
-    route_code_list_params: List[str] | None = request.args.getlist(
-        'route_list[]')
-    print(route_code_list_params)
-    if len(route_code_list_params) > 0:
-        try:
-            stmt = select(Route).where(
-                Route.route_code.in_(list(
-                    map(int, route_code_list_params))),
-                Route.company_id == company_id,
-            ).order_by(
-                asc(Route.origin), asc(Route.destination)
-            )
+    if code != 200 or not route_response.is_json or route_response.json is None:
+        return jsonify({"error": "Error enviar archivo Excel"}), 500
 
-            route_list = db_session.scalars(stmt).all()
-            logger.debug(
-                "[GET /export-routes] fetching routes from table Route routes: %s", route_list)
-
-        except Exception as e:
-            logger.error("[GET /export-routes] params error: %s", e)
-            return jsonify({"error": "Error de parámetros"}), 500
-
-    else:  # IMPORT ALL
-        route_response, code = get_route_list()
-        logger.debug("[GET /export-routes] jsonify response: %s",
-                     route_response.get_json())
-
-        if code != 200 or not route_response.is_json or route_response.json is None:
-            return jsonify({"error": "Error enviar archivo Excel"}), 500
-
-        route_list = [Route(**x) for x in route_response.json]
+    route_list = [Route(**x) for x in route_response.json]
 
     # Create file
     output = io.BytesIO()
