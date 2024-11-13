@@ -86,53 +86,28 @@ def get_driver_list():
         return jsonify({"error": "Error al obtener la nómina"}), 500
 
 
-def validated_driver_payload() -> Dict[str, str] | None:
-    if ((request.data is None) or (not request.is_json)):
-        logger.error("[POST|PATCH /driver] Driver payload is empty")
-        return None
-
-    payload: Dict[str, str] = request.get_json()
-    logger.debug("[POST|PATCH /driver] payload: %s", payload)
-
-    required_fields = ['driver_id', 'driver_name',
-                       'driver_surname', 'truck_plate', 'trailer_plate']
-    for field in required_fields:
-        if field not in payload:
-            logger.error(
-                "[POST|PATCH /driver] payload missing field: %s", field)
-            return None
-
-    return payload
-
-
 @app.route('/driver', methods=['POST'])
 def post_driver() -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_driver_payload()
-    if (validated_payload is None):
-        return jsonify({"error": "Error al recibir datos de conductor"}), 500
-
-    new_driver = Driver(
-        driver_id=validated_payload['driver_id'],
-        driver_name=validated_payload['driver_name'],
-        driver_surname=validated_payload['driver_surname'],
-        truck_plate=validated_payload['truck_plate'],
-        trailer_plate=validated_payload['trailer_plate'],
-        modification_user=current_user,
-        company_id=company_id
-    )
-
     try:
-        db_session.add(new_driver)
+        # json to db object
+        payload = Driver(**request.get_json(),
+                         modification_user=current_user, company_id=company_id)
+
+        db_session.add(payload)
         db_session.commit()
-        logger.info("[POST /driver] adding to table Driver: %s", new_driver)
+        logger.info("[POST /driver] adding to table Driver: %s", payload)
         return jsonify(
             {
-                **asdict(new_driver),
+                **asdict(payload),
                 "success": "Conductor agregado exitosamente"
             }), 200
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("[POST /driver] Invalid Driver: %s", e)
+        return jsonify({"error": f"Error, datos del Chofer inválidos ({e})"}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -151,26 +126,25 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    validated_payload = validated_driver_payload()
-    if (validated_payload is None):
-        return jsonify({"error": "Error al recibir datos de conductor"}), 500
-
-    existing_entry: Driver | None = db_session.get(Driver, driver_code)
-    if existing_entry is None:
-        return jsonify({'error': 'Conductor no encontrado'}), 404
-
-    if existing_entry.company_id != company_id:
-        logger.error(
-            "[PUT /driver] updating table Driver: invalid company_id: %s", company_id)
-        return jsonify({"error": "Error al actualizar conductor"}), 503
-
     try:
-        existing_entry.driver_id = validated_payload['driver_id']
-        existing_entry.driver_name = validated_payload['driver_name']
-        existing_entry.driver_surname = validated_payload['driver_surname']
-        existing_entry.truck_plate = validated_payload['truck_plate']
-        existing_entry.trailer_plate = validated_payload['trailer_plate']
-        existing_entry.modification_user = current_user
+        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        if existing_entry is None:
+            return jsonify({'error': 'Conductor no encontrado'}), 404
+
+        if existing_entry.company_id != company_id:
+            logger.error(
+                "[PUT /driver] updating table Driver: invalid company_id: %s", company_id)
+            return jsonify({"error": "Error al actualizar conductor"}), 403
+
+        payload = Driver(**request.get_json(),
+                         modification_user=current_user, company_id=company_id)
+
+        existing_entry.driver_id = payload.driver_id
+        existing_entry.driver_name = payload.driver_name
+        existing_entry.driver_surname = payload.driver_surname
+        existing_entry.truck_plate = payload.truck_plate
+        existing_entry.trailer_plate = payload.trailer_plate
+        existing_entry.modification_user = payload.modification_user
 
         db_session.commit()
         logger.info("[PUT /driver] updating table Driver: %s", driver_code)
@@ -179,6 +153,10 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
                 **asdict(existing_entry),
                 "success": "Conductor actualizado exitosamente"
             }), 200
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("[PUT /driver] Invalid Driver: %s", e)
+        return jsonify({"error": f"Error, datos del Chofer inválidos ({e})"}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -198,16 +176,16 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    existing_entry: Driver | None = db_session.get(Driver, driver_code)
-    if existing_entry is None:
-        return jsonify({'error': 'Conductor no encontrado'}), 404
-
-    if existing_entry.company_id != company_id:
-        logger.error(
-            "[DELETE /driver] deleting table Driver: invalid company_id: %s", company_id)
-        return jsonify({"error": "Error al eliminar conductor"}), 503
-
     try:
+        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        if existing_entry is None:
+            return jsonify({'error': 'Conductor no encontrado'}), 404
+
+        if existing_entry.company_id != company_id:
+            logger.error(
+                "[DELETE /driver] deleting table Driver: invalid company_id: %s", company_id)
+            return jsonify({"error": "Error al eliminar conductor"}), 503
+
         existing_entry.deleted = True
         existing_entry.modification_user = current_user
         db_session.commit()
@@ -232,16 +210,16 @@ def reactivate_driver(driver_code: int) -> Tuple[Response, int]:
     current_user = ''
     company_id = ''
 
-    existing_entry: Driver | None = db_session.get(Driver, driver_code)
-    if existing_entry is None:
-        return jsonify({'error': 'Conductor no encontrado'}), 404
-
-    if existing_entry.company_id != company_id:
-        logger.error(
-            "[PATCH /driver] reactivating table Driver: invalid company_id: %s", company_id)
-        return jsonify({"error": "Error al reactivar conductor"}), 503
-
     try:
+        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        if existing_entry is None:
+            return jsonify({'error': 'Conductor no encontrado'}), 404
+
+        if existing_entry.company_id != company_id:
+            logger.error(
+                "[PATCH /driver] reactivating table Driver: invalid company_id: %s", company_id)
+            return jsonify({"error": "Error al reactivar conductor"}), 503
+
         existing_entry.deleted = False
         existing_entry.modification_user = current_user
         db_session.commit()

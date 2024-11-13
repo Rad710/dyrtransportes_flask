@@ -14,6 +14,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import validates
 from sqlalchemy.sql import functions
 from datetime import datetime, date
 from decimal import Decimal
@@ -65,6 +66,38 @@ class Route(Base):
     #                      name="unique_origin_destination_user"),
     # )
 
+    @validates('origin')
+    def validate_origin(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Origen no puede estar vacío")
+        return value
+
+    @validates('destination')
+    def validate_destination(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Destino no puede estar vacío")
+        return value
+
+    @validates('price')
+    def validate_price(self, key, value):
+        if not isinstance(value, Decimal):
+            value = Decimal(value)
+
+        if value < Decimal("0.00"):
+            raise ValueError("Precio no puede ser negativo")
+
+        return value
+
+    @validates('payroll_price')
+    def validate_payroll_price(self, key, value):
+        if not isinstance(value, Decimal):
+            value = Decimal(value)
+
+        if value < Decimal("0.00"):
+            raise ValueError("Precio Liquidación no puede ser negativo")
+
+        return value
+
 
 @dataclass
 class RouteAudit(Base):
@@ -102,7 +135,6 @@ class RouteAudit(Base):
     audit_route = relationship("Route", back_populates="route_audits")
 
 
-# TODO add to frontend
 @dataclass
 class Product(Base):
     """(Palabras/Productos) Represents a product within a product management system.
@@ -131,11 +163,11 @@ class Product(Base):
     product_audits = relationship(
         "ProductAudit", back_populates="audit_product")
 
-    # __table_args__ = (
-    #     UniqueConstraint(product_name, company_id,
-    #                      outdated.filter(outdated == False),
-    #                      name="unique_product_user"),
-    # )
+    @validates('product_name')
+    def validate_product_name(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
 
 
 @dataclass
@@ -254,6 +286,36 @@ class DriverAudit(Base):
 
     # Mapped["Driver"]
     audit_driver = relationship("Driver", back_populates="driver_audits")
+
+    @validates('driver_id')
+    def validate_driver_id(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
+
+    @validates('driver_name')
+    def validate_driver_name(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
+
+    @validates('driver_surname')
+    def validate_driver_surname(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
+
+    @validates('truck_plate')
+    def validate_truck_plate(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
+
+    @validates('trailer_plate')
+    def validate_trailer_plate(self, key, value):
+        if not value:
+            raise ValueError("Nombre del Producto no puede estar vacío")
+        return value
 
 
 @dataclass
