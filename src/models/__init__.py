@@ -250,6 +250,36 @@ class Driver(Base):
         UniqueConstraint("driver_id", "company_id"),
     )
 
+    @validates('driver_id')
+    def validate_driver_id(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("C.I. no puede estar vacío")
+        return value
+
+    @validates('driver_name')
+    def validate_driver_name(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Nombre no puede estar vacío")
+        return value
+
+    @validates('driver_surname')
+    def validate_driver_surname(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Apellido no puede estar vacío")
+        return value
+
+    @validates('truck_plate')
+    def validate_truck_plate(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Chapa de Camión no puede estar vacío")
+        return value
+
+    @validates('trailer_plate')
+    def validate_trailer_plate(self, key, value):
+        if not value or len(value) == 0:
+            raise ValueError("Chapa de Carreta no puede estar vacío")
+        return value
+
 
 @dataclass
 class DriverAudit(Base):

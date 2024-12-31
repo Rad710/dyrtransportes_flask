@@ -2,7 +2,7 @@ from flask import request
 from flask import jsonify
 from flask import Response
 
-from typing import Dict
+from typing import List
 from typing import Sequence
 from typing import Tuple
 
@@ -190,3 +190,47 @@ def delete_product(product_code: int) -> Tuple[Response, int]:
         db_session.rollback()
         logger.error("[DELETE /producto] deleting table Producto: %s", e)
         return jsonify({"error": "Error al eliminar producto"}), 500
+
+
+@app.route('/products', methods=['DELETE'])
+def delete_products() -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
+
+    if ((request.data is None) or (not request.is_json)):
+        logger.error("[DELETE /products] Product list payload is empty")
+        return jsonify({'error': 'Error al eliminar producto: producto no encontrado'}), 404
+
+    product_list: List[int] = request.get_json()
+    logger.debug("[DELETE /products] route_list: %s", product_list)
+
+    try:
+        for product_code in product_list:
+            product: Product | None = db_session.get(Product, product_code)
+
+            if product is None:
+                return jsonify({'error': 'Error al eliminar producto: producto no encontrado'}), 404
+
+            if product.company_id != company_id:
+                logger.error(
+                    "[DELETE /product] deleting from table Product: invalid company_id: %s", company_id)
+                return jsonify({"error": "Error al eliminar producto"}), 503
+
+            product.deleted = True
+            product.modification_user = current_user
+            logger.info(
+                "[DELETE /products] deleting from table Product: %s", product_code)
+
+        db_session.commit()
+        return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[DELETE /routes] deleting table Route: connection %s", e)
+        return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("[DELETE /routes] deleting table Route: %s", e)
+        return jsonify({"error": "Error al eliminar ruta"}), 500
