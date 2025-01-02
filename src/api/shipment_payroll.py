@@ -149,9 +149,9 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
         year: Optional[int] = request.args.get('year', type=int)
         if year:
             stmt = stmt.where(
-                extract('year', ShipmentPayroll.creation_timestamp) == year)
+                extract('year', ShipmentPayroll.payroll_timestamp) == year)
 
-        stmt = stmt.order_by(asc(ShipmentPayroll.creation_timestamp))
+        stmt = stmt.order_by(asc(ShipmentPayroll.payroll_timestamp))
 
         shipment_payrolls: Sequence[ShipmentPayroll] = db_session.scalars(
             stmt).all()

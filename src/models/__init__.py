@@ -354,7 +354,7 @@ class ShipmentPayroll(Base):
     (Planillas) Represents a payroll record for a shipment.
     Attributes:
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * creation_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (datetime): The time at which this route record was created.
     * collected (bool): Indicates whether the payment associated with the shipment has been collected.
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
@@ -364,7 +364,7 @@ class ShipmentPayroll(Base):
 
     payroll_code: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True)
-    creation_timestamp: Mapped[datetime] = mapped_column(
+    payroll_timestamp: Mapped[datetime] = mapped_column(
         DateTime, server_default=functions.now())
     collected: Mapped[bool] = mapped_column(default=False)
     collection_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
@@ -380,8 +380,8 @@ class ShipmentPayroll(Base):
     shipment_payroll_audits = relationship(
         "ShipmentPayrollAudit", back_populates="audit_shipment_payroll")
 
-    @validates('creation_timestamp')
-    def validate_creation_timestamp(self, key, value):
+    @validates('payroll_timestamp')
+    def validate_payroll_timestamp(self, key, value):
         if not value:
             raise ValueError("Fecha de la planilla no puede estar vacía")
 
@@ -405,7 +405,7 @@ class ShipmentPayrollAudit(Base):
     Attributes:
     * audit_code (int): Unique identifier for the audit.
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * creation_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (datetime): The time at which this route record was created.
     * collected (bool): Indicates whether the payment associated with the shipment has been collected.
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
@@ -418,7 +418,7 @@ class ShipmentPayrollAudit(Base):
         primary_key=True, autoincrement=True)
     payroll_code: Mapped[int] = mapped_column(
         ForeignKey('shipment_payroll.payroll_code'))
-    creation_timestamp: Mapped[datetime] = mapped_column(
+    payroll_timestamp: Mapped[datetime] = mapped_column(
         DateTime, server_default=functions.now())
     collected: Mapped[bool] = mapped_column(default=False)
     collection_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
@@ -439,7 +439,7 @@ class DriverPayroll(Base):
     (Liquidaciones) Represents a payroll record for a driver.
     Attributes:
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * creation_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (datetime): The time at which this route record was created.
     * driver_code (int): foreign key to driver information.
     * paid (bool): Indicates whether the payment associated with the shipment has been collected.
     * paid_timestamp (bool): Indicates when the payment associated with the shipment has been collected.
@@ -451,7 +451,7 @@ class DriverPayroll(Base):
 
     payroll_code: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True)
-    creation_timestamp: Mapped[datetime] = mapped_column(
+    payroll_timestamp: Mapped[datetime] = mapped_column(
         DateTime, server_default=functions.now())
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
     paid: Mapped[bool] = mapped_column(default=False)
@@ -483,7 +483,7 @@ class DriverPayrollAudit(Base):
     Attributes:
     * audit_code (int): Unique identifier for the audit.
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * creation_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (datetime): The time at which this route record was created.
     * driver_code (int): foreign key to driver information.
     * paid (bool): Indicates whether the payment associated with the shipment has been collected.
     * paid_timestamp (bool): Indicates when the payment associated with the shipment has been collected.
@@ -498,7 +498,7 @@ class DriverPayrollAudit(Base):
         primary_key=True, autoincrement=True)
     payroll_code: Mapped[int] = mapped_column(
         ForeignKey('driver_payroll.payroll_code'))
-    creation_timestamp: Mapped[datetime] = mapped_column(
+    payroll_timestamp: Mapped[datetime] = mapped_column(
         DateTime, server_default=functions.now())
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
     paid: Mapped[bool] = mapped_column(default=False)
