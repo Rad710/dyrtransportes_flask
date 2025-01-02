@@ -1,6 +1,6 @@
 import api.statistics
 import api.route
-import api.planillas
+import api.shipment_payroll
 import api.liquidacion
 import api.liquidacion_viajes
 import api.liquidacion_gastos

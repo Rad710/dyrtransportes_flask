@@ -5,6 +5,7 @@ from flask import Response
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy import asc
@@ -32,7 +33,7 @@ def get_product(product_code: int) -> Tuple[Response, int]:
             Product.company_id == company_id
         )
 
-        product: Product | None = db_session.scalar(stmt)
+        product: Optional[Product] = db_session.scalar(stmt)
         if product is None:
             logger.error(
                 "[GET /product] fetching from table Product not found")
@@ -117,7 +118,8 @@ def put_product(product_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        entry_to_update: Product | None = db_session.get(Product, product_code)
+        entry_to_update: Optional[Product] = db_session.get(
+            Product, product_code)
         if entry_to_update is None:
             return jsonify({'error': 'Producto no encontrado'}), 404
 
@@ -164,7 +166,8 @@ def delete_product(product_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        existing_entry: Product | None = db_session.get(Product, product_code)
+        existing_entry: Optional[Product] = db_session.get(
+            Product, product_code)
         if existing_entry is None:
             return jsonify({'error': 'Producto no encontrado'}), 404
 
@@ -206,7 +209,7 @@ def delete_products() -> Tuple[Response, int]:
 
     try:
         for product_code in product_list:
-            product: Product | None = db_session.get(Product, product_code)
+            product: Optional[Product] = db_session.get(Product, product_code)
 
             if product is None:
                 return jsonify({'error': 'Error al eliminar producto: producto no encontrado'}), 404

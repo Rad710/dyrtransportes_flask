@@ -13,11 +13,9 @@ from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
-from typing import Any
-from typing import Dict
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
-from typing import List
 
 from app_config import logger
 from app_config import app
@@ -45,7 +43,7 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
             Driver.company_id == company_id
         )
 
-        driver: Driver | None = db_session.scalar(stmt)
+        driver: Optional[Driver] = db_session.scalar(stmt)
         if driver is None:
             logger.error("[GET /driver] fetching from table Driver not found")
             return jsonify({"error": "No se encontró al chofer"}), 404
@@ -127,7 +125,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
         if existing_entry is None:
             return jsonify({'error': 'Conductor no encontrado'}), 404
 
@@ -177,7 +175,7 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
         if existing_entry is None:
             return jsonify({'error': 'Conductor no encontrado'}), 404
 
@@ -211,7 +209,7 @@ def reactivate_driver(driver_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        existing_entry: Driver | None = db_session.get(Driver, driver_code)
+        existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
         if existing_entry is None:
             return jsonify({'error': 'Conductor no encontrado'}), 404
 

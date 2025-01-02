@@ -380,6 +380,23 @@ class ShipmentPayroll(Base):
     shipment_payroll_audits = relationship(
         "ShipmentPayrollAudit", back_populates="audit_shipment_payroll")
 
+    @validates('creation_timestamp')
+    def validate_creation_timestamp(self, key, value):
+        if not value:
+            raise ValueError("Fecha de la planilla no puede estar vacía")
+
+        if not isinstance(value, datetime):
+            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+
+        return value
+
+    @validates('collection_timestamp')
+    def validate_collection_timestamp(self, key, value):
+        if value is not None and not isinstance(value, DateTime):
+            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+
+        return value
+
 
 @dataclass
 class ShipmentPayrollAudit(Base):

@@ -3,8 +3,7 @@ from flask import jsonify
 from flask import Response
 from flask import make_response
 
-from typing import Any
-from typing import Dict
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import List
@@ -40,7 +39,7 @@ def get_route(route_code: int) -> Tuple[Response, int]:
             Route.company_id == company_id
         )
 
-        route: Route | None = db_session.scalar(stmt)
+        route: Optional[Route] = db_session.scalar(stmt)
         if route is None:
             logger.error("[GET /route] fetching from table Route not found")
             return jsonify({"error": "No se encontró la routa"}), 404
@@ -123,7 +122,7 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
     try:
         # get entry to update
-        entry_to_update: Route | None = db_session.get(Route, route_code)
+        entry_to_update: Optional[Route] = db_session.get(Route, route_code)
         if entry_to_update is None:
             return jsonify({'error': 'Ruta no encontrado'}), 404
 
@@ -173,7 +172,7 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
     company_id = ''
 
     try:
-        existing_entry: Route | None = db_session.get(Route, route_code)
+        existing_entry: Optional[Route] = db_session.get(Route, route_code)
         if existing_entry is None:
             return jsonify({'error': 'Ruta no encontrado'}), 404
 
@@ -215,7 +214,7 @@ def delete_routes() -> Tuple[Response, int]:
 
     try:
         for route_code in route_list:
-            route: Route | None = db_session.get(Route, route_code)
+            route: Optional[Route] = db_session.get(Route, route_code)
 
             if route is None:
                 return jsonify({'error': 'Error al eliminar ruta: ruta no encontrada'}), 404

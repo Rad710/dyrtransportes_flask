@@ -4,7 +4,6 @@ import datetime
 
 from app_config import logger
 from api.cobranzas import crear_cobranza_liquidacion
-from api.planillas import agregar_planilla
 
 
 from app_config import app
@@ -27,7 +26,7 @@ def importar_cobranza():
         if "error" in response:
             raise Exception(
                 f"Error en post table planillas importadas. Planilla no pudo ser creada. {response['error']}")
-    
+
         df = pd.read_excel(file, header=None)
         df = df.iloc[:, :15]
 
@@ -85,6 +84,7 @@ def process_row(row):
     if "error" in response:
         raise Exception(
             f"Error en post table cobranzas importadas. Planilla cargada parcialmente. {response['error']}")
+
 
 @app.route('/exportar_formato_cobranza', methods=['GET'])
 def exportar_formato_cobranza():
