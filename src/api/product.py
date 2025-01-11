@@ -205,7 +205,7 @@ def delete_products() -> Tuple[Response, int]:
         return jsonify({'error': 'Error al eliminar producto: producto no encontrado'}), 404
 
     product_list: List[int] = request.get_json()
-    logger.debug("[DELETE /products] route_list: %s", product_list)
+    logger.debug("[DELETE /products] product_list: %s", product_list)
 
     try:
         for product_code in product_list:
@@ -230,10 +230,10 @@ def delete_products() -> Tuple[Response, int]:
     except OperationalError as e:
         db_session.rollback()
         logger.error(
-            "[DELETE /routes] deleting table Route: connection %s", e)
+            "[DELETE /products] deleting table Product: connection %s", e)
         return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error("[DELETE /routes] deleting table Route: %s", e)
+        logger.error("[DELETE /products] deleting table Product: %s", e)
         return jsonify({"error": "Error al eliminar ruta"}), 500

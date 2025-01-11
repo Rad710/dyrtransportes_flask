@@ -5,6 +5,7 @@ from flask import Response
 from typing import Sequence
 from typing import Tuple
 from typing import Optional
+from typing import List
 
 from sqlalchemy import select
 from sqlalchemy import desc
@@ -206,4 +207,52 @@ def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         db_session.rollback()
         logger.error(
             "[DELETE /shipment-payroll] deleting table ShipmentPayroll: %s", e)
+        return jsonify({"error": "Error al eliminar Planilla"}), 500
+
+
+@app.route('/shipment-payrolls', methods=['DELETE'])
+def delete_shipment_payrolls() -> Tuple[Response, int]:
+    current_user = ''
+    company_id = ''
+
+    if ((request.data is None) or (not request.is_json)):
+        logger.error(
+            "[DELETE /shipment-payrolls] ShipmentPayroll list payload is empty")
+        return jsonify({'error': 'Error al eliminar Planilla: planilla no encontrado'}), 404
+
+    payroll_list: List[int] = request.get_json()
+    logger.debug(
+        "[DELETE /shipment-payrolls] shipment_payroll_list: %s", payroll_list)
+
+    try:
+        for payroll_code in payroll_list:
+            payroll: Optional[ShipmentPayroll] = db_session.get(
+                ShipmentPayroll, payroll_code)
+
+            if payroll is None:
+                return jsonify({'error': 'Error al eliminar planilla: planilla no encontrado'}), 404
+
+            if payroll.company_id != company_id:
+                logger.error(
+                    "[DELETE /shipment-payrolls] deleting from table ShipmentPayroll: invalid company_id: %s", company_id)
+                return jsonify({"error": "Error al eliminar planilla"}), 503
+
+            payroll.deleted = True
+            payroll.modification_user = current_user
+            logger.info(
+                "[DELETE /shipment-payrolls] deleting from table ShipmentPayroll: %s", payroll_code)
+
+        db_session.commit()
+        return jsonify({'success': 'Planilla eliminada exitosamente'}), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error(
+            "[DELETE /shipment-payrolls] deleting table ShipmentPayroll: connection %s", e)
+        return jsonify({"error": "Error al eliminar Planilla: problema de conexión"}), 503
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error(
+            "[DELETE /shipment-payrolls] deleting table ShipmentPayroll: %s", e)
         return jsonify({"error": "Error al eliminar Planilla"}), 500

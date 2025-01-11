@@ -39,14 +39,14 @@ def upgrade():
         BEGIN
             INSERT INTO shipment_audit (
                 shipment_code, shipment_date, driver_code, product_code, 
-                route_code, price, payroll_price, ticket_code,
+                route_code, price, payroll_price, dispatch_code, receipt_code,
                 origin_weight, destination_weight, shipment_payroll_code,
                 driver_payroll_code, deleted, company_id, modification_user
             ) VALUES (
                 NEW.shipment_code, NEW.shipment_date, 
                 NEW.driver_code, NEW.product_code, 
                 NEW.route_code, NEW.price, NEW.payroll_price, 
-                NEW.ticket_code, NEW.origin_weight, NEW.destination_weight, 
+                NEW.dispatch_code, NEW.receipt_code, NEW.origin_weight, NEW.destination_weight, 
                 NEW.shipment_payroll_code, NEW.driver_payroll_code, 
                 NEW.deleted, NEW.company_id, NEW.modification_user
             );
@@ -57,14 +57,14 @@ def upgrade():
         BEGIN
             INSERT INTO shipment_audit (
                 shipment_code, shipment_date, driver_code, product_code, 
-                route_code, price, payroll_price, ticket_code,
+                route_code, price, payroll_price, dispatch_code, receipt_code,
                 origin_weight, destination_weight, shipment_payroll_code,
                 driver_payroll_code, deleted, company_id, modification_user
             ) VALUES (
                 NEW.shipment_code, NEW.shipment_date, 
                 NEW.driver_code, NEW.product_code, 
                 NEW.route_code, NEW.price, NEW.payroll_price, 
-                NEW.ticket_code, NEW.origin_weight, NEW.destination_weight, 
+                NEW.dispatch_code, NEW.receipt_code, NEW.origin_weight, NEW.destination_weight, 
                 NEW.shipment_payroll_code, NEW.driver_payroll_code, 
                 NEW.deleted, NEW.company_id, NEW.modification_user
             );
@@ -97,7 +97,8 @@ def upgrade():
             route_code, 
             price, 
             payroll_price,
-            ticket_code,
+            dispatch_code,
+            receipt_code,
             origin_weight,
             destination_weight,
             shipment_payroll_code,
@@ -110,7 +111,8 @@ def upgrade():
             r.route_code, 
             c.precio, 
             IFNULL(lv.precio_liquidacion, 0) payroll_price, 
-            CONVERT(c.tiquet, CHAR) ticket_code, 
+            '' dispatch_code, 
+            CONVERT(c.tiquet, CHAR) receipt_code, 
             c.kilos_origen,
             c.kilos_destino,
             sp.payroll_code shipment_payroll_code,

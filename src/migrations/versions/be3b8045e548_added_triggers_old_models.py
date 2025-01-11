@@ -84,7 +84,8 @@ def upgrade() -> None:
                 route_code,
                 price,
                 payroll_price,
-                ticket_code,
+                dispatch_code,
+                receipt_code,
                 origin_weight,
                 destination_weight,
                 shipment_payroll_code,
@@ -100,6 +101,7 @@ def upgrade() -> None:
                 route_code_var,
                 NEW.precio,
                 0,
+                '',
                 NEW.tiquet,
                 NEW.kilos_origen,
                 NEW.kilos_destino,
@@ -111,7 +113,7 @@ def upgrade() -> None:
             );
         END;
     """)
-    
+
     op.execute("""
         CREATE TRIGGER cobranzas_update AFTER UPDATE ON cobranzas
         FOR EACH ROW
@@ -174,7 +176,8 @@ def upgrade() -> None:
                 s.route_code = route_code_var,
                 s.price = NEW.precio,
                 s.payroll_price = 0,
-                s.ticket_code = NEW.tiquet,
+                s.dispatch_code = '',
+                s.receipt_code = NEW.tiquet,
                 s.origin_weight = NEW.kilos_origen,
                 s.destination_weight = NEW.kilos_destino,
                 s.shipment_payroll_code = shipment_payroll_code_var,

@@ -9,7 +9,7 @@
     * ShipmentExpense, ShipmentExpenseAudit
 """
 
-from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, Date, BigInteger, DateTime
+from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, Date, BigInteger, TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
@@ -113,7 +113,7 @@ class RouteAudit(Base):
     * deleted (bool): Indicates whether the route information is no longer valid.
     * company_id (str): The user who created this route record.
     * modification_user (str): The user who last modified this route record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "route_audit"
 
@@ -129,7 +129,7 @@ class RouteAudit(Base):
     modification_user: Mapped[str] = mapped_column(String(100))
 
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["Route"]
     audit_route = relationship("Route", back_populates="route_audits")
@@ -181,7 +181,7 @@ class ProductAudit(Base):
     * deleted (bool): Indicates whether the product is retired or discontinued.
     * company_id (str): The company who created this product record.
     * modification_user (str): The user who last modified this product record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "product_audit"
 
@@ -195,7 +195,7 @@ class ProductAudit(Base):
     modification_user: Mapped[str] = mapped_column(String(100))
 
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["Product"]
     audit_product = relationship("Product", back_populates="product_audits")
@@ -296,7 +296,7 @@ class DriverAudit(Base):
     * trailer_plate (str): The license plate number of the driver's trailer (not nullable, up to 100 characters).
     * deleted (bool): A flag indicating if the driver is deleted or not.
     * creation_user (str): The username of the user who created the driver record (not nullable, up to 100 characters).
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "driver_audit"
 
@@ -312,7 +312,7 @@ class DriverAudit(Base):
     company_id: Mapped[str] = mapped_column(String(100))
     modification_user: Mapped[str] = mapped_column(String(100))
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["Driver"]
     audit_driver = relationship("Driver", back_populates="driver_audits")
@@ -354,7 +354,7 @@ class ShipmentPayroll(Base):
     (Planillas) Represents a payroll record for a shipment.
     Attributes:
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * payroll_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (TIMESTAMP): The time at which this route record was created.
     * collected (bool): Indicates whether the payment associated with the shipment has been collected.
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
@@ -365,9 +365,9 @@ class ShipmentPayroll(Base):
     payroll_code: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True)
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
     collected: Mapped[bool] = mapped_column(default=False)
-    collection_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    collection_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
     deleted: Mapped[bool] = mapped_column(default=False)
     company_id: Mapped[str] = mapped_column(String(100))
     modification_user: Mapped[str] = mapped_column(String(100))
@@ -392,7 +392,7 @@ class ShipmentPayroll(Base):
 
     @validates('collection_timestamp')
     def validate_collection_timestamp(self, key, value):
-        if value is not None and not isinstance(value, DateTime):
+        if value is not None and not isinstance(value, datetime):
             value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
 
         return value
@@ -405,12 +405,12 @@ class ShipmentPayrollAudit(Base):
     Attributes:
     * audit_code (int): Unique identifier for the audit.
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * payroll_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (TIMESTAMP): The time at which this route record was created.
     * collected (bool): Indicates whether the payment associated with the shipment has been collected.
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "shipment_payroll_audit"
 
@@ -419,14 +419,14 @@ class ShipmentPayrollAudit(Base):
     payroll_code: Mapped[int] = mapped_column(
         ForeignKey('shipment_payroll.payroll_code'))
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
     collected: Mapped[bool] = mapped_column(default=False)
-    collection_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    collection_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
     deleted: Mapped[bool] = mapped_column(default=False)
     company_id: Mapped[str] = mapped_column(String(100))
     modification_user: Mapped[str] = mapped_column(String(100))
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["ShipmentPayroll"]
     audit_shipment_payroll = relationship(
@@ -439,7 +439,7 @@ class DriverPayroll(Base):
     (Liquidaciones) Represents a payroll record for a driver.
     Attributes:
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * payroll_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (TIMESTAMP): The time at which this route record was created.
     * driver_code (int): foreign key to driver information.
     * paid (bool): Indicates whether the payment associated with the shipment has been collected.
     * paid_timestamp (bool): Indicates when the payment associated with the shipment has been collected.
@@ -452,10 +452,10 @@ class DriverPayroll(Base):
     payroll_code: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True)
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
     paid: Mapped[bool] = mapped_column(default=False)
-    paid_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    paid_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
     deleted: Mapped[bool] = mapped_column(default=False)
     company_id: Mapped[str] = mapped_column(String(100))
     modification_user: Mapped[str] = mapped_column(String(100))
@@ -483,14 +483,14 @@ class DriverPayrollAudit(Base):
     Attributes:
     * audit_code (int): Unique identifier for the audit.
     * payroll_code (int): Auto-generated unique identifier for the payroll record.
-    * payroll_timestamp (datetime): The time at which this route record was created.
+    * payroll_timestamp (TIMESTAMP): The time at which this route record was created.
     * driver_code (int): foreign key to driver information.
     * paid (bool): Indicates whether the payment associated with the shipment has been collected.
     * paid_timestamp (bool): Indicates when the payment associated with the shipment has been collected.
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "driver_payroll_audit"
 
@@ -499,16 +499,16 @@ class DriverPayrollAudit(Base):
     payroll_code: Mapped[int] = mapped_column(
         ForeignKey('driver_payroll.payroll_code'))
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
     paid: Mapped[bool] = mapped_column(default=False)
-    paid_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    paid_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
     deleted: Mapped[bool] = mapped_column(default=False)
     company_id: Mapped[str] = mapped_column(String(100))
     modification_user: Mapped[str] = mapped_column(String(100))
 
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["DriverPayroll"]
     audit_driver_payroll = relationship(
@@ -527,7 +527,8 @@ class Shipment(Base):
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
     * paid_price (float): Actual price paid for the shipment.
-    * ticket_code (str): Code associated with the shipment ticket or waybill.
+    * dispatch_code (str): Code associated with the shipment dispatch ticket.
+    * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
     * destination_weight (int): Weight of the shipment at its destination.
     * shipment_payroll_code (int): Code linking the shipment to its payroll record.
@@ -547,7 +548,8 @@ class Shipment(Base):
     route_code: Mapped[int] = mapped_column(ForeignKey('route.route_code'))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     payroll_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    ticket_code: Mapped[str] = mapped_column(String(100))
+    dispatch_code: Mapped[str] = mapped_column(String(100))
+    receipt_code: Mapped[str] = mapped_column(String(100))
     origin_weight: Mapped[Decimal] = mapped_column(Numeric(10, 0))
     destination_weight: Mapped[Decimal] = mapped_column(Numeric(10, 0))
     shipment_payroll_code: Mapped[int] = mapped_column(
@@ -599,7 +601,8 @@ class ShipmentAudit(Base):
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
     * paid_price (float): Actual price paid for the shipment.
-    * ticket_code (str): Code associated with the shipment ticket or waybill.
+    * dispatch_code (str): Code associated with the shipment dispatch ticket.
+    * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
     * destination_weight (int): Weight of the shipment at its destination.
     * shipment_payroll_code (int): Code linking the shipment to its payroll record.
@@ -607,7 +610,7 @@ class ShipmentAudit(Base):
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "shipment_audit"
 
@@ -622,7 +625,8 @@ class ShipmentAudit(Base):
     route_code: Mapped[int] = mapped_column(ForeignKey('route.route_code'))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     payroll_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    ticket_code: Mapped[str] = mapped_column(String(100))
+    dispatch_code: Mapped[str] = mapped_column(String(100))
+    receipt_code: Mapped[str] = mapped_column(String(100))
     origin_weight: Mapped[Decimal] = mapped_column(Numeric(10, 0))
     destination_weight: Mapped[Decimal] = mapped_column(Numeric(10, 0))
     shipment_payroll_code: Mapped[int] = mapped_column(
@@ -634,7 +638,7 @@ class ShipmentAudit(Base):
     modification_user: Mapped[str] = mapped_column(String(100))
 
     audit_timestamp: Mapped[datetime] = mapped_column(
-        DateTime, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["Shipment"]
     audit_shipment = relationship("Shipment", back_populates="shipment_audits")
@@ -692,7 +696,7 @@ class ShipmentExpenseAudit(Base):
     * deleted (bool): Indicates whether the payment associated with the shipment has been deleted.
     * company_id (str): The company id who created this payroll record.
     * modification_user (str): The user who created this payroll record.
-    * audit_timestamp (datetime): The time at which this route record was modified.
+    * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
     __tablename__ = "shipment_expense_audit"
 
@@ -711,7 +715,7 @@ class ShipmentExpenseAudit(Base):
     modification_user: Mapped[str] = mapped_column(String(100))
 
     audit_timestamp: Mapped[datetime] = mapped_column(
-        server_default=functions.now())
+        TIMESTAMP, server_default=functions.now())
 
     # Mapped["Shipment"]
     audit_shipment_expense = relationship(
