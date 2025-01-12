@@ -20,35 +20,45 @@ def upgrade():
     # Copy data from the old table
     op.execute(
         """
-        ALTER TABLE dyrtransportes.shipment MODIFY COLUMN price decimal(10,2) DEFAULT 0 NOT NULL;
-        ALTER TABLE dyrtransportes.shipment MODIFY COLUMN payroll_price decimal(10,2) DEFAULT 0 NOT NULL;
-        ALTER TABLE dyrtransportes.shipment MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.shipment MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN price decimal(10,2) DEFAULT 0 NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN payroll_price decimal(10,2) DEFAULT 0 NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_audit MODIFY COLUMN audit_timestamp datetime DEFAULT CURRENT_TIMESTAMP NOT NULL;
-
-        
         CREATE TRIGGER audit_shipment_insert AFTER INSERT ON shipment
         FOR EACH ROW
         BEGIN
             INSERT INTO shipment_audit (
-                shipment_code, shipment_date, driver_code, product_code, 
-                route_code, price, payroll_price, dispatch_code, receipt_code,
-                origin_weight, destination_weight, shipment_payroll_code,
-                driver_payroll_code, deleted, company_id, modification_user
+                shipment_code, 
+                shipment_date, 
+                driver_code, 
+                product_code, 
+                route_code, 
+                price, 
+                payroll_price, 
+                dispatch_code, 
+                receipt_code,
+                origin_weight, 
+                destination_weight, 
+                shipment_payroll_code,
+                driver_payroll_code, 
+                deleted, 
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.shipment_code, NEW.shipment_date, 
-                NEW.driver_code, NEW.product_code, 
-                NEW.route_code, NEW.price, NEW.payroll_price, 
-                NEW.dispatch_code, NEW.receipt_code, NEW.origin_weight, NEW.destination_weight, 
-                NEW.shipment_payroll_code, NEW.driver_payroll_code, 
-                NEW.deleted, NEW.company_id, NEW.modification_user
+                NEW.shipment_code, 
+                NEW.shipment_date, 
+                NEW.driver_code, 
+                NEW.product_code, 
+                NEW.route_code, 
+                NEW.price, 
+                NEW.payroll_price, 
+                NEW.dispatch_code, 
+                NEW.receipt_code, 
+                NEW.origin_weight, 
+                NEW.destination_weight, 
+                NEW.shipment_payroll_code, 
+                NEW.driver_payroll_code, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
 
@@ -56,17 +66,41 @@ def upgrade():
         FOR EACH ROW
         BEGIN
             INSERT INTO shipment_audit (
-                shipment_code, shipment_date, driver_code, product_code, 
-                route_code, price, payroll_price, dispatch_code, receipt_code,
-                origin_weight, destination_weight, shipment_payroll_code,
-                driver_payroll_code, deleted, company_id, modification_user
+                shipment_code, 
+                shipment_date, 
+                driver_code, 
+                product_code, 
+                route_code, 
+                price, 
+                payroll_price, 
+                dispatch_code, 
+                receipt_code,
+                origin_weight, 
+                destination_weight, 
+                shipment_payroll_code,
+                driver_payroll_code, 
+                deleted, 
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.shipment_code, NEW.shipment_date, 
-                NEW.driver_code, NEW.product_code, 
-                NEW.route_code, NEW.price, NEW.payroll_price, 
-                NEW.dispatch_code, NEW.receipt_code, NEW.origin_weight, NEW.destination_weight, 
-                NEW.shipment_payroll_code, NEW.driver_payroll_code, 
-                NEW.deleted, NEW.company_id, NEW.modification_user
+                NEW.shipment_code, 
+                NEW.shipment_date, 
+                NEW.driver_code, 
+                NEW.product_code, 
+                NEW.route_code, 
+                NEW.price, 
+                NEW.payroll_price, 
+                NEW.dispatch_code, 
+                NEW.receipt_code, 
+                NEW.origin_weight, 
+                NEW.destination_weight, 
+                NEW.shipment_payroll_code, 
+                NEW.driver_payroll_code, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
         """
@@ -91,7 +125,8 @@ def upgrade():
         
             
 
-        INSERT INTO dyrtransportes.shipment (shipment_date, 
+        INSERT INTO dyrtransportes.shipment (
+            shipment_date, 
             driver_code, 
             product_code, 
             route_code, 
@@ -102,7 +137,9 @@ def upgrade():
             origin_weight,
             destination_weight,
             shipment_payroll_code,
-            driver_payroll_code
+            driver_payroll_code,
+            company_id,
+            modification_user
         )
         SELECT
             c.fecha_viaje, 
@@ -116,7 +153,9 @@ def upgrade():
             c.kilos_origen,
             c.kilos_destino,
             sp.payroll_code shipment_payroll_code,
-            dp.payroll_code driver_payroll_code
+            dp.payroll_code driver_payroll_code,
+            'dyrtransportes',
+            'dyrtransportes'
         FROM dyrtransportes.cobranzas c
         LEFT JOIN (
             SELECT a.driver_code, a.driver_name, a.truck_plate

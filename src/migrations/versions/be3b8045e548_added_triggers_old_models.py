@@ -36,7 +36,7 @@ def upgrade() -> None:
             FROM dyrtransportes.driver d
             WHERE d.driver_name = NEW.chofer
                 AND d.truck_plate = NEW.chapa
-                AND d.company_id = ''
+                AND d.company_id = 'dyrtransportes'
                 AND d.deleted = FALSE
             LIMIT 1;
                     
@@ -45,7 +45,7 @@ def upgrade() -> None:
             FROM dyrtransportes.product
             WHERE product_name = NEW.producto
                 AND deleted = FALSE 
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
             
             SELECT route_code
@@ -54,14 +54,14 @@ def upgrade() -> None:
             WHERE origin = NEW.origen
                 AND destination = NEW.destino
                 AND deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
             
             SELECT payroll_code
             INTO shipment_payroll_code_var
             FROM dyrtransportes.shipment_payroll
             WHERE deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             ORDER BY 
                 payroll_code DESC
             LIMIT 1;
@@ -72,7 +72,7 @@ def upgrade() -> None:
             WHERE 
                 driver_code = driver_code_var
                 AND deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
                 
 
@@ -129,7 +129,7 @@ def upgrade() -> None:
             FROM dyrtransportes.driver d
             WHERE d.driver_name = NEW.chofer
                 AND d.truck_plate = NEW.chapa
-                AND d.company_id = ''
+                AND d.company_id = 'dyrtransportes'
                 AND d.deleted = FALSE
             LIMIT 1;
                     
@@ -138,7 +138,7 @@ def upgrade() -> None:
             FROM dyrtransportes.product
             WHERE product_name = NEW.producto
                 AND deleted = FALSE 
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
             
             SELECT route_code
@@ -147,14 +147,14 @@ def upgrade() -> None:
             WHERE origin = NEW.origen
                 AND destination = NEW.destino
                 AND deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
             
             SELECT payroll_code
             INTO shipment_payroll_code_var
             FROM dyrtransportes.shipment_payroll
             WHERE deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             ORDER BY 
                 payroll_code DESC
             LIMIT 1;
@@ -165,7 +165,7 @@ def upgrade() -> None:
             WHERE 
                 driver_code = driver_code_var
                 AND deleted = FALSE
-                AND company_id = ''
+                AND company_id = 'dyrtransportes'
             LIMIT 1;
 
             UPDATE shipment s

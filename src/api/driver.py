@@ -35,8 +35,8 @@ from dataclasses import asdict
 
 @app.route('/driver/<int:driver_code>', methods=['GET'])
 def get_driver(driver_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
     try:
         stmt = select(Driver).where(
             Driver.driver_code == driver_code,
@@ -62,8 +62,8 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
 
 @app.route('/drivers', methods=['GET'])
 def get_driver_list():
-    company_id = ''
-    current_user = ''
+    company_id = 'dyrtransportes'
+    current_user = 'dyrtransportes'
 
     try:
         stmt = select(Driver).where(
@@ -86,8 +86,8 @@ def get_driver_list():
 
 @app.route('/driver', methods=['POST'])
 def post_driver() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         # json to db object
@@ -121,8 +121,8 @@ def post_driver() -> Tuple[Response, int]:
 
 @app.route('/driver/<int:driver_code>', methods=['PUT'])
 def put_driver(driver_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
@@ -171,8 +171,8 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
 
 @app.route('/driver/<int:driver_code>', methods=['DELETE'])
 def delete_driver(driver_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
@@ -205,8 +205,8 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
 
 @app.route('/driver/<int:driver_code>', methods=['PATCH'])
 def reactivate_driver(driver_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[Driver] = db_session.get(Driver, driver_code)
@@ -239,7 +239,7 @@ def reactivate_driver(driver_code: int) -> Tuple[Response, int]:
 
 @app.route('/export-drivers', methods=['GET'])
 def export_drivers() -> Tuple[Response, int]:
-    company_id = ''
+    company_id = 'dyrtransportes'
 
     stmt = select(Driver).where(
         Driver.company_id == company_id,

@@ -20,28 +20,31 @@ def upgrade():
     # Copy data from the old table
     op.execute(
         """
-        ALTER TABLE dyrtransportes.shipment_expense MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_expense MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_expense MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        
-        ALTER TABLE dyrtransportes.shipment_expense_audit MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_expense_audit MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_expense_audit MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.shipment_expense_audit MODIFY COLUMN audit_timestamp datetime DEFAULT CURRENT_TIMESTAMP NOT NULL;
-        
-        
         CREATE TRIGGER audit_shipment_expense_insert AFTER INSERT ON shipment_expense
         FOR EACH ROW
         BEGIN
             INSERT INTO shipment_expense_audit (
-                expense_code, expense_date, receipt, amount, 
-                reason, driver_payroll_code, deleted,
-                company_id, modification_user
+                expense_code, 
+                expense_date, 
+                receipt, 
+                amount, 
+                reason, 
+                driver_payroll_code, 
+                deleted,
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.expense_code, NEW.expense_date, 
-                NEW.receipt, NEW.amount, 
-                NEW.reason, NEW.driver_payroll_code, NEW.deleted, 
-                NEW.company_id, NEW.modification_user
+                NEW.expense_code,
+                NEW.expense_date, 
+                NEW.receipt, 
+                NEW.amount, 
+                NEW.reason, 
+                NEW.driver_payroll_code, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
 
@@ -49,14 +52,27 @@ def upgrade():
         FOR EACH ROW
         BEGIN
             INSERT INTO shipment_expense_audit (
-                expense_code, expense_date, receipt, amount, 
-                reason, driver_payroll_code, deleted,
-                company_id, modification_user
+                expense_code, 
+                expense_date, 
+                receipt, 
+                amount, 
+                reason, 
+                driver_payroll_code, 
+                deleted,
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.expense_code, NEW.expense_date, 
-                NEW.receipt, NEW.amount, 
-                NEW.reason, NEW.driver_payroll_code, NEW.deleted, 
-                NEW.company_id, NEW.modification_user
+                NEW.expense_code, 
+                NEW.expense_date, 
+                NEW.receipt, 
+                NEW.amount, 
+                NEW.reason, 
+                NEW.driver_payroll_code, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
         """
@@ -69,14 +85,18 @@ def upgrade():
             receipt, 
             amount,
             reason, 
-            driver_payroll_code
+            driver_payroll_code,
+            company_id,
+            modification_user
         )
         SELECT
             CONVERT(lg.fecha, DATE) expense_date,
             lg.boleta receipt,
             lg.importe amount,
             lg.razon reason,
-            dp.payroll_code
+            dp.payroll_code,
+            'dyrtransportes',
+            'dyrtransportes'
         FROM dyrtransportes.liquidacion_gastos lg 
         INNER JOIN dyrtransportes.liquidaciones l ON
             l.id = lg.id_liquidacion

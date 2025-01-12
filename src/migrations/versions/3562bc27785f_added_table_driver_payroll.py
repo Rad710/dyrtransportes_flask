@@ -20,33 +20,29 @@ def upgrade():
     # Copy data from the old table
     op.execute(
         """
-        ALTER TABLE dyrtransportes.driver_payroll MODIFY COLUMN paid tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll MODIFY COLUMN paid_timestamp datetime DEFAULT null NULL;
-        ALTER TABLE dyrtransportes.driver_payroll MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        
-
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN paid tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN paid_timestamp datetime DEFAULT null NULL;
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN deleted tinyint(1) DEFAULT False NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN company_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN modification_user varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' NOT NULL;
-        ALTER TABLE dyrtransportes.driver_payroll_audit MODIFY COLUMN audit_timestamp datetime DEFAULT CURRENT_TIMESTAMP NOT NULL;
-
-
-
         CREATE TRIGGER audit_driver_payroll_insert AFTER INSERT ON driver_payroll
         FOR EACH ROW
         BEGIN
             INSERT INTO driver_payroll_audit (
-                payroll_code, payroll_timestamp, driver_code, paid, 
-                paid_timestamp, deleted, company_id, modification_user
+                payroll_code, 
+                payroll_timestamp, 
+                driver_code, 
+                paid, 
+                paid_timestamp, 
+                deleted, 
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.payroll_code, NEW.payroll_timestamp, 
-                NEW.driver_code, NEW.paid, 
-                NEW.paid_timestamp, NEW.deleted, 
-                NEW.company_id, NEW.modification_user
+                NEW.payroll_code, 
+                NEW.payroll_timestamp, 
+                NEW.driver_code, 
+                NEW.paid, 
+                NEW.paid_timestamp, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
 
@@ -54,13 +50,25 @@ def upgrade():
         FOR EACH ROW
         BEGIN
             INSERT INTO driver_payroll_audit (
-                payroll_code, payroll_timestamp, driver_code, paid, 
-                paid_timestamp, deleted, company_id, modification_user
+                payroll_code, 
+                payroll_timestamp, 
+                driver_code, 
+                paid, 
+                paid_timestamp, 
+                deleted, 
+                company_id, 
+                modification_user,
+                modification_timestamp
             ) VALUES (
-                NEW.payroll_code, NEW.payroll_timestamp, 
-                NEW.driver_code, NEW.paid, 
-                NEW.paid_timestamp, NEW.deleted, 
-                NEW.company_id, NEW.modification_user
+                NEW.payroll_code, 
+                NEW.payroll_timestamp, 
+                NEW.driver_code, 
+                NEW.paid, 
+                NEW.paid_timestamp, 
+                NEW.deleted, 
+                NEW.company_id, 
+                NEW.modification_user,
+                NEW.modification_timestamp
             );
         END;
         """
@@ -85,12 +93,17 @@ def upgrade():
         INSERT INTO dyrtransportes.driver_payroll (
             driver_code, paid, 
             payroll_timestamp,
-            paid_timestamp)
+            paid_timestamp,
+            company_id,
+            modification_user
+        )
         SELECT 
             temp_driver_table.driver_code, 
             l.pagado, 
             CONVERT(l.fecha_liquidacion, datetime), 
-            IF(l.pagado, CONVERT(l.fecha_liquidacion, datetime), NULL) paid_timestamp
+            IF(l.pagado, CONVERT(l.fecha_liquidacion, datetime), NULL) paid_timestamp,
+            'dyrtransportes',
+            'dyrtransportes'
         FROM 
             dyrtransportes.liquidaciones l 
         LEFT JOIN 

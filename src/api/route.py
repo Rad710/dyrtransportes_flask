@@ -8,7 +8,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import List
 
-from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
@@ -32,7 +31,7 @@ from dataclasses import asdict
 
 @app.route('/route/<int:route_code>', methods=['GET'])
 def get_route(route_code: int) -> Tuple[Response, int]:
-    company_id = ''
+    company_id = 'dyrtransportes'
     try:
         stmt = select(Route).where(
             Route.route_code == route_code, Route.deleted == False,
@@ -57,7 +56,7 @@ def get_route(route_code: int) -> Tuple[Response, int]:
 
 @app.route('/routes', methods=['GET'])
 def get_route_list() -> Tuple[Response, int]:
-    company_id = ''
+    company_id = 'dyrtransportes'
 
     try:
         stmt = select(Route).where(
@@ -81,8 +80,8 @@ def get_route_list() -> Tuple[Response, int]:
 
 @app.route('/route', methods=['POST'])
 def post_route() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         # json to db object
@@ -117,8 +116,8 @@ def post_route() -> Tuple[Response, int]:
 
 @app.route('/route/<int:route_code>', methods=['PUT'])
 def put_route(route_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         # get entry to update
@@ -168,8 +167,8 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
 @app.route('/route/<int:route_code>', methods=['DELETE'])
 def delete_route(route_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[Route] = db_session.get(Route, route_code)
@@ -202,8 +201,8 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
 
 @app.route('/routes', methods=['DELETE'])
 def delete_routes() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     if ((request.data is None) or (not request.is_json)):
         logger.error("[DELETE /routes] Route list payload is empty")

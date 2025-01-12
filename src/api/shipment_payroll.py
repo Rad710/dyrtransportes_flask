@@ -25,8 +25,8 @@ from dataclasses import asdict
 
 @app.route('/shipment-payroll/<int:payroll_code>', methods=['GET'])
 def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
     try:
         stmt = select(ShipmentPayroll).where(
             ShipmentPayroll.payroll_code == payroll_code,
@@ -55,8 +55,8 @@ def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
 @app.route('/shipment-payrolls', methods=['GET'])
 def get_shipment_payroll_list() -> Tuple[Response, int]:
-    company_id = ''
-    current_user = ''
+    company_id = 'dyrtransportes'
+    current_user = 'dyrtransportes'
 
     try:
         stmt = select(ShipmentPayroll).where(
@@ -87,8 +87,8 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
 
 @app.route('/shipment-payroll', methods=['POST'])
 def post_shipment_payroll() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         payload = ShipmentPayroll(**request.get_json(),
@@ -124,8 +124,8 @@ def post_shipment_payroll() -> Tuple[Response, int]:
 
 @app.route('/shipment-payroll/<int:payroll_code>', methods=['PUT'])
 def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         entry_to_update: Optional[ShipmentPayroll] = db_session.get(
@@ -176,8 +176,8 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
 @app.route('/shipment-payroll/<int:payroll_code>', methods=['DELETE'])
 def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[ShipmentPayroll] = db_session.get(
@@ -212,8 +212,8 @@ def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
 @app.route('/shipment-payrolls', methods=['DELETE'])
 def delete_shipment_payrolls() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     if ((request.data is None) or (not request.is_json)):
         logger.error(

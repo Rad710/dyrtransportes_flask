@@ -25,8 +25,8 @@ from dataclasses import asdict
 
 @app.route('/product/<int:product_code>', methods=['GET'])
 def get_product(product_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
     try:
         stmt = select(Product).where(
             Product.product_code == product_code, Product.deleted == False,
@@ -53,8 +53,8 @@ def get_product(product_code: int) -> Tuple[Response, int]:
 
 @app.route('/products', methods=['GET'])
 def get_product_list() -> Tuple[Response, int]:
-    company_id = ''
-    current_user = ''
+    company_id = 'dyrtransportes'
+    current_user = 'dyrtransportes'
 
     try:
         stmt = select(Product).where(
@@ -79,8 +79,8 @@ def get_product_list() -> Tuple[Response, int]:
 
 @app.route('/product', methods=['POST'])
 def post_product() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         payload = Product(**request.get_json(),
@@ -114,8 +114,8 @@ def post_product() -> Tuple[Response, int]:
 
 @app.route('/product/<int:product_code>', methods=['PUT'])
 def put_product(product_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         entry_to_update: Optional[Product] = db_session.get(
@@ -162,8 +162,8 @@ def put_product(product_code: int) -> Tuple[Response, int]:
 
 @app.route('/product/<int:product_code>', methods=['DELETE'])
 def delete_product(product_code: int) -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     try:
         existing_entry: Optional[Product] = db_session.get(
@@ -197,8 +197,8 @@ def delete_product(product_code: int) -> Tuple[Response, int]:
 
 @app.route('/products', methods=['DELETE'])
 def delete_products() -> Tuple[Response, int]:
-    current_user = ''
-    company_id = ''
+    current_user = 'dyrtransportes'
+    company_id = 'dyrtransportes'
 
     if ((request.data is None) or (not request.is_json)):
         logger.error("[DELETE /products] Product list payload is empty")
