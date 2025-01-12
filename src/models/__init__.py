@@ -17,7 +17,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import functions
 from datetime import datetime, date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 from dataclasses import dataclass
 
@@ -71,33 +71,48 @@ class Route(Base):
 
     @validates('origin')
     def validate_origin(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Origen no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("origin must be a non-empty string")
         return value
 
     @validates('destination')
     def validate_destination(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Destino no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("destination must be a non-empty string")
         return value
 
     @validates('price')
     def validate_price(self, key, value):
-        if not isinstance(value, Decimal):
-            value = Decimal(value)
+        if isinstance(value, str):
+            try:
+                value = Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(f"Invalid price value: {value}") from e
 
-        if value < Decimal("0.00"):
-            raise ValueError("Precio no puede ser negativo")
+        if not isinstance(value, Decimal):
+            raise TypeError(
+                "price must be a Decimal or convertible to Decimal")
+
+        if value < 0:
+            raise ValueError("price must be non-negative")
 
         return value
 
     @validates('payroll_price')
     def validate_payroll_price(self, key, value):
-        if not isinstance(value, Decimal):
-            value = Decimal(value)
+        if isinstance(value, str):
+            try:
+                value = Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(
+                    f"Invalid payroll_price value: {value}") from e
 
-        if value < Decimal("0.00"):
-            raise ValueError("Precio Liquidación no puede ser negativo")
+        if not isinstance(value, Decimal):
+            raise TypeError(
+                "payroll_price must be a Decimal or convertible to Decimal")
+
+        if value < 0:
+            raise ValueError("payroll_price must be non-negative")
 
         return value
 
@@ -169,8 +184,8 @@ class Product(Base):
 
     @validates('product_name')
     def validate_product_name(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("product_name must be a non-empty string")
         return value
 
 
@@ -258,32 +273,32 @@ class Driver(Base):
 
     @validates('driver_id')
     def validate_driver_id(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("C.I. no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("driver_id must be a non-empty string")
         return value
 
     @validates('driver_name')
     def validate_driver_name(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Nombre no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("driver_name must be a non-empty string")
         return value
 
     @validates('driver_surname')
     def validate_driver_surname(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Apellido no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("driver_surname must be a non-empty string")
         return value
 
     @validates('truck_plate')
     def validate_truck_plate(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Chapa de Camión no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("truck_plate must be a non-empty string")
         return value
 
     @validates('trailer_plate')
     def validate_trailer_plate(self, key, value):
-        if not value or len(value) == 0:
-            raise ValueError("Chapa de Carreta no puede estar vacío")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("trailer_plate must be a non-empty string")
         return value
 
 
@@ -321,36 +336,6 @@ class DriverAudit(Base):
 
     # Mapped["Driver"]
     audit_driver = relationship("Driver", back_populates="driver_audits")
-
-    @validates('driver_id')
-    def validate_driver_id(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
-        return value
-
-    @validates('driver_name')
-    def validate_driver_name(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
-        return value
-
-    @validates('driver_surname')
-    def validate_driver_surname(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
-        return value
-
-    @validates('truck_plate')
-    def validate_truck_plate(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
-        return value
-
-    @validates('trailer_plate')
-    def validate_trailer_plate(self, key, value):
-        if not value:
-            raise ValueError("Nombre del Producto no puede estar vacío")
-        return value
 
 
 @dataclass
@@ -390,18 +375,25 @@ class ShipmentPayroll(Base):
 
     @validates('payroll_timestamp')
     def validate_payroll_timestamp(self, key, value):
-        if not value:
-            raise ValueError("Fecha de la planilla no puede estar vacía")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("payroll_timestamp must not be null")
 
-        if not isinstance(value, datetime):
+        try:
             value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'") from e
 
         return value
 
     @validates('collection_timestamp')
     def validate_collection_timestamp(self, key, value):
-        if value is not None and not isinstance(value, datetime):
-            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+        if value is not None and not isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid collection_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'") from e
 
         return value
 
@@ -538,7 +530,7 @@ class Shipment(Base):
     * product_code (int): Code identifying the product being shipped.
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
-    * paid_price (float): Actual price paid for the shipment.
+    * paid_price (float): price paid to drivers for the trip on this route.
     * dispatch_code (str): Code associated with the shipment dispatch ticket.
     * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
@@ -616,7 +608,7 @@ class ShipmentAudit(Base):
     * product_code (int): Code identifying the product being shipped.
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
-    * paid_price (float): Actual price paid for the shipment.
+    * paid_price (float): price paid to drivers for the trip on this route.
     * dispatch_code (str): Code associated with the shipment dispatch ticket.
     * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
