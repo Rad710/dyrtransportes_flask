@@ -7,3 +7,4 @@ pylint.log
 .scannerwork/
 .mypy-cache/
 *.log
+.env

@@ -19,7 +19,7 @@ from models import Base
 
 
 project_root_path = Path(__file__).parents[1].absolute()
-load_dotenv(f'{project_root_path}/.env.development')
+load_dotenv(f'{project_root_path}/.env')
 
 DB_USERNAME = getenv('DB_USERNAME')
 DB_PASSWORD = getenv('DB_PASSWORD')
@@ -81,7 +81,7 @@ def create_flask_logger(flask_app: Flask):
         if hasattr(request, 'start_time'):
             duration = time.time() - request.start_time
             flask_logger.info(
-                "Request took %s seconds", duration
+                "request took %s seconds", duration
             )
         return response
 
@@ -92,20 +92,20 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
     """Initializes Database and db_session"""
 
     if (None in [DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-        flask_logger.error(".env.development file is missing")
+        flask_logger.error(".env file is missing")
 
     connection_string = f'mysql+mysqldb://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-    flask_logger.info("Using connection_string: %s", connection_string)
+    flask_logger.info("using connection_string: %s", connection_string)
 
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = connection_string
     flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle': 280}
 
     engine = create_engine(flask_app.config['SQLALCHEMY_DATABASE_URI'])
 
-    flask_logger.info("Init database...")
+    flask_logger.info("init database...")
     Base.metadata.create_all(bind=engine)
 
-    flask_logger.info("Running migration scripts...")
+    flask_logger.info("running migration scripts...")
     alembic_command = ["alembic", "-c",
                        "src/migrations/alembic.ini", "upgrade", "head"]
     try:

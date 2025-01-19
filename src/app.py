@@ -1,12 +1,7 @@
-import logging
-
-from app_config import app, logger, db_session, DEBUG
+from app_config import app
 
 import api
 
-
-if DEBUG:
-    logger.setLevel(logging.DEBUG)
 
 if __name__ == '__main__':
     # flask --app app/app.py run --host 0.0.0.0 --port 8081 --debug

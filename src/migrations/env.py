@@ -12,7 +12,7 @@ from alembic import context
 from src.models import Base
 
 project_root_path = Path(__file__).parent.absolute().parents[1]
-load_dotenv(f'{project_root_path}/.env.development')
+load_dotenv(f'{project_root_path}/.env')
 
 DB_USERNAME = os.getenv('DB_USERNAME')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
@@ -21,7 +21,7 @@ DB_PORT = os.getenv('DB_PORT')
 DB_NAME = os.getenv('DB_NAME')
 
 if (None in [DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-    print(".env.development file is missing")
+    print(".env file is missing")
 
 connection_string = f"mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
