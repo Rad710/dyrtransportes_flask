@@ -1,17 +1,8 @@
 import logging
 
-from app_config import app
-from app_config import logger
-from app_config import db_session
-from app_config import DEBUG
+from app_config import app, logger, db_session, DEBUG
 
 import api
-
-
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    """Closes database session"""
-    db_session.remove()
 
 
 if DEBUG:

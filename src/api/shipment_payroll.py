@@ -58,13 +58,20 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
     company_id = 'dyrtransportes'
     current_user = 'dyrtransportes'
 
+    year_param: str | None = request.args.get('year')
+    try:
+        year: Optional[int] = int(year_param) if year_param else None
+    except ValueError as e:
+        logger.error(
+            "[GET /shipment-payrolls] Invalid 'year' parameter %s", e)
+        return jsonify({"error": "Parámetros inválidos"}), 400
+
     try:
         stmt = select(ShipmentPayroll).where(
             ShipmentPayroll.deleted == False,
             ShipmentPayroll.company_id == company_id,
         )
 
-        year: Optional[int] = request.args.get('year', type=int)
         if year:
             stmt = stmt.where(
                 extract('year', ShipmentPayroll.payroll_timestamp) == year)

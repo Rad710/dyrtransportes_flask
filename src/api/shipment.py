@@ -51,17 +51,30 @@ def get_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"error": "Error de transacción"}), 500
 
 
-@app.route('/shipments/<int:shipment_payroll_code>', methods=['GET'])
-def get_shipment_list(shipment_payroll_code: int) -> Tuple[Response, int]:
+@app.route('/shipments', methods=['GET'])
+def get_shipment_list() -> Tuple[Response, int]:
     company_id = 'dyrtransportes'
     current_user = 'dyrtransportes'
 
+    shipment_payroll_code_param: str | None = request.args.get(
+        'shipment_payroll_code')
+    try:
+        shipment_payroll_code: Optional[int] = int(
+            shipment_payroll_code_param) if shipment_payroll_code_param else None
+    except ValueError as e:
+        logger.error(
+            "[GET /shipment-payrolls] Invalid 'shipment_payroll_code' parameter %s", e)
+        return jsonify({"error": "Parámetros inválidos"}), 400
+
     try:
         stmt = select(Shipment).where(
-            Shipment.shipment_payroll_code == shipment_payroll_code,
             Shipment.deleted == False,
             Shipment.company_id == company_id,
         )
+
+        if shipment_payroll_code:
+            stmt = stmt.where(Shipment.shipment_payroll_code ==
+                              shipment_payroll_code)
 
         shipments: Sequence[Shipment] = db_session.scalars(
             stmt).all()
