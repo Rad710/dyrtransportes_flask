@@ -35,7 +35,7 @@ class Route(Base):
     * origin (str): City or location where the route begins.
     * destination (str): City or location where the route ends.
     * price (float): Standard price for traveling this route.
-    * paid_price (float): price paid to drivers for the trip on this route.
+    * payroll_price (float): price paid to drivers for the trip on this route.
     * deleted (bool): Indicates whether the route information is no longer valid.
     * company_id (str): The company who created this route record.
     * modification_user (str): The user who last modified this route record.
@@ -127,7 +127,7 @@ class RouteAudit(Base):
     * origin (str): City or location where the route begins.
     * destination (str): City or location where the route ends.
     * price (float): Standard price for traveling this route.
-    * paid_price (float): price paid to drivers for the trip on this route.
+    * payroll_price (float): price paid to drivers for the trip on this route.
     * deleted (bool): Indicates whether the route information is no longer valid.
     * company_id (str): The user who created this route record.
     * modification_user (str): The user who last modified this route record.
@@ -530,7 +530,7 @@ class Shipment(Base):
     * product_code (int): Code identifying the product being shipped.
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
-    * paid_price (float): price paid to drivers for the trip on this route.
+    * payroll_price (float): price paid to drivers for the trip on this route.
     * dispatch_code (str): Code associated with the shipment dispatch ticket.
     * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
@@ -548,6 +548,7 @@ class Shipment(Base):
         primary_key=True, autoincrement=True)
     shipment_date: Mapped[date] = mapped_column(Date)
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    truck_plate: Mapped[str] = mapped_column(String(100))
     product_code: Mapped[int] = mapped_column(
         ForeignKey('product.product_code'))
     route_code: Mapped[int] = mapped_column(ForeignKey('route.route_code'))
@@ -595,6 +596,72 @@ class Shipment(Base):
     #                      name='unique_driver_ticket_date'),
     # )
 
+    @validates('shipment_date')
+    def validate_shipment_date(self, key, value):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("shipment_date must not be null")
+
+        try:
+            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid shipment_date: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'") from e
+
+        return value
+
+    @validates('price')
+    def validate_price(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(f"Invalid price value: {value}") from e
+
+        if not isinstance(value, Decimal):
+            raise TypeError(
+                "price must be a Decimal or convertible to Decimal")
+
+        if value < 0:
+            raise ValueError("price must be non-negative")
+
+        return value
+
+    @validates('payroll_price')
+    def validate_payroll_price(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(
+                    f"Invalid payroll_price value: {value}") from e
+
+        if not isinstance(value, Decimal):
+            raise TypeError(
+                "payroll_price must be a Decimal or convertible to Decimal")
+
+        if value < 0:
+            raise ValueError("payroll_price must be non-negative")
+
+        return value
+
+    @validates('origin_weight')
+    def validate_origin_weight(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(
+                    f"Invalid origin_weight value: {value}") from e
+
+        if not isinstance(value, Decimal):
+            raise TypeError(
+                "origin_weight must be a Decimal or convertible to Decimal")
+
+        if value < 0:
+            raise ValueError("origin_weight must be non-negative")
+
+        return value
+
 
 @dataclass
 class ShipmentAudit(Base):
@@ -608,7 +675,7 @@ class ShipmentAudit(Base):
     * product_code (int): Code identifying the product being shipped.
     * route_code (int): Code identifying the route taken for the shipment.
     * price (float): Standard price charged for the shipment.
-    * paid_price (float): price paid to drivers for the trip on this route.
+    * payroll_price (float): price paid to drivers for the trip on this route.
     * dispatch_code (str): Code associated with the shipment dispatch ticket.
     * receipt_code (str): Code associated with the shipment receipt ticket.
     * origin_weight (int): Weight of the shipment at its origin.
@@ -628,6 +695,7 @@ class ShipmentAudit(Base):
         Integer, ForeignKey('shipment.shipment_code'))
     shipment_date: Mapped[date] = mapped_column(Date)
     driver_code: Mapped[int] = mapped_column(ForeignKey('driver.driver_code'))
+    truck_plate: Mapped[str] = mapped_column(String(100))
     product_code: Mapped[int] = mapped_column(
         ForeignKey('product.product_code'))
     route_code: Mapped[int] = mapped_column(ForeignKey('route.route_code'))

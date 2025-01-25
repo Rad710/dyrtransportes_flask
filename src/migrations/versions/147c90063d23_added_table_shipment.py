@@ -27,6 +27,7 @@ def upgrade():
                 shipment_code, 
                 shipment_date, 
                 driver_code, 
+                truck_plate, 
                 product_code, 
                 route_code, 
                 price, 
@@ -44,7 +45,8 @@ def upgrade():
             ) VALUES (
                 NEW.shipment_code, 
                 NEW.shipment_date, 
-                NEW.driver_code, 
+                NEW.driver_code,
+                NEW.truck_plate,
                 NEW.product_code, 
                 NEW.route_code, 
                 NEW.price, 
@@ -68,7 +70,8 @@ def upgrade():
             INSERT INTO shipment_audit (
                 shipment_code, 
                 shipment_date, 
-                driver_code, 
+                driver_code,
+                truck_plate,
                 product_code, 
                 route_code, 
                 price, 
@@ -86,7 +89,8 @@ def upgrade():
             ) VALUES (
                 NEW.shipment_code, 
                 NEW.shipment_date, 
-                NEW.driver_code, 
+                NEW.driver_code,
+                NEW.truck_plate,
                 NEW.product_code, 
                 NEW.route_code, 
                 NEW.price, 
@@ -127,7 +131,8 @@ def upgrade():
 
         INSERT INTO dyrtransportes.shipment (
             shipment_date, 
-            driver_code, 
+            driver_code,
+            truck_plate,
             product_code, 
             route_code, 
             price, 
@@ -144,6 +149,7 @@ def upgrade():
         SELECT
             c.fecha_viaje, 
             d.driver_code, 
+            d.truck_plate, 
             p.product_code, 
             r.route_code, 
             c.precio, 

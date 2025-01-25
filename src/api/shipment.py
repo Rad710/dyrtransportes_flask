@@ -6,15 +6,18 @@ from typing import Sequence
 from typing import Tuple
 from typing import Optional
 from typing import List
+from typing import Dict
 
-from sqlalchemy import select
+from sqlalchemy import select, Row
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
 from app_config import logger
 from app_config import app
 
-from models import Shipment
+from models import Shipment, Product, Route
+
+from decimal import localcontext, ROUND_HALF_UP
 
 from app_config import db_session
 
@@ -87,6 +90,78 @@ def get_shipment_list() -> Tuple[Response, int]:
     except SQLAlchemyError as e:
         logger.error(
             "[GET /shipments] fetching shipments from table Shipment %s", e)
+        return jsonify({"error": "Error al obtener planillas"}), 500
+
+
+@app.route('/shipments-aggregated', methods=['GET'])
+def get_aggregated_shipment_list() -> Tuple[Response, int]:
+    company_id = 'dyrtransportes'
+    current_user = 'dyrtransportes'
+
+    shipment_payroll_code_param: str | None = request.args.get(
+        'shipment_payroll_code')
+    try:
+        shipment_payroll_code: Optional[int] = int(
+            shipment_payroll_code_param) if shipment_payroll_code_param else None
+    except ValueError as e:
+        logger.error(
+            "[GET /shipment-payrolls] Invalid 'shipment_payroll_code' parameter %s", e)
+        return jsonify({"error": "Parámetros inválidos"}), 400
+
+    try:
+        stmt = select(Shipment, Product, Route).join(Shipment.shipment_product).join(Shipment.shipment_route).where(
+            Shipment.deleted == False,
+            Shipment.company_id == company_id,
+        )
+
+        if shipment_payroll_code:
+            stmt = stmt.where(Shipment.shipment_payroll_code ==
+                              shipment_payroll_code)
+
+        shipments: List[Tuple[Shipment, Product, Route]
+                        ] = db_session.execute(stmt).all()
+
+        aggregated_shipments: Dict[str, Dict] = {}
+        # TODO: do this with a single query
+        for shipment, product, route in shipments:
+            shipment_product_route = f'{product.product_name}|{route.origin}|{route.destination}'
+
+            if shipment_product_route not in aggregated_shipments:
+                aggregated_shipments[shipment_product_route] = {
+                    'shipments': [],
+                    'subtotalOrigin': 0,
+                    'subtotalDestination': 0,
+                    'subtotalDifference': 0,
+                    'subtotalMoney': 0,
+                    'product': product.product_name,
+                    'origin': route.origin,
+                    'destination': route.destination,
+                }
+
+            aggregated_shipments[shipment_product_route]['shipments'].append(
+                shipment)
+
+            aggregated_shipments[shipment_product_route]['subtotalOrigin'] += shipment.origin_weight
+            aggregated_shipments[shipment_product_route]['subtotalDestination'] += shipment.destination_weight
+            aggregated_shipments[shipment_product_route]['subtotalDifference'] += shipment.destination_weight - \
+                shipment.origin_weight
+
+            aggregated_shipments[shipment_product_route]['subtotalMoney'] += shipment.price * \
+                shipment.destination_weight
+
+        result = list(aggregated_shipments.items())
+        result.sort(key=lambda x: x[0].split('|'))
+        result = [pair[1] for pair in result]
+
+        logger.info(
+            "fetching shipments from table Shipment and aggregated len: %s", len(shipments))
+        logger.debug(
+            "fetching shipments from table Shipment and aggregated, response %s", shipments)
+        return jsonify(result), 200
+
+    except SQLAlchemyError as e:
+        logger.error(
+            "fetching shipments from table Shipment and aggregated, error: %s", e)
         return jsonify({"error": "Error al obtener planillas"}), 500
 
 
