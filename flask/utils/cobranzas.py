@@ -30,10 +30,11 @@ def crear_cobranza_liquidacion(cobranza):
     precio = re.sub(r'\s+', ' ', str(cobranza['precio'])).strip()
     precio_liquidacion = re.sub(r'\s+', ' ', str(cobranza['precioLiquidacion'])).strip()
     fecha_creacion = parser.isoparse(re.sub(r'\s+', ' ', str(cobranza['fechaCreacion'])).strip()).date()
+    tiquet_remision = re.sub(r'\s+', ' ', str(cobranza['tiquetRemision'])).strip()
 
     try:
         id_cobranza = agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
-                        tiquet, kilos_origen, kilos_destino, precio, fecha_creacion)
+                        tiquet, kilos_origen, kilos_destino, precio, fecha_creacion, tiquet_remision)
     except IntegrityError as e:
         error_message = f"Entrada duplicada {str(e)}"
         logger.warning(error_message)
@@ -90,7 +91,7 @@ def get_cobranza(fecha_creacion):
                 'id': cobranza.id, 'fechaViaje': cobranza.fecha_viaje, 'chofer': cobranza.chofer, 'chapa': 
                 cobranza.chapa, 'producto': cobranza.producto, 'origen': cobranza.origen, 'destino': cobranza.destino, 
                 'tiquet': cobranza.tiquet, 'kgOrigen': kilos_origen, 'kgDestino': kilos_destino, 
-                'precio': precio, 'precioLiquidacion': precio_liquidacion
+                'precio': precio, 'precioLiquidacion': precio_liquidacion, 'tiquetRemision': cobranza.tiquet_remision
             }]
 
             cobranzas_agrupadas[origen_destino]['subtotalOrigen'] += kilos_origen
@@ -131,6 +132,7 @@ def put_cobranza(id):
     kilos_destino = cobranza['kgDestino']
     precio = cobranza['precio']
     precio_liquidacion = cobranza['precioLiquidacion']
+    tiquet_remision = cobranza['tiquetRemision']
 
     existing_cobranza = Cobranzas.query.filter_by(id=id).first()
     existing_liquidacion = LiquidacionViajes.query.filter_by(id=id).first()
@@ -149,6 +151,7 @@ def put_cobranza(id):
     existing_cobranza.kilos_destino = kilos_destino
     existing_cobranza.precio = precio
     existing_cobranza.fecha_creacion = fecha_creacion
+    existing_cobranza.tiquet_remision = tiquet_remision
 
     existing_liquidacion.precio_liquidacion = precio_liquidacion
 

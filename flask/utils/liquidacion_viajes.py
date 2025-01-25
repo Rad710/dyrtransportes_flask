@@ -27,7 +27,7 @@ def post_liquidacion_viaje():
 
     try:
         id_cobranza = agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
-                                       tiquet, kilos_origen, kilos_destino, precio, None)
+                                       tiquet, kilos_origen, kilos_destino, precio, None, '')
     except Exception as e:
         error_message = f"Error al agregar entrada a la tabla Cobranzas {str(e)}"
         logger.warning(error_message)

@@ -33,10 +33,10 @@ def exportar_cobranza(fecha_creacion):
 
         subtotales_grupo[grupo]['origen'] += cobranza.kilos_origen
         subtotales_grupo[grupo]['destino'] += cobranza.kilos_destino
-        subtotales_grupo[grupo]['diferencia'] = f'=SUM(K{first_row}:K{group_counter})'
-        subtotales_grupo[grupo]['tolerancia'] = f'=SUM(L{first_row}:L{group_counter})'
-        subtotales_grupo[grupo]['diferencia_tolerancia'] = f'=SUM(M{first_row}:M{group_counter})'
-        subtotales_grupo[grupo]['subtotal'] = f'=SUM(O{first_row}:O{group_counter})'
+        subtotales_grupo[grupo]['diferencia'] = f'=SUM(L{first_row}:L{group_counter})'
+        subtotales_grupo[grupo]['tolerancia'] = f'=SUM(M{first_row}:M{group_counter})'
+        subtotales_grupo[grupo]['diferencia_tolerancia'] = f'=SUM(N{first_row}:N{group_counter})'
+        subtotales_grupo[grupo]['subtotal'] = f'=SUM(P{first_row}:P{group_counter})'
 
         subtotales_grupo[grupo]['ultima_entrada'] = cobranza.tiquet
         subtotales_grupo[grupo]['last_row'] = group_counter
@@ -56,13 +56,14 @@ def exportar_cobranza(fecha_creacion):
     sheet.column_dimensions['F'].width = 18.64
     sheet.column_dimensions['G'].width = 17.64
     sheet.column_dimensions['H'].width = 9.91
-    sheet.column_dimensions['I'].width = 10.91
-    sheet.column_dimensions['J'].width = 11.09
-    sheet.column_dimensions['K'].width = 7.18
-    sheet.column_dimensions['L'].width = 6.27
-    sheet.column_dimensions['M'].width = 6.36
-    sheet.column_dimensions['N'].width = 6.27
-    sheet.column_dimensions['O'].width = 14.64
+    sheet.column_dimensions['I'].width = 9.91
+    sheet.column_dimensions['J'].width = 10.91
+    sheet.column_dimensions['K'].width = 11.09
+    sheet.column_dimensions['L'].width = 7.18
+    sheet.column_dimensions['M'].width = 6.27
+    sheet.column_dimensions['N'].width = 6.36
+    sheet.column_dimensions['O'].width = 6.27
+    sheet.column_dimensions['P'].width = 14.64
 
     # Agregar la fecha como la primera fila
     sheet.append([])  # Agregar una fila en blanco después de la fecha
@@ -71,7 +72,7 @@ def exportar_cobranza(fecha_creacion):
 
     # Obtener el rango de columnas con valores None
     inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 15   # Cambiar al índice de la última columna con valor None
+    fin_columna = 16   # Cambiar al índice de la última columna con valor None
 
     # Combinar las celdas en el rango de columnas
     sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
@@ -93,7 +94,7 @@ def exportar_cobranza(fecha_creacion):
     sheet.append([])  # Agregar una fila en blanco después de la fecha
 
     # Agregar encabezados
-    encabezados = ['N°', 'Fecha', 'Chofer', 'Chapa', 'Producto', 'Origen', 'Destino', 'Tiquet',
+    encabezados = ['N°', 'Fecha', 'Chofer', 'Chapa', 'Producto', 'Origen', 'Destino', 'Remision', 'Tiquet',
                    'Kilos Origen', 'Kilos Destino', 'Dif.', 'Tolera', 'Dif. Tol.', 'Precio', 'Total']
     sheet.append(encabezados)
 
@@ -128,26 +129,27 @@ def exportar_cobranza(fecha_creacion):
                 cobranza.producto,
                 cobranza.origen,
                 cobranza.destino,
+                cobranza.tiquet_remision,
                 cobranza.tiquet,
                 cobranza.kilos_origen,
                 cobranza.kilos_destino,
-                f'=+J{contador}-I{contador}',
-                f'=ROUND(J{contador}*0.002, 0)',
-                f'=+L{contador}+K{contador}',
+                f'=+K{contador}-J{contador}',
+                f'=ROUND(K{contador}*0.002, 0)',
+                f'=+M{contador}+L{contador}',
                 cobranza.precio,
-                f'=ROUND(J{contador}*N{contador}, 0)']
+                f'=ROUND(K{contador}*O{contador}, 0)']
 
         sheet.append(fila)
 
-        for col in range(8, 16):
+        for col in range(9, 17):
             cell = sheet.cell(row=sheet.max_row, column=col)
 
-            if col == 14:
+            if col == 15:
                 cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
             else:
                 cell.number_format = "#,##0"
 
-        for col in range(1, 16):
+        for col in range(1, 17):
             cell = sheet.cell(row=sheet.max_row, column=col)
             thin_border = Border(left=Side(style='thin'), right=Side(
                 style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
@@ -157,7 +159,7 @@ def exportar_cobranza(fecha_creacion):
         if subtotales_grupo[grupo]['ultima_entrada'] == cobranza.tiquet:
             contador += 1
 
-            sheet.append(['Subtotal', None, None, None, None, None, None, None,
+            sheet.append(['Subtotal', None, None, None, None, None, None, None, None,
                           subtotales_grupo[grupo]['origen'],
                           subtotales_grupo[grupo]['destino'],
                           subtotales_grupo[grupo]['diferencia'],
@@ -168,7 +170,7 @@ def exportar_cobranza(fecha_creacion):
 
             # Obtener el rango de columnas con valores None
             inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-            fin_columna = 8   # Cambiar al índice de la última columna con valor None
+            fin_columna = 9   # Cambiar al índice de la última columna con valor None
 
             # Combinar las celdas en el rango de columnas
             sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
@@ -180,15 +182,15 @@ def exportar_cobranza(fecha_creacion):
                 horizontal='center', vertical='center')
 
             # Formatear columnas 8 a 15 como números
-            for col in range(8, 16):
+            for col in range(10, 17):
                 cell = sheet.cell(row=sheet.max_row, column=col)
 
-                if col == 14:
+                if col == 15:
                     cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
                 else:
                     cell.number_format = "#,##0"
 
-            for col in range(1, 16):
+            for col in range(1, 17):
                 cell = sheet.cell(row=sheet.max_row, column=col)
                 thin_border = Border(left=Side(style='thin'), right=Side(
                     style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
@@ -208,12 +210,12 @@ def exportar_cobranza(fecha_creacion):
     for grupo, subtotal_agrupado in subtotales_grupo.items():
         last_row = subtotal_agrupado["last_row"] + 1
 
-        total['origen'] += f'+I{last_row}'
-        total['destino'] += f'+J{last_row}'
-        total['diferencia'] += f'+K{last_row}'
-        total['tolerancia'] += f'+L{last_row}'
-        total['diferencia_tolerancia'] += f'+M{last_row}'
-        subtotal_row = f'+O{last_row}'
+        total['origen'] += f'+J{last_row}'
+        total['destino'] += f'+K{last_row}'
+        total['diferencia'] += f'+L{last_row}'
+        total['tolerancia'] += f'+M{last_row}'
+        total['diferencia_tolerancia'] += f'+N{last_row}'
+        subtotal_row = f'+P{last_row}'
         total['total'] += subtotal_row
 
         producto = subtotal_agrupado['producto']
@@ -223,7 +225,7 @@ def exportar_cobranza(fecha_creacion):
         total['productos'][producto] += subtotal_row
 
 
-    sheet.append(['TOTAL', None, None, None, None, None, None, None,
+    sheet.append(['TOTAL', None, None, None, None, None, None, None, None,
                   total['origen'],
                   total['destino'],
                   total['diferencia'],
@@ -233,7 +235,7 @@ def exportar_cobranza(fecha_creacion):
 
     # Obtener el rango de columnas con valores None
     inicio_columna = 1  # Cambiar al índice de la primera columna con valor None
-    fin_columna = 8   # Cambiar al índice de la última columna con valor None
+    fin_columna = 9   # Cambiar al índice de la última columna con valor None
 
     # Combinar las celdas en el rango de columnas
     sheet.merge_cells(start_row=sheet.max_row, start_column=inicio_columna,
@@ -244,15 +246,15 @@ def exportar_cobranza(fecha_creacion):
     merged_cell.alignment = Alignment(horizontal='center', vertical='center')
 
     # Formatear columnas 8 a 15 como números
-    for col in range(8, 16):
+    for col in range(10, 17):
         cell = sheet.cell(row=sheet.max_row, column=col)
 
-        if col == 14:
+        if col == 15:
             cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
         else:
             cell.number_format = "#,##0"
 
-    for col in range(1, 16):
+    for col in range(1, 17):
         cell = sheet.cell(row=sheet.max_row, column=col)
         thin_border = Border(left=Side(style='thin'), right=Side(
             style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
@@ -262,15 +264,15 @@ def exportar_cobranza(fecha_creacion):
         cell.fill = fill
 
     sheet.append([None, None, None, None, None, None, None, None,
-                None,  None, None, None, None, None, f'=+O{last_row + 1}/11'])
-    cell = sheet.cell(row=sheet.max_row, column=15)
+                None,  None, None, None, None, None, None, f'=+P{last_row + 1}/11'])
+    cell = sheet.cell(row=sheet.max_row, column=16)
     cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
 
     sheet.append([])
     for producto, subtotal in total['productos'].items():
         sheet.append([None, None, None, None, None, None, None, None,
-                None,  None, None, None, None, producto, subtotal])
-        cell = sheet.cell(row=sheet.max_row, column=15)
+                None,  None, None, None, None, None, producto, subtotal])
+        cell = sheet.cell(row=sheet.max_row, column=16)
         cell.number_format = "#,##0"
 
     # Guardar el archivo Excel en el flujo de salida

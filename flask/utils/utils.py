@@ -16,7 +16,7 @@ def string_to_int(string, default=0):
     
 
 def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
-                  tiquet, kilos_origen, kilos_destino, precio, fecha_creacion):
+                  tiquet, kilos_origen, kilos_destino, precio, fecha_creacion, tiquet_remision):
     
     agregar_keywords(chofer, chapa, producto, origen, destino)
     agregar_precio(origen, destino, precio, 0)
@@ -32,7 +32,8 @@ def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino,
         kilos_origen=kilos_origen,
         kilos_destino=kilos_destino,
         precio=precio,
-        fecha_creacion=fecha_creacion
+        fecha_creacion=fecha_creacion,
+        tiquet_remision=tiquet_remision
     )
 
     try:
