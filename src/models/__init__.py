@@ -9,17 +9,27 @@
     * ShipmentExpense, ShipmentExpenseAudit
 """
 
-from sqlalchemy import Column, ForeignKey, UniqueConstraint, Integer, String, Numeric, Boolean, Date, BigInteger, TIMESTAMP
+from datetime import datetime, date
+from decimal import Decimal, InvalidOperation
+from typing import Optional
+from dataclasses import dataclass
+
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Numeric
+from sqlalchemy import Boolean
+from sqlalchemy import Date
+from sqlalchemy import BigInteger
+from sqlalchemy import TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import functions
-from datetime import datetime, date
-from decimal import Decimal, InvalidOperation
-from typing import Optional
-from dataclasses import dataclass
 
 
 class Base(DeclarativeBase):
@@ -831,6 +841,7 @@ class Cobranzas(Base):
     origen = Column(String(100))
     destino = Column(String(100))
     tiquet = Column(Integer, nullable=False)
+    tiquet_remision = Column(String, nullable=False)
     kilos_origen = Column(Integer, nullable=False)
     kilos_destino = Column(Integer, nullable=False)
     precio = Column(Numeric(10, 2), nullable=False)

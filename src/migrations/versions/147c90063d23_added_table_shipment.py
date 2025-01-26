@@ -154,7 +154,7 @@ def upgrade():
             r.route_code, 
             c.precio, 
             IFNULL(lv.precio_liquidacion, 0) payroll_price, 
-            '' dispatch_code, 
+            tiquet_remision dispatch_code, 
             CONVERT(c.tiquet, CHAR) receipt_code, 
             c.kilos_origen,
             c.kilos_destino,
