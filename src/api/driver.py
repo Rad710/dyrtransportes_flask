@@ -20,7 +20,7 @@ from typing import Tuple
 from app_config import logger
 from app_config import app
 
-from models import Driver
+from models.driver import Driver
 
 import io
 from openpyxl import Workbook

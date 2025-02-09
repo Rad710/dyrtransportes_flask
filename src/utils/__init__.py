@@ -1,134 +1,134 @@
-from flask import jsonify
-from sqlalchemy import and_
+# from flask import jsonify
+# from sqlalchemy import and_
 
-from datetime import datetime
+# from datetime import datetime
 
-from app_config import logger
-from models import Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
+# from app_config import logger
+# from backend_flask.src.models.old_schema import Cobranzas, LiquidacionViajes, Precios, Palabras, tipo_clave, Liquidaciones
 
-from app_config import db_session
+# from app_config import db_session
 
-def string_to_int(string, default=0):
-    try:
-        integer_value = int(string)
-        return integer_value
-    except ValueError:
-        return default
+# def string_to_int(string, default=0):
+#     try:
+#         integer_value = int(string)
+#         return integer_value
+#     except ValueError:
+#         return default
     
 
-def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
-                  tiquet, kilos_origen, kilos_destino, precio, fecha_creacion):
+# def agregar_cobranza(fecha_viaje, chofer, chapa, producto, origen, destino, 
+#                   tiquet, kilos_origen, kilos_destino, precio, fecha_creacion):
     
-    agregar_keywords(chofer, chapa, producto, origen, destino)
-    agregar_precio(origen, destino, precio, 0)
+#     agregar_keywords(chofer, chapa, producto, origen, destino)
+#     agregar_precio(origen, destino, precio, 0)
 
-    new_cobranza = Cobranzas(
-        fecha_viaje=fecha_viaje,
-        chofer=chofer,
-        chapa=chapa,
-        producto=producto,
-        origen=origen,
-        destino=destino,
-        tiquet=tiquet,
-        kilos_origen=kilos_origen,
-        kilos_destino=kilos_destino,
-        precio=precio,
-        fecha_creacion=fecha_creacion
-    )
+#     new_cobranza = Cobranzas(
+#         fecha_viaje=fecha_viaje,
+#         chofer=chofer,
+#         chapa=chapa,
+#         producto=producto,
+#         origen=origen,
+#         destino=destino,
+#         tiquet=tiquet,
+#         kilos_origen=kilos_origen,
+#         kilos_destino=kilos_destino,
+#         precio=precio,
+#         fecha_creacion=fecha_creacion
+#     )
 
-    try:
-        db_session.add(new_cobranza)
-        db_session.commit()
-        logger.warning('Cobranza agregada exitosamente')
-        return new_cobranza.id
+#     try:
+#         db_session.add(new_cobranza)
+#         db_session.commit()
+#         logger.warning('Cobranza agregada exitosamente')
+#         return new_cobranza.id
 
-    except Exception as e:
-        db_session.rollback()
-        logger.warning(f'Error al agregar cobranza {str(e)}')
-        raise e
+#     except Exception as e:
+#         db_session.rollback()
+#         logger.warning(f'Error al agregar cobranza {str(e)}')
+#         raise e
 
 
 
-def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer):
-    try:
-        id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
-        liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, id_liquidacion=id_liquidacion)
+# def agregar_liquidacion_viaje(id_cobranza, precio_liquidacion, fecha_liquidacion, chofer):
+#     try:
+#         id_liquidacion = Liquidaciones.query.filter_by(chofer=chofer, fecha_liquidacion=fecha_liquidacion).first().id
+#         liq = LiquidacionViajes(id=id_cobranza, precio_liquidacion=precio_liquidacion, id_liquidacion=id_liquidacion)
         
-        db_session.add(liq)
-        db_session.commit()
-        logger.warning("Nueva entrada en lista de liquidaciones agregada")
-    except Exception as e:
-        db_session.rollback()
-        logger.warning(f"No se pudo cargar nueva entrada en lista de liquidaciones {str(e)}")
-        raise e
+#         db_session.add(liq)
+#         db_session.commit()
+#         logger.warning("Nueva entrada en lista de liquidaciones agregada")
+#     except Exception as e:
+#         db_session.rollback()
+#         logger.warning(f"No se pudo cargar nueva entrada en lista de liquidaciones {str(e)}")
+#         raise e
 
 
 
-def agregar_precio(origen, destino, precio, precio_liquidacion):
-    existing_entry = Precios.query.filter_by(origen=origen, destino=destino).first()
-    if existing_entry is None:
-        # nueva entrada
-        new_precio = Precios(origen=origen, destino=destino, precio=precio, precio_liquidacion=precio_liquidacion)
+# def agregar_precio(origen, destino, precio, precio_liquidacion):
+#     existing_entry = Precios.query.filter_by(origen=origen, destino=destino).first()
+#     if existing_entry is None:
+#         # nueva entrada
+#         new_precio = Precios(origen=origen, destino=destino, precio=precio, precio_liquidacion=precio_liquidacion)
 
-        try:
-            db_session.add(new_precio)
-            db_session.commit()
-            logger.warning("Nuevo precio en lista de precios")
-            return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
+#         try:
+#             db_session.add(new_precio)
+#             db_session.commit()
+#             logger.warning("Nuevo precio en lista de precios")
+#             return jsonify({"success": "Entrada agregada exitosamente a la tabla Precios"}), 200
         
-        except Exception as e:
-            db_session.rollback()
-            error_message = f"Error al agregar a tabla Precios {str(e)}"
-            logger.warning(error_message)
-            return jsonify({"error": error_message}), 500
+#         except Exception as e:
+#             db_session.rollback()
+#             error_message = f"Error al agregar a tabla Precios {str(e)}"
+#             logger.warning(error_message)
+#             return jsonify({"error": error_message}), 500
         
-    return jsonify({"error": "Entrada ya existe en la tabla Precios"}), 500
+#     return jsonify({"error": "Entrada ya existe en la tabla Precios"}), 500
 
 
-def agregar_keywords(chofer, chapa, producto, origen, destino):
-    palabras_clave = {'chofer/chapa': f'{chofer}/{chapa}',
-                      'producto': producto, 'origen': origen, 'destino': destino}
-    for tipo in tipo_clave:
-        # revisar si entrada en la table de palabras claves ya existe
-        existing_entry = Palabras.query.filter_by(
-            palabra=palabras_clave[tipo], tipo=tipo).first()
-        if existing_entry is None:
-            # nueva entrada
-            new_clave = Palabras(palabra=palabras_clave[tipo], tipo=tipo)
+# def agregar_keywords(chofer, chapa, producto, origen, destino):
+#     palabras_clave = {'chofer/chapa': f'{chofer}/{chapa}',
+#                       'producto': producto, 'origen': origen, 'destino': destino}
+#     for tipo in tipo_clave:
+#         # revisar si entrada en la table de palabras claves ya existe
+#         existing_entry = Palabras.query.filter_by(
+#             palabra=palabras_clave[tipo], tipo=tipo).first()
+#         if existing_entry is None:
+#             # nueva entrada
+#             new_clave = Palabras(palabra=palabras_clave[tipo], tipo=tipo)
 
-            try:
-                db_session.add(new_clave)
-                db_session.commit()
-                logger.warning(f'Nueva entrada en palabras clave de tipo: {tipo}')
-            except Exception as e:
-                db_session.rollback()
-                logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}: {str(e)}')
+#             try:
+#                 db_session.add(new_clave)
+#                 db_session.commit()
+#                 logger.warning(f'Nueva entrada en palabras clave de tipo: {tipo}')
+#             except Exception as e:
+#                 db_session.rollback()
+#                 logger.warning( f'No se pudo cargar nueva palabras clave de tipo: {tipo}: {str(e)}')
 
 
-def agregar_liquidacion(chofer):
-    existing_entries = Liquidaciones.query.filter(
-        and_(
-            Liquidaciones.chofer == chofer,
-            Liquidaciones.pagado != True  # Exclude entries where pagado is True
-        )
-    ).all()
-    if len(existing_entries) == 0:
-        # nueva entrada
-        new_liquidacion = Liquidaciones(
-            chofer=chofer, fecha_liquidacion=datetime.now())
-        try:
-            db_session.add(new_liquidacion)
-            db_session.commit()
-            logger.warning("Nueva fecha de liquidacion agregada")
+# def agregar_liquidacion(chofer):
+#     existing_entries = Liquidaciones.query.filter(
+#         and_(
+#             Liquidaciones.chofer == chofer,
+#             Liquidaciones.pagado != True  # Exclude entries where pagado is True
+#         )
+#     ).all()
+#     if len(existing_entries) == 0:
+#         # nueva entrada
+#         new_liquidacion = Liquidaciones(
+#             chofer=chofer, fecha_liquidacion=datetime.now())
+#         try:
+#             db_session.add(new_liquidacion)
+#             db_session.commit()
+#             logger.warning("Nueva fecha de liquidacion agregada")
 
-            return new_liquidacion.fecha_liquidacion
+#             return new_liquidacion.fecha_liquidacion
 
-        except Exception as e:
-            db_session.rollback()
-            logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
-            raise e
-    else:
-        logger.warning('Entrada ya existe en tabla Liquidaciones')
-        liquidaciones_ordenadas = sorted(
-            existing_entries, key=lambda liq: liq.fecha_liquidacion, reverse=True)
-        return liquidaciones_ordenadas[0].fecha_liquidacion
+#         except Exception as e:
+#             db_session.rollback()
+#             logger.warning(f"No se pudo cargar nueva fecha de liquidacion {str(e)}")
+#             raise e
+#     else:
+#         logger.warning('Entrada ya existe en tabla Liquidaciones')
+#         liquidaciones_ordenadas = sorted(
+#             existing_entries, key=lambda liq: liq.fecha_liquidacion, reverse=True)
+#         return liquidaciones_ordenadas[0].fecha_liquidacion

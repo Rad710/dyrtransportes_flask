@@ -9,7 +9,7 @@ from pathlib import Path
 
 from alembic import context
 
-from src.models import Base
+from src.models.base import Base
 
 project_root_path = Path(__file__).parent.absolute().parents[1]
 load_dotenv(f'{project_root_path}/.env')

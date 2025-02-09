@@ -1,22 +1,25 @@
-from flask import Flask, request, has_request_context
-from flask_cors import CORS
-from flask_caching import Cache
-
 import logging
-from flask.logging import create_logger
-
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy import create_engine
-
-from os import getenv
-from subprocess import run, CalledProcessError
-from dotenv import load_dotenv
-from pathlib import Path
-
 import time
 
-from models import Base
+from os import getenv
+from pathlib import Path
+from subprocess import run
+from subprocess import CalledProcessError
 
+from dotenv import load_dotenv
+
+from flask import Flask
+from flask import request
+from flask import has_request_context
+
+from flask_cors import CORS
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
+
+from models.base import Base
+from models.user import User
 
 project_root_path = Path(__file__).parents[1].absolute()
 load_dotenv(f'{project_root_path}/.env')
@@ -26,6 +29,7 @@ DB_PASSWORD = getenv('DB_PASSWORD')
 DB_HOST = getenv('DB_HOST')
 DB_PORT = getenv('DB_PORT')
 DB_NAME = getenv('DB_NAME')
+API_KEY = getenv('API_KEY')
 DEBUG = bool(int(getenv('DEBUG') or 0))
 
 
@@ -42,12 +46,12 @@ class RequestFilter(logging.Filter):
 
 def create_flask_app():
     """Initializes flask app"""
-    flask_app: Flask = Flask(__name__)
+    app: Flask = Flask(__name__)
+    app.config['SECRET_KEY'] = API_KEY
 
-    cache = Cache(flask_app, config={'CACHE_TYPE': 'simple'})
-    CORS(flask_app)
+    cors = CORS(app)
 
-    return flask_app
+    return app
 
 
 def create_flask_logger(flask_app: Flask):
