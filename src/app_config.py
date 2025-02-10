@@ -49,7 +49,8 @@ def create_flask_app():
     app: Flask = Flask(__name__)
     app.config['SECRET_KEY'] = API_KEY
 
-    cors = CORS(app)
+    if DEBUG:
+        CORS(app)
 
     return app
 
@@ -99,7 +100,8 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
         flask_logger.error(".env file is missing")
 
     connection_string = f'mysql+mysqldb://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-    flask_logger.info("using connection_string: %s", connection_string)
+    if DEBUG:
+        flask_logger.debug("using connection_string: %s", connection_string)
 
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = connection_string
     flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle': 280}
