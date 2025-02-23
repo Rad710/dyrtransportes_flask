@@ -45,17 +45,12 @@ class Route(Base):
     modification_timestamp: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=functions.current_timestamp(), onupdate=functions.current_timestamp())
 
-    # Mapped[List["Shipment"]] will be serialized if added
-    route_shipments = relationship("Shipment", back_populates="shipment_route")
+    # # Mapped[List["Shipment"]] will be serialized if added
+    # route_shipments = relationship("Shipment", back_populates="shipment_route")
 
     # Mapped[List["RouteAudit"]]
     route_audits = relationship("RouteAudit", back_populates="audit_route")
 
-    # __table_args__ = (
-    #     UniqueConstraint(origin, destination, creation_user,
-    #                      outdated.filter(deleted == False),
-    #                      name="unique_origin_destination_user"),
-    # )
 
     @validates('origin')
     def validate_origin(self, key, value):

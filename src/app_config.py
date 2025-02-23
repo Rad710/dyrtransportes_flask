@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 
 from models.base import Base
 from models.user import User
+from models.route import Route, RouteAudit
 
 project_root_path = Path(__file__).parents[1].absolute()
 load_dotenv(f'{project_root_path}/.env')
@@ -30,7 +31,7 @@ DB_HOST = getenv('DB_HOST')
 DB_PORT = getenv('DB_PORT')
 DB_NAME = getenv('DB_NAME')
 API_KEY = getenv('API_KEY')
-DEBUG = bool(int(getenv('DEBUG') or 0))
+DEBUG = getenv('DEBUG')
 
 
 # Custom logging filter to include method and request path

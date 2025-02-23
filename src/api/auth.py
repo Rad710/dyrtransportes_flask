@@ -12,6 +12,7 @@ from sqlalchemy import select
 import jwt
 
 from app_config import app
+from app_config import logger
 from app_config import db_session
 
 from models.user import User
@@ -81,7 +82,8 @@ def register():
         
     except Exception as e:
         db_session.rollback()
-        return jsonify({'message': f'Registration failed: {str(e)}'}), 500
+        logger.error("Registration, error: %s", e)
+        return jsonify({'message': 'Registration failed'}), 500
 
 
 
@@ -123,4 +125,5 @@ def login():
         
     except Exception as e:
         db_session.rollback()
-        return jsonify({'message': f'Login failed: {str(e)}'}), 500
+        logger.error("Login, error: %s", e)
+        return jsonify({'message': 'Login failed'}), 500

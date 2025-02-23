@@ -25,8 +25,6 @@ if (None in [DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
 
 connection_string = f"mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-print("Using connection string: ", connection_string)
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
