@@ -25,43 +25,51 @@ from openpyxl.utils import get_column_letter
 from app_config import logger
 from app_config import app
 from app_config import db_session
+from app_config import RequestWithUser
 
 from decorators.token_required import token_required
 
 from models.route import Route
 
-@app.route('/api/route/<int:route_code>', methods=['GET'])
+request: RequestWithUser
+
+
+@app.route("/api/route/<int:route_code>", methods=["GET"])
 @token_required
 def get_route(route_code: int) -> Tuple[Response, int]:
     try:
         stmt = select(Route).where(
-            Route.route_code == route_code, Route.deleted == False,
+            Route.route_code == route_code,
+            Route.deleted == False,
+            Route.modification_user == request.current_user.user_id,
         )
 
         route: Optional[Route] = db_session.scalar(stmt)
         if route is None:
             logger.error("fetch table Route, not found")
-            return jsonify({"error": "No se encontró la routa"}), 404
+            return jsonify({"message": "No se encontró la routa"}), 404
 
-        logger.info(
-            "fetch table Route, found: %s", route.route_code)
+        logger.info("fetch table Route, found: %s", route.route_code)
         logger.debug("fetch table Route, found: %s", route)
 
         return jsonify(route), 200
 
     except SQLAlchemyError as e:
         logger.error("fetch table Route, error: %s", e)
-        return jsonify({"error": "Error de transacción"}), 500
+        return jsonify({"message": "Error de transacción"}), 500
 
 
-@app.route('/api/routes', methods=['GET'])
+@app.route("/api/routes", methods=["GET"])
 @token_required
 def get_route_list() -> Tuple[Response, int]:
     try:
-        stmt = select(Route).where(
-            Route.deleted == False,
-        ).order_by(
-            asc(Route.origin), asc(Route.destination)
+        stmt = (
+            select(Route)
+            .where(
+                Route.deleted == False,
+                Route.modification_user == request.current_user.user_id,
+            )
+            .order_by(asc(Route.origin), asc(Route.destination))
         )
 
         routes: Sequence[Route] = db_session.scalars(stmt).all()
@@ -71,17 +79,17 @@ def get_route_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch routes table Route, error: %s", e)
-        return jsonify({"error": "Error al obtener rutas"}), 500
+        return jsonify({"message": "Error al obtener rutas"}), 500
 
 
-@app.route('/api/route', methods=['POST'])
+@app.route("/api/route", methods=["POST"])
 @token_required
 def post_route() -> Tuple[Response, int]:
-    current_user = 'dyrtransportes'
-
     try:
         # json to db object
-        payload = Route(**request.get_json(), modification_user=current_user)
+        payload = Route(
+            **request.get_json(), modification_user=request.current_user.user_id
+        )
 
         # add to database
         logger.debug("insert table Route, payload: %s", payload)
@@ -89,43 +97,46 @@ def post_route() -> Tuple[Response, int]:
 
         db_session.commit()
         logger.info("inserted table Route, route: %s", payload.route_code)
-        return jsonify(
-            {
-                **asdict(payload),
-                "success": "Ruta agregada exitosamente"
-            }), 200
+        return (
+            jsonify({**asdict(payload), "message": "Ruta agregada exitosamente"}),
+            200,
+        )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Route, invalid route error: %s", e)
-        return jsonify({"error": f"Error, datos de la Ruta inválidos ({e})"}), 500
+        return jsonify({"message": f"Error, datos de la Ruta inválidos ({e})"}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table Route, connection error: %s", e)
 
-        return jsonify({"error": "Error al agregar ruta: problema de conexión"}), 503
+        return jsonify({"message": "Error al agregar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table Route, error: %s", e)
-        return jsonify({"error": "Error al agregar ruta"}), 500
+        return jsonify({"message": "Error al agregar ruta"}), 500
 
 
-@app.route('/api/route/<int:route_code>', methods=['PUT'])
+@app.route("/api/route/<int:route_code>", methods=["PUT"])
 @token_required
 def put_route(route_code: int) -> Tuple[Response, int]:
-    current_user = 'dyrtransportes'
-
     try:
         # get entry to update
-        entry_to_update: Optional[Route] = db_session.get(Route, route_code)
+        stmt = select(Route).where(
+            Route.route_code == route_code,
+            Route.modification_user == request.current_user.user_id,
+        )
+        entry_to_update: Optional[Route] = db_session.scalar(stmt)
+
         if entry_to_update is None:
             logger.error("update table Route, route not found")
-            return jsonify({'error': 'Ruta no encontrado'}), 404
+            return jsonify({"message": "Ruta no encontrado"}), 404
 
         # json to db object
-        payload = Route(**request.get_json(),
-                        modification_user=current_user)
+        payload = Route(
+            **request.get_json(), modification_user=request.current_user.user_id
+        )
 
         entry_to_update.origin = payload.origin
         entry_to_update.destination = payload.destination
@@ -137,106 +148,113 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
         db_session.commit()
         logger.info("updated table Route, route: %s", route_code)
-        return jsonify(
-            {
-                **asdict(entry_to_update),
-                "success": "Ruta actualizada exitosamente"
-            }), 200
+        return (
+            jsonify(
+                {**asdict(entry_to_update), "message": "Ruta actualizada exitosamente"}
+            ),
+            200,
+        )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid route: %s", e)
-        return jsonify({"error": f"Error, datos de la Ruta inválidos ({e})"}), 500
+        return jsonify({"message": f"Error, datos de la Ruta inválidos ({e})"}), 500
 
     except OperationalError as e:
         db_session.rollback()
-        logger.error(
-            "update table Route: connection error %s", e)
+        logger.error("update table Route: connection error %s", e)
 
-        return jsonify({"error": "Error al actualizar ruta: problema de conexión"}), 503
+        return (
+            jsonify({"message": "Error al actualizar ruta: problema de conexión"}),
+            503,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table Route, error: %s", e)
-        return jsonify({"error": "Error al actualizar ruta"}), 500
+        return jsonify({"message": "Error al actualizar ruta"}), 500
 
 
-@app.route('/api/route/<int:route_code>', methods=['DELETE'])
+@app.route("/api/route/<int:route_code>", methods=["DELETE"])
 @token_required
 def delete_route(route_code: int) -> Tuple[Response, int]:
-    current_user = 'dyrtransportes'
-
     try:
-        existing_entry: Optional[Route] = db_session.get(Route, route_code)
+        stmt = select(Route).where(
+            Route.route_code == route_code,
+            Route.modification_user == request.current_user.user_id,
+        )
+        existing_entry: Optional[Route] = db_session.scalar(stmt)
+
         if existing_entry is None:
             logger.error("delete table Route, route not found")
-            return jsonify({'error': 'Ruta no encontrado'}), 404
+            return jsonify({"message": "Ruta no encontrado"}), 404
 
         existing_entry.deleted = True
-        existing_entry.modification_user = current_user
+        existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
-        logger.info(
-            "delete table Route: route %s", route_code)
-        return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
+        logger.info("delete table Route: route %s", route_code)
+        return jsonify({"message": "Ruta eliminada exitosamente"}), 200
 
     except OperationalError as e:
         db_session.rollback()
-        logger.error(
-            "delete table Route, connection error: %s", e)
-        return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
+        logger.error("delete table Route, connection error: %s", e)
+        return jsonify({"message": "Error al eliminar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Route, error: %s", e)
-        return jsonify({"error": "Error al eliminar ruta"}), 500
+        return jsonify({"message": "Error al eliminar ruta"}), 500
 
 
-@app.route('/api/routes', methods=['DELETE'])
+@app.route("/api/routes", methods=["DELETE"])
 @token_required
 def delete_routes() -> Tuple[Response, int]:
-    current_user = 'dyrtransportes'
-
-    if ((request.data is None) or (not request.is_json)):
+    if (request.data is None) or (not request.is_json):
         logger.error("delete routes table Route, route list is empty")
-        return jsonify({'error': 'Error al eliminar ruta: ruta no encontrada'}), 404
+        return jsonify({"message": "Error al eliminar ruta: ruta no encontrada"}), 404
 
     route_list: List[int] = request.get_json()
     logger.debug("delete routes table Route, payload: %s", route_list)
 
     try:
         for route_code in route_list:
-            route: Optional[Route] = db_session.get(Route, route_code)
+            stmt = select(Route).where(
+                Route.route_code == route_code,
+                Route.modification_user == request.current_user.user_id,
+            )
+            route: Optional[Route] = db_session.scalar(stmt)
 
             if route is None:
-                return jsonify({'error': 'Error al eliminar ruta: ruta no encontrada'}), 404
+                return (
+                    jsonify({"message": "Error al eliminar ruta: ruta no encontrada"}),
+                    404,
+                )
 
             route.deleted = True
-            route.modification_user = current_user
-            logger.info(
-                "delete table Route, route: %s", route_code)
+            route.modification_user = request.current_user.user_id
+            logger.info("delete table Route, route: %s", route_code)
 
         db_session.commit()
-        return jsonify({'success': 'Ruta eliminada exitosamente'}), 200
+        return jsonify({"message": "Ruta eliminada exitosamente"}), 200
 
     except OperationalError as e:
         db_session.rollback()
-        logger.error(
-            "delete table Route: connection error %s", e)
-        return jsonify({"error": "Error al eliminar ruta: problema de conexión"}), 503
+        logger.error("delete table Route: connection error %s", e)
+        return jsonify({"message": "Error al eliminar ruta: problema de conexión"}), 503
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Route, error: %s", e)
-        return jsonify({"error": "Error al eliminar ruta"}), 500
+        return jsonify({"message": "Error al eliminar ruta"}), 500
 
 
-@app.route('/api/export-routes', methods=['GET'])
+@app.route("/api/export-routes", methods=["GET"])
 @token_required
 def export_routes() -> Tuple[Response, int]:
     route_response, code = get_route_list()
 
     if code != 200 or not route_response.is_json or route_response.json is None:
         logger.error("export Routes, fetch Routes error")
-        return jsonify({"error": "Error enviar archivo Excel"}), 500
+        return jsonify({"message": "Error enviar archivo Excel"}), 500
 
     route_list = [Route(**x) for x in route_response.json]
 
@@ -245,17 +263,19 @@ def export_routes() -> Tuple[Response, int]:
     workbook = Workbook(write_only=False, iso_dates=False)
     sheet = workbook.active
 
-    headers = ['Origen', 'Destino', 'Precio', 'Precio de Liquidación']
+    headers = ["Origen", "Destino", "Precio", "Precio de Liquidación"]
     sheet.append(headers)
 
     for col_idx in range(1, 5):
         sheet.column_dimensions[get_column_letter(col_idx)].width = 20
 
     # Estilo de borde
-    border_style = Border(left=Side(style='thin'),
-                          right=Side(style='thin'),
-                          top=Side(style='thin'),
-                          bottom=Side(style='thin'))
+    border_style = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
 
     # Aplicar el estilo de borde a cada celda en la fila
     for cell in sheet[sheet.max_row]:
@@ -263,8 +283,7 @@ def export_routes() -> Tuple[Response, int]:
 
     # Agregar filas de datos
     for route in route_list:
-        row = [route.origin, route.destination,
-               route.price, route.payroll_price]
+        row = [route.origin, route.destination, route.price, route.payroll_price]
 
         sheet.append(row)
 
@@ -282,8 +301,12 @@ def export_routes() -> Tuple[Response, int]:
 
     # Crear la respuesta para el cliente con el archivo Excel
     response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = 'attachment; filename=lista_de_precios.xlsx'
+    response.headers["Content-Type"] = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response.headers["Content-Disposition"] = (
+        "attachment; filename=lista_de_precios.xlsx"
+    )
 
     logger.info("exported Routes excel file")
 

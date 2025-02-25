@@ -29,7 +29,6 @@ def upgrade():
                 price, 
                 payroll_price, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
@@ -39,7 +38,6 @@ def upgrade():
                 NEW.price, 
                 NEW.payroll_price, 
                 NEW.deleted, 
-                NEW.company_id,
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -55,7 +53,6 @@ def upgrade():
                 price, 
                 payroll_price, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
@@ -65,7 +62,6 @@ def upgrade():
                 NEW.price, 
                 NEW.payroll_price, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -80,7 +76,6 @@ def upgrade():
             destination, 
             price, 
             payroll_price, 
-            company_id, 
             modification_user
         )
         SELECT 
@@ -88,7 +83,6 @@ def upgrade():
             destino, 
             precio, 
             precio_liquidacion, 
-            'dyrtransportes', 
             'dyrtransportes' 
         FROM dyrtransportes.precios
         """
