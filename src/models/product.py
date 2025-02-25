@@ -25,25 +25,27 @@ class Product(Base):
     * modification_user (str): The user who last modified this product record.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "product"
 
-    product_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
+    product_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     product_name: Mapped[str] = mapped_column(String(100))
-    deleted: Mapped[bool] = mapped_column(server_default='0')
+    deleted: Mapped[bool] = mapped_column(server_default="0")
     modification_user: Mapped[str] = mapped_column(String(100))
     modification_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.current_timestamp(), onupdate=functions.current_timestamp())
+        TIMESTAMP,
+        server_default=functions.current_timestamp(),
+        onupdate=functions.current_timestamp(),
+    )
 
     # Mapped[List["Shipment"]]
-    product_shipments = relationship(
-        "Shipment", back_populates="shipment_product")
+    # product_shipments = relationship(
+    #     "Shipment", back_populates="shipment_product")
 
     # Mapped[List["ProductAudit"]]
-    product_audits = relationship(
-        "ProductAudit", back_populates="audit_product")
+    product_audits = relationship("ProductAudit", back_populates="audit_product")
 
-    @validates('product_name')
+    @validates("product_name")
     def validate_product_name(self, key, value):
         if not isinstance(value, str) or not value.strip():
             raise ValueError("product_name must be a non-empty string")
@@ -63,12 +65,11 @@ class ProductAudit(Base):
     * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "product_audit"
 
-    audit_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
-    product_code: Mapped[int] = mapped_column(
-        ForeignKey('product.product_code'))
+    audit_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_code: Mapped[int] = mapped_column(ForeignKey("product.product_code"))
     product_name: Mapped[str] = mapped_column(String(100))
     deleted: Mapped[bool] = mapped_column()
     modification_user: Mapped[str] = mapped_column(String(100))
@@ -76,4 +77,3 @@ class ProductAudit(Base):
 
     # Mapped["Product"]
     audit_product = relationship("Product", back_populates="product_audits")
-
