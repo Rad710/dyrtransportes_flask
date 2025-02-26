@@ -14,6 +14,7 @@ from sqlalchemy.sql import functions
 
 from .base import Base
 
+
 @dataclass
 class ShipmentPayroll(Base):
     """
@@ -26,28 +27,33 @@ class ShipmentPayroll(Base):
     * modification_user (str): The user who created this payroll record.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "shipment_payroll"
 
-    payroll_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
+    payroll_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.now())
-    collected: Mapped[bool] = mapped_column(server_default='0')
+        TIMESTAMP, server_default=functions.now()
+    )
+    collected: Mapped[bool] = mapped_column(server_default="0")
     collection_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
-    deleted: Mapped[bool] = mapped_column(server_default='0')
+    deleted: Mapped[bool] = mapped_column(server_default="0")
     modification_user: Mapped[str] = mapped_column(String(100))
     modification_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.current_timestamp(), onupdate=functions.current_timestamp())
+        TIMESTAMP,
+        server_default=functions.current_timestamp(),
+        onupdate=functions.current_timestamp(),
+    )
 
     # Mapped[List["Shipment"]]
-    payroll_shipments = relationship(
-        "Shipment", back_populates="shipment_payroll")
+    # payroll_shipments = relationship(
+    #     "Shipment", back_populates="shipment_payroll")
 
     # Mapped[List["ShipmentPayrollAudit"]]
     shipment_payroll_audits = relationship(
-        "ShipmentPayrollAudit", back_populates="audit_shipment_payroll")
+        "ShipmentPayrollAudit", back_populates="audit_shipment_payroll"
+    )
 
-    @validates('payroll_timestamp')
+    @validates("payroll_timestamp")
     def validate_payroll_timestamp(self, key, value):
         if not isinstance(value, str) or not value.strip():
             raise ValueError("payroll_timestamp must not be null")
@@ -56,18 +62,20 @@ class ShipmentPayroll(Base):
             value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
         except ValueError as e:
             raise ValueError(
-                f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'") from e
+                f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+            ) from e
 
         return value
 
-    @validates('collection_timestamp')
+    @validates("collection_timestamp")
     def validate_collection_timestamp(self, key, value):
         if value is not None and not isinstance(value, str):
             try:
                 value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
             except ValueError as e:
                 raise ValueError(
-                    f"Invalid collection_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'") from e
+                    f"Invalid collection_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
 
         return value
 
@@ -86,14 +94,16 @@ class ShipmentPayrollAudit(Base):
     * audit_timestamp (TIMESTAMP): The time at which this route record was modified.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "shipment_payroll_audit"
 
-    audit_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
+    audit_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     payroll_code: Mapped[int] = mapped_column(
-        ForeignKey('shipment_payroll.payroll_code'))
+        ForeignKey("shipment_payroll.payroll_code")
+    )
     payroll_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.now())
+        TIMESTAMP, server_default=functions.now()
+    )
     collected: Mapped[bool] = mapped_column()
     collection_timestamp: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
     deleted: Mapped[bool] = mapped_column()
@@ -102,5 +112,5 @@ class ShipmentPayrollAudit(Base):
 
     # Mapped["ShipmentPayroll"]
     audit_shipment_payroll = relationship(
-        "ShipmentPayroll", back_populates="shipment_payroll_audits")
-
+        "ShipmentPayroll", back_populates="shipment_payroll_audits"
+    )

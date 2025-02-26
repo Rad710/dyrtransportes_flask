@@ -1,265 +1,385 @@
-# from flask import request
-# from flask import jsonify
-# from flask import Response
+import io
+from typing import Optional, Sequence, Tuple, List
+from dataclasses import asdict
 
-# from typing import Sequence
-# from typing import Tuple
-# from typing import Optional
-# from typing import List
+from flask import request, jsonify, Response, make_response
+from sqlalchemy import select, desc
+from sqlalchemy.sql import extract
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from datetime import datetime
 
-# from sqlalchemy import select
-# from sqlalchemy import desc
-# from sqlalchemy.sql import extract
-# from sqlalchemy.exc import SQLAlchemyError
-# from sqlalchemy.exc import OperationalError
+from openpyxl import Workbook
+from openpyxl.styles import numbers, Border, Side
+from openpyxl.utils import get_column_letter
 
-# from app_config import logger
-# from app_config import app
+from app_config import logger, app, db_session, RequestWithUser
+from decorators.token_required import token_required
+from models.shipment_payroll import ShipmentPayroll
 
-# from backend_flask.src.models.old_schema import ShipmentPayroll
-
-# from app_config import db_session
-
-# from dataclasses import asdict
+request: RequestWithUser
 
 
-# @app.route('/shipment-payroll/<int:payroll_code>', methods=['GET'])
-# def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-#     current_user = 'dyrtransportes'
-#     company_id = 'dyrtransportes'
-#     try:
-#         stmt = select(ShipmentPayroll).where(
-#             ShipmentPayroll.payroll_code == payroll_code,
-#             ShipmentPayroll.deleted == False,
-#             ShipmentPayroll.company_id == company_id
-#         )
+@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["GET"])
+@token_required
+def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
+    try:
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.payroll_code == payroll_code,
+            ShipmentPayroll.deleted == False,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
+        )
 
-#         shipment_payroll: Optional[ShipmentPayroll] = db_session.scalar(stmt)
-#         if shipment_payroll is None:
-#             logger.error(
-#                 "[GET /shipment-payroll] fetching from table ShipmentPayroll not found")
-#             return jsonify({"error": "No se encontró la planilla"}), 404
+        shipment_payroll: Optional[ShipmentPayroll] = db_session.scalar(stmt)
+        if shipment_payroll is None:
+            logger.error("fetch table ShipmentPayroll, not found")
+            return jsonify({"message": "No se encontró la planilla"}), 404
 
-#         logger.info(
-#             "[GET /shipment-payroll] fetching from table ShipmentPayroll found: %s", shipment_payroll.payroll_code)
-#         logger.debug(
-#             "[GET /shipment-payroll] fetching from table ShipmentPayroll found: %s", shipment_payroll)
+        logger.info(
+            "fetch table ShipmentPayroll, found: %s", shipment_payroll.payroll_code
+        )
+        logger.debug("fetch table ShipmentPayroll, found: %s", shipment_payroll)
 
-#         return jsonify(shipment_payroll), 200
+        return jsonify(shipment_payroll), 200
 
-#     except SQLAlchemyError as e:
-#         logger.error(
-#             "[GET /shipment-payroll] fetching from table ShipmentPayroll %s", e)
-#         return jsonify({"error": "Error de transacción"}), 500
+    except SQLAlchemyError as e:
+        logger.error("fetch table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error de transacción"}), 500
 
 
-# @app.route('/shipment-payrolls', methods=['GET'])
-# def get_shipment_payroll_list() -> Tuple[Response, int]:
-#     company_id = 'dyrtransportes'
-#     current_user = 'dyrtransportes'
+@app.route("/api/shipment-payrolls", methods=["GET"])
+@token_required
+def get_shipment_payroll_list() -> Tuple[Response, int]:
+    year_param: str | None = request.args.get("year")
+    try:
+        year: Optional[int] = int(year_param) if year_param else None
+    except ValueError as e:
+        logger.error("Invalid 'year' parameter %s", e)
+        return jsonify({"message": "Parámetros inválidos"}), 400
 
-#     year_param: str | None = request.args.get('year')
-#     try:
-#         year: Optional[int] = int(year_param) if year_param else None
-#     except ValueError as e:
-#         logger.error(
-#             "[GET /shipment-payrolls] Invalid 'year' parameter %s", e)
-#         return jsonify({"error": "Parámetros inválidos"}), 400
+    try:
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.deleted == False,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
+        )
 
-#     try:
-#         stmt = select(ShipmentPayroll).where(
-#             ShipmentPayroll.deleted == False,
-#             ShipmentPayroll.company_id == company_id,
-#         )
+        if year:
+            stmt = stmt.where(
+                extract("year", ShipmentPayroll.payroll_timestamp) == year
+            )
 
-#         if year:
-#             stmt = stmt.where(
-#                 extract('year', ShipmentPayroll.payroll_timestamp) == year)
+        stmt = stmt.order_by(desc(ShipmentPayroll.payroll_timestamp))
 
-#         stmt = stmt.order_by(desc(ShipmentPayroll.payroll_timestamp))
+        shipment_payrolls: Sequence[ShipmentPayroll] = db_session.scalars(stmt).all()
+        logger.info(
+            "fetch shipment payrolls table ShipmentPayroll, len: %s",
+            len(shipment_payrolls),
+        )
+        logger.debug(
+            "fetch shipment payrolls table ShipmentPayroll, payrolls: %s",
+            shipment_payrolls,
+        )
+        return jsonify(shipment_payrolls), 200
 
-#         shipment_payrolls: Sequence[ShipmentPayroll] = db_session.scalars(
-#             stmt).all()
-#         logger.info(
-#             "[GET /shipment-payrolls] fetching shipment payrolls from table ShipmentPayroll len: %s", len(shipment_payrolls))
-#         logger.debug(
-#             "[GET /shipment-payrolls] fetching shipment payrolls from table ShipmentPayroll: %s", shipment_payrolls)
-#         return jsonify(shipment_payrolls), 200
-
-#     except SQLAlchemyError as e:
-#         logger.error(
-#             "[GET /shipment-payrolls] fetching shipment payrolls from table ShipmentPayroll %s", e)
-#         return jsonify({"error": "Error al obtener planillas"}), 500
-
-
-# @app.route('/shipment-payroll', methods=['POST'])
-# def post_shipment_payroll() -> Tuple[Response, int]:
-#     current_user = 'dyrtransportes'
-#     company_id = 'dyrtransportes'
-
-#     try:
-#         payload = ShipmentPayroll(**request.get_json(),
-#                                   modification_user=current_user, company_id=company_id)
-
-#         db_session.add(payload)
-#         db_session.commit()
-#         logger.info(
-#             "[POST /shipment-payroll] adding to table ShipmentPayroll: %s", payload)
-#         return jsonify(
-#             {
-#                 **asdict(payload),
-#                 "success": "Planilla agregada exitosamente"
-#             }), 200
-
-#     except (TypeError, ValueError, KeyError) as e:
-#         logger.error("[POST /shipment-payroll] Invalid payload: %s", e)
-#         return jsonify({"error": f"Error, datos de la Planilla inválidos ({e})"}), 500
-
-#     except OperationalError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[POST /shipment-payroll] adding to table ShipmentPayroll: connection %s", e)
-
-#         return jsonify({"error": "Error al agregar planilla: problema de conexión"}), 503
-
-#     except SQLAlchemyError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[POST /hipment-payroll] adding to table ShipmentPayroll: %s", e)
-#         return jsonify({"error": "Error al agregar planilla"}), 500
+    except SQLAlchemyError as e:
+        logger.error("fetch shipment payrolls table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error al obtener planillas"}), 500
 
 
-# @app.route('/shipment-payroll/<int:payroll_code>', methods=['PUT'])
-# def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-#     current_user = 'dyrtransportes'
-#     company_id = 'dyrtransportes'
+@app.route("/api/shipment-payroll", methods=["POST"])
+@token_required
+def post_shipment_payroll() -> Tuple[Response, int]:
+    try:
+        # json to db object
+        payload = ShipmentPayroll(
+            **request.get_json(), modification_user=request.current_user.user_id
+        )
 
-#     try:
-#         entry_to_update: Optional[ShipmentPayroll] = db_session.get(
-#             ShipmentPayroll, payroll_code)
-#         if entry_to_update is None:
-#             return jsonify({'error': 'Planilla no encontrada'}), 404
+        # add to database
+        logger.debug("insert table ShipmentPayroll, payload: %s", payload)
+        db_session.add(payload)
 
-#         if entry_to_update.company_id != company_id:
-#             logger.error(
-#                 "[PUT /shipment-payroll] updating table ShipmentPayroll: invalid company_id: %s", company_id)
-#             return jsonify({"error": "Error al actualizar planilla"}), 503
+        db_session.commit()
+        logger.info("inserted table ShipmentPayroll, payroll: %s", payload.payroll_code)
+        return (
+            jsonify({**asdict(payload), "message": "Planilla agregada exitosamente"}),
+            200,
+        )
 
-#         payload = ShipmentPayroll(**request.get_json(),
-#                                   modification_user=current_user, company_id=company_id)
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("insert table ShipmentPayroll, invalid payroll error: %s", e)
+        return jsonify({"message": f"Error, datos de la Planilla inválidos ({e})"}), 500
 
-#         entry_to_update.payroll_timestamp = payload.payroll_timestamp
-#         entry_to_update.collected = payload.collected
-#         entry_to_update.collection_timestamp = payload.collection_timestamp
-#         entry_to_update.deleted = payload.deleted
-#         entry_to_update.modification_user = payload.modification_user
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("insert table ShipmentPayroll, connection error: %s", e)
+        return (
+            jsonify({"message": "Error al agregar planilla: problema de conexión"}),
+            503,
+        )
 
-#         db_session.commit()
-#         logger.info(
-#             "[PUT /shipment-payroll] updating table ShipmentPayroll: %s", payroll_code)
-#         return jsonify(
-#             {
-#                 **asdict(entry_to_update),
-#                 "success": "Planilla actualizada exitosamente"
-#             }), 200
-
-#     except (TypeError, ValueError, KeyError) as e:
-#         logger.error("[PUT /shipment-payroll] Invalid payload: %s", e)
-#         return jsonify({"error": f"Error, datos del planilla inválidos ({e})"}), 500
-
-#     except OperationalError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[PUT /shipment-payroll] updating table ShipmentPayroll: connection %s", e)
-
-#         return jsonify({"error": "Error al actualizar planilla: problema de conexión"}), 503
-
-#     except SQLAlchemyError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[PUT /shipment-payroll] updating table ShipmentPayroll: %s", e)
-#         return jsonify({"error": "Error al actualizar planilla"}), 500
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("insert table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error al agregar planilla"}), 500
 
 
-# @app.route('/shipment-payroll/<int:payroll_code>', methods=['DELETE'])
-# def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
-#     current_user = 'dyrtransportes'
-#     company_id = 'dyrtransportes'
+@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["PUT"])
+@token_required
+def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
+    try:
+        # get entry to update
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.payroll_code == payroll_code,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
+        )
+        entry_to_update: Optional[ShipmentPayroll] = db_session.scalar(stmt)
 
-#     try:
-#         existing_entry: Optional[ShipmentPayroll] = db_session.get(
-#             ShipmentPayroll, payroll_code)
-#         if existing_entry is None:
-#             return jsonify({'error': 'Planilla no encontrado'}), 404
+        if entry_to_update is None:
+            logger.error("update table ShipmentPayroll, payroll not found")
+            return jsonify({"message": "Planilla no encontrada"}), 404
 
-#         if existing_entry.company_id != company_id:
-#             logger.error(
-#                 "[DELETE /shipment-payroll] deleting table ShipmentPayroll: invalid company_id: %s", company_id)
-#             return jsonify({"error": "Error al eliminar Planilla"}), 503
+        # json to db object
+        payload = ShipmentPayroll(
+            **request.get_json(), modification_user=request.current_user.user_id
+        )
 
-#         existing_entry.deleted = True
-#         existing_entry.modification_user = current_user
-#         db_session.commit()
-#         logger.info(
-#             "[DELETE /shipment-payroll] deleting table ShipmentPayroll: %s", payroll_code)
-#         return jsonify({'success': 'Planilla eliminada exitosamente'}), 200
+        entry_to_update.payroll_timestamp = payload.payroll_timestamp
+        entry_to_update.collected = payload.collected
+        entry_to_update.collection_timestamp = payload.collection_timestamp
+        entry_to_update.deleted = payload.deleted
+        entry_to_update.modification_user = payload.modification_user
 
-#     except OperationalError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[DELETE /shipment-payroll] deleting table ShipmentPayroll: connection %s", e)
-#         return jsonify({"error": "Error al eliminar Planilla: problema de conexión"}), 503
+        logger.info("update table ShipmentPayroll, payload: %s", entry_to_update)
 
-#     except SQLAlchemyError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[DELETE /shipment-payroll] deleting table ShipmentPayroll: %s", e)
-#         return jsonify({"error": "Error al eliminar Planilla"}), 500
+        db_session.commit()
+        logger.info("updated table ShipmentPayroll, payroll: %s", payroll_code)
+        return (
+            jsonify(
+                {
+                    **asdict(entry_to_update),
+                    "message": "Planilla actualizada exitosamente",
+                }
+            ),
+            200,
+        )
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("invalid payroll: %s", e)
+        return jsonify({"message": f"Error, datos de la Planilla inválidos ({e})"}), 500
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("update table ShipmentPayroll: connection error %s", e)
+        return (
+            jsonify({"message": "Error al actualizar planilla: problema de conexión"}),
+            503,
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("update table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error al actualizar planilla"}), 500
 
 
-# @app.route('/shipment-payrolls', methods=['DELETE'])
-# def delete_shipment_payrolls() -> Tuple[Response, int]:
-#     current_user = 'dyrtransportes'
-#     company_id = 'dyrtransportes'
+@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["DELETE"])
+@token_required
+def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
+    try:
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.payroll_code == payroll_code,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
+        )
+        existing_entry: Optional[ShipmentPayroll] = db_session.scalar(stmt)
 
-#     if ((request.data is None) or (not request.is_json)):
-#         logger.error(
-#             "[DELETE /shipment-payrolls] ShipmentPayroll list payload is empty")
-#         return jsonify({'error': 'Error al eliminar Planilla: planilla no encontrado'}), 404
+        if existing_entry is None:
+            logger.error("delete table ShipmentPayroll, payroll not found")
+            return jsonify({"message": "Planilla no encontrada"}), 404
 
-#     payroll_list: List[int] = request.get_json()
-#     logger.debug(
-#         "[DELETE /shipment-payrolls] shipment_payroll_list: %s", payroll_list)
+        existing_entry.deleted = True
+        existing_entry.modification_user = request.current_user.user_id
+        db_session.commit()
+        logger.info("delete table ShipmentPayroll: payroll %s", payroll_code)
+        return jsonify({"message": "Planilla eliminada exitosamente"}), 200
 
-#     try:
-#         for payroll_code in payroll_list:
-#             payroll: Optional[ShipmentPayroll] = db_session.get(
-#                 ShipmentPayroll, payroll_code)
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("delete table ShipmentPayroll, connection error: %s", e)
+        return (
+            jsonify({"message": "Error al eliminar planilla: problema de conexión"}),
+            503,
+        )
 
-#             if payroll is None:
-#                 return jsonify({'error': 'Error al eliminar planilla: planilla no encontrado'}), 404
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("delete table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error al eliminar planilla"}), 500
 
-#             if payroll.company_id != company_id:
-#                 logger.error(
-#                     "[DELETE /shipment-payrolls] deleting from table ShipmentPayroll: invalid company_id: %s", company_id)
-#                 return jsonify({"error": "Error al eliminar planilla"}), 503
 
-#             payroll.deleted = True
-#             payroll.modification_user = current_user
-#             logger.info(
-#                 "[DELETE /shipment-payrolls] deleting from table ShipmentPayroll: %s", payroll_code)
+@app.route("/api/shipment-payrolls", methods=["DELETE"])
+@token_required
+def delete_shipment_payrolls() -> Tuple[Response, int]:
+    if (request.data is None) or (not request.is_json):
+        logger.error("delete payrolls table ShipmentPayroll, payroll list is empty")
+        return (
+            jsonify({"message": "Error al eliminar planilla: planilla no encontrada"}),
+            404,
+        )
 
-#         db_session.commit()
-#         return jsonify({'success': 'Planilla eliminada exitosamente'}), 200
+    payroll_list: List[int] = request.get_json()
+    logger.debug("delete payrolls table ShipmentPayroll, payload: %s", payroll_list)
 
-#     except OperationalError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[DELETE /shipment-payrolls] deleting table ShipmentPayroll: connection %s", e)
-#         return jsonify({"error": "Error al eliminar Planilla: problema de conexión"}), 503
+    try:
+        for payroll_code in payroll_list:
+            stmt = select(ShipmentPayroll).where(
+                ShipmentPayroll.payroll_code == payroll_code,
+                ShipmentPayroll.modification_user == request.current_user.user_id,
+            )
+            payroll: Optional[ShipmentPayroll] = db_session.scalar(stmt)
 
-#     except SQLAlchemyError as e:
-#         db_session.rollback()
-#         logger.error(
-#             "[DELETE /shipment-payrolls] deleting table ShipmentPayroll: %s", e)
-#         return jsonify({"error": "Error al eliminar Planilla"}), 500
+            if payroll is None:
+                return (
+                    jsonify(
+                        {
+                            "message": "Error al eliminar planilla: planilla no encontrada"
+                        }
+                    ),
+                    404,
+                )
+
+            payroll.deleted = True
+            payroll.modification_user = request.current_user.user_id
+            logger.info("delete table ShipmentPayroll, payroll: %s", payroll_code)
+
+        db_session.commit()
+        return jsonify({"message": "Planilla eliminada exitosamente"}), 200
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("delete table ShipmentPayroll: connection error %s", e)
+        return (
+            jsonify({"message": "Error al eliminar planilla: problema de conexión"}),
+            503,
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("delete table ShipmentPayroll, error: %s", e)
+        return jsonify({"message": "Error al eliminar planilla"}), 500
+
+
+@app.route("/api/export-shipment-payrolls", methods=["GET"])
+@token_required
+def export_shipment_payrolls() -> Tuple[Response, int]:
+    # Get date range parameters
+    start_date_str = request.args.get("startDate", "")
+    end_date_str = request.args.get("endDate", "")
+
+    try:
+        # Convert date parameters as needed
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+
+        # Build query for shipment payrolls in date range
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.deleted == False,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
+        )
+
+        if start_date:
+            stmt = stmt.where(ShipmentPayroll.payroll_timestamp >= start_date)
+        if end_date:
+            stmt = stmt.where(ShipmentPayroll.payroll_timestamp <= end_date)
+
+        stmt = stmt.order_by(desc(ShipmentPayroll.payroll_timestamp))
+
+        payroll_list: Sequence[ShipmentPayroll] = db_session.scalars(stmt).all()
+
+        if not payroll_list:
+            logger.warning("export ShipmentPayrolls, no data found in date range")
+            return (
+                jsonify(
+                    {
+                        "message": "No hay datos para exportar en el rango de fechas seleccionado"
+                    }
+                ),
+                404,
+            )
+
+        # Create file
+        output = io.BytesIO()
+        workbook = Workbook(write_only=False, iso_dates=False)
+        sheet = workbook.active
+
+        headers = ["Código", "Fecha", "Cobrado", "Fecha de Cobro"]
+        sheet.append(headers)
+
+        for col_idx in range(1, 5):
+            sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+
+        # Border style
+        border_style = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+
+        # Apply border style to each cell in the header row
+        for cell in sheet[sheet.max_row]:
+            cell.border = border_style
+
+        # Add data rows
+        for payroll in payroll_list:
+            # Format dates for display
+            payroll_date = (
+                payroll.payroll_timestamp.strftime("%d/%m/%Y")
+                if payroll.payroll_timestamp
+                else ""
+            )
+            collection_date = (
+                payroll.collection_timestamp.strftime("%d/%m/%Y")
+                if payroll.collection_timestamp
+                else ""
+            )
+
+            row = [
+                payroll.payroll_code,
+                payroll_date,
+                "Sí" if payroll.collected else "No",
+                collection_date,
+            ]
+
+            sheet.append(row)
+
+            # Apply border style to each cell in the data row
+            for cell in sheet[sheet.max_row]:
+                cell.border = border_style
+
+        # Save Excel file to output stream
+        workbook.save(output)
+        output.seek(0)
+
+        # Create response with Excel file
+        response = make_response(output.getvalue())
+        response.headers["Content-Type"] = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response.headers["Content-Disposition"] = (
+            "attachment; filename=lista_de_cobranzas.xlsx"
+        )
+
+        logger.info("exported ShipmentPayrolls excel file")
+
+        return response, 200
+
+    except ValueError as e:
+        logger.error("export ShipmentPayrolls, invalid date format: %s", e)
+        return jsonify({"message": "Formato de fecha inválido"}), 400
+
+    except SQLAlchemyError as e:
+        logger.error("export ShipmentPayrolls, database error: %s", e)
+        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+
+    except Exception as e:
+        logger.error("export ShipmentPayrolls, unexpected error: %s", e)
+        return jsonify({"message": "Error al generar el archivo de exportación"}), 500

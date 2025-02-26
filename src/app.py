@@ -4,6 +4,7 @@ from api.auth import *
 from api.route import *
 from api.product import *
 from api.driver import *
+from api.shipment_payroll import *
 
 from decorators.token_required import token_required
 
