@@ -3,6 +3,7 @@ from app_config import app
 from api.auth import *
 from api.route import *
 from api.product import *
+from api.driver import *
 
 from decorators.token_required import token_required
 

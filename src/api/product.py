@@ -19,7 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
 from openpyxl import Workbook
-from openpyxl.styles import numbers, Border, Side
+from openpyxl.styles import Border, Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger

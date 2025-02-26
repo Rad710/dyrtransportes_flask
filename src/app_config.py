@@ -23,6 +23,7 @@ from models.base import Base
 from models.user import User
 from models.route import Route, RouteAudit
 from models.product import Product, ProductAudit
+from models.driver import Driver, DriverAudit
 
 project_root_path = Path(__file__).parents[1].absolute()
 load_dotenv(f"{project_root_path}/.env")
