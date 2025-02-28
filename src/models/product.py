@@ -39,8 +39,7 @@ class Product(Base):
     )
 
     # Mapped[List["Shipment"]]
-    # product_shipments = relationship(
-    #     "Shipment", back_populates="shipment_product")
+    product_shipments = relationship("Shipment", back_populates="shipment_product")
 
     # Mapped[List["ProductAudit"]]
     product_audits = relationship("ProductAudit", back_populates="audit_product")

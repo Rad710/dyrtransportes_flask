@@ -5,12 +5,13 @@ Revises: 96e2c016f660
 Create Date: 2024-04-28 05:00:24.829947
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'da5e08d1bc88'
-down_revision = '96e2c016f660'
+revision = "da5e08d1bc88"
+down_revision = "96e2c016f660"
 branch_labels = None
 depends_on = None
 
@@ -27,14 +28,12 @@ def upgrade():
                 product_code, 
                 product_name,
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
                 NEW.product_code, 
                 NEW.product_name, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -47,14 +46,12 @@ def upgrade():
                 product_code, 
                 product_name, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
                 NEW.product_code, 
                 NEW.product_name, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -66,12 +63,10 @@ def upgrade():
         """
         INSERT INTO dyrtransportes.product (
             product_name,
-            company_id, 
             modification_user
         )
         SELECT 
             palabra,
-            'dyrtransportes', 
             'dyrtransportes'  
         FROM dyrtransportes.palabras 
         WHERE 
@@ -82,14 +77,18 @@ def upgrade():
 
     # Get the maximum ID from the old table
     conn = op.get_bind()
-    res = conn.execute(sa.text(
-        "SELECT COUNT(1) FROM dyrtransportes.palabras WHERE tipo = 'producto' AND palabra != ''"))
+    res = conn.execute(
+        sa.text(
+            "SELECT COUNT(1) FROM dyrtransportes.palabras WHERE tipo = 'producto' AND palabra != ''"
+        )
+    )
     result = res.fetchone()
 
     # Set the autoincrement start value (if supported by your database)
     if result is not None:
         op.execute(
-            f"ALTER TABLE dyrtransportes.product AUTO_INCREMENT = {result[0] + 1}")
+            f"ALTER TABLE dyrtransportes.product AUTO_INCREMENT = {result[0] + 1}"
+        )
 
     # ### end Alembic commands ###
 

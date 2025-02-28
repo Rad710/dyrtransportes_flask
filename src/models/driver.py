@@ -52,13 +52,11 @@ class Driver(Base):
         onupdate=functions.current_timestamp(),
     )
 
-    # # Mapped[List["DriverPayroll"]]
-    # driver_payrolls = relationship(
-    #     "DriverPayroll", back_populates="payroll_driver")
+    # Mapped[List["DriverPayroll"]]
+    driver_payrolls = relationship("DriverPayroll", back_populates="payroll_driver")
 
-    # # Mapped[List["Shipment"]]
-    # driver_shipments = relationship(
-    #     "Shipment", back_populates="shipment_driver")
+    # Mapped[List["Shipment"]]
+    driver_shipments = relationship("Shipment", back_populates="shipment_driver")
 
     # Mapped[List["DriverAudit"]]
     driver_audits = relationship("DriverAudit", back_populates="audit_driver")

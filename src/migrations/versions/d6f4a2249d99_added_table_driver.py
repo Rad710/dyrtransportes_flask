@@ -5,13 +5,14 @@ Revises: da5e08d1bc88
 Create Date: 2024-04-28 14:41:09.012198
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'd6f4a2249d99'
-down_revision = 'da5e08d1bc88'
+revision = "d6f4a2249d99"
+down_revision = "da5e08d1bc88"
 branch_labels = None
 depends_on = None
 
@@ -31,7 +32,6 @@ def upgrade():
                 truck_plate, 
                 trailer_plate, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
@@ -42,7 +42,6 @@ def upgrade():
                 NEW.truck_plate, 
                 NEW.trailer_plate, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -60,7 +59,6 @@ def upgrade():
                 truck_plate, 
                 trailer_plate, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
@@ -71,7 +69,6 @@ def upgrade():
                 NEW.truck_plate, 
                 NEW.trailer_plate, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -90,14 +87,12 @@ def upgrade():
             driver_id, 
             driver_name, 
             truck_plate,
-            company_id,
             modification_user
         )
         SELECT
             ROW_NUMBER() OVER (ORDER BY p.palabra) AS driver_id,
             SUBSTRING_INDEX(p.palabra, '/', 1) as driver_name,
             SUBSTRING_INDEX(p.palabra, '/', -1) as truck_plate,
-            'dyrtransportes',
             'dyrtransportes'
         FROM dyrtransportes.palabras p 
         WHERE p.id NOT IN
@@ -177,14 +172,12 @@ def upgrade():
             driver_id, 
             driver_name, 
             truck_plate,
-            company_id,
             modification_user
         )
         SELECT 
             ROW_NUMBER() OVER (ORDER BY p.palabra) + 100 AS driver_id,
             SUBSTRING_INDEX(p.palabra, '/', 1) driver_name,
             SUBSTRING_INDEX(p.palabra, '/', -1) truck_plate,
-            'dyrtransportes',
             'dyrtransportes'
         FROM dyrtransportes.palabras p 
         WHERE p.id IN
@@ -212,7 +205,6 @@ def upgrade():
 
         DO SLEEP(1);
         """
-
         # TODO test
         # INSERT INTO dyrtransportes.driver (driver_name, truck_plate)
         # SELECT chofer, chapa
@@ -234,7 +226,6 @@ def upgrade():
         #     d.driver_name = c.chofer
         #     AND d.truck_plate = c.chapa) temp_shipment
         # WHERE temp_shipment.driver_code IS NULL;
-
     )
 
     # Get the maximum ID from the old table
@@ -245,7 +236,8 @@ def upgrade():
     # Set the autoincrement start value (if supported by your database)
     if result is not None:
         op.execute(
-            f"ALTER TABLE dyrtransportes.driver AUTO_INCREMENT = {result[0] + 1}")
+            f"ALTER TABLE dyrtransportes.driver AUTO_INCREMENT = {result[0] + 1}"
+        )
 
     # ### end Alembic commands ###
 

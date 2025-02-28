@@ -5,6 +5,7 @@ from api.route import *
 from api.product import *
 from api.driver import *
 from api.shipment_payroll import *
+from api.shipment import *
 
 from decorators.token_required import token_required
 

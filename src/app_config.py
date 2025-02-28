@@ -25,6 +25,9 @@ from models.route import Route, RouteAudit
 from models.product import Product, ProductAudit
 from models.driver import Driver, DriverAudit
 from models.shipment_payroll import ShipmentPayroll, ShipmentPayrollAudit
+from models.shipment import Shipment, ShipmentAudit
+from models.driver_payroll import DriverPayroll, DriverPayrollAudit
+from models.shipment_expense import ShipmentExpense, ShipmentExpenseAudit
 
 project_root_path = Path(__file__).parents[1].absolute()
 load_dotenv(f"{project_root_path}/.env")

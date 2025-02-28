@@ -45,8 +45,7 @@ class ShipmentPayroll(Base):
     )
 
     # Mapped[List["Shipment"]]
-    # payroll_shipments = relationship(
-    #     "Shipment", back_populates="shipment_payroll")
+    payroll_shipments = relationship("Shipment", back_populates="shipment_payroll")
 
     # Mapped[List["ShipmentPayrollAudit"]]
     shipment_payroll_audits = relationship(

@@ -5,12 +5,13 @@ Revises: 3562bc27785f
 Create Date: 2024-04-28 18:23:49.349523
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '147c90063d23'
-down_revision = '3562bc27785f'
+revision = "147c90063d23"
+down_revision = "3562bc27785f"
 branch_labels = None
 depends_on = None
 
@@ -25,13 +26,22 @@ def upgrade():
         BEGIN
             INSERT INTO shipment_audit (
                 shipment_code, 
-                shipment_date, 
-                driver_code, 
+                shipment_date,
+
+                driver_name,
                 truck_plate, 
+                trailer_plate,
+                driver_code, 
+
                 product_code, 
+                product_name,
+                
                 route_code, 
+                origin,
+                destination,
                 price, 
                 payroll_price, 
+
                 dispatch_code, 
                 receipt_code,
                 origin_weight, 
@@ -39,18 +49,26 @@ def upgrade():
                 shipment_payroll_code,
                 driver_payroll_code, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
                 NEW.shipment_code, 
                 NEW.shipment_date, 
-                NEW.driver_code,
+
+                NEW.driver_name,
                 NEW.truck_plate,
+                NEW.trailer_plate,
+                NEW.driver_code,
+
                 NEW.product_code, 
+                NEW.product_name,
+
                 NEW.route_code, 
+                NEW.origin,
+                NEW.destination,
                 NEW.price, 
                 NEW.payroll_price, 
+
                 NEW.dispatch_code, 
                 NEW.receipt_code, 
                 NEW.origin_weight, 
@@ -58,7 +76,6 @@ def upgrade():
                 NEW.shipment_payroll_code, 
                 NEW.driver_payroll_code, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -70,12 +87,21 @@ def upgrade():
             INSERT INTO shipment_audit (
                 shipment_code, 
                 shipment_date, 
-                driver_code,
+
+                driver_name,
                 truck_plate,
+                trailer_plate,
+                driver_code,
+
                 product_code, 
+                product_name,
+
                 route_code, 
+                origin,
+                destination,
                 price, 
                 payroll_price, 
+
                 dispatch_code, 
                 receipt_code,
                 origin_weight, 
@@ -83,18 +109,26 @@ def upgrade():
                 shipment_payroll_code,
                 driver_payroll_code, 
                 deleted, 
-                company_id, 
                 modification_user,
                 modification_timestamp
             ) VALUES (
                 NEW.shipment_code, 
                 NEW.shipment_date, 
-                NEW.driver_code,
+
+                NEW.driver_name,
                 NEW.truck_plate,
+                NEW.trailer_plate,
+                NEW.driver_code,
+
                 NEW.product_code, 
+                NEW.product_name,
+
                 NEW.route_code, 
+                NEW.origin,
+                NEW.destination,
                 NEW.price, 
                 NEW.payroll_price, 
+
                 NEW.dispatch_code, 
                 NEW.receipt_code, 
                 NEW.origin_weight, 
@@ -102,7 +136,6 @@ def upgrade():
                 NEW.shipment_payroll_code, 
                 NEW.driver_payroll_code, 
                 NEW.deleted, 
-                NEW.company_id, 
                 NEW.modification_user,
                 NEW.modification_timestamp
             );
@@ -130,28 +163,45 @@ def upgrade():
             
 
         INSERT INTO dyrtransportes.shipment (
-            shipment_date, 
-            driver_code,
+            shipment_date,
+
+            driver_name,
             truck_plate,
+            trailer_plate,
+            driver_code,
+
             product_code, 
+            product_name,
+
             route_code, 
+            origin,
+            destination,
             price, 
             payroll_price,
+
             dispatch_code,
             receipt_code,
             origin_weight,
             destination_weight,
             shipment_payroll_code,
             driver_payroll_code,
-            company_id,
             modification_user
         )
         SELECT
-            c.fecha_viaje, 
-            d.driver_code, 
+            c.fecha_viaje,
+
+            d.driver_name,
             d.truck_plate, 
+            NULL,
+            d.driver_code, 
+
             p.product_code, 
+            p.product_name,
+
             r.route_code, 
+            r.origin,
+            r.destination,
+
             c.precio, 
             IFNULL(lv.precio_liquidacion, 0) payroll_price, 
             tiquet_remision dispatch_code, 
@@ -160,7 +210,6 @@ def upgrade():
             c.kilos_destino,
             sp.payroll_code shipment_payroll_code,
             dp.payroll_code driver_payroll_code,
-            'dyrtransportes',
             'dyrtransportes'
         FROM dyrtransportes.cobranzas c
         LEFT JOIN (
@@ -194,16 +243,17 @@ def upgrade():
     # Get the maximum ID from the old table
 
     conn = op.get_bind()
-    res = conn.execute(
-        sa.text("SELECT COUNT(1) FROM dyrtransportes.cobranzas"))
+    res = conn.execute(sa.text("SELECT COUNT(1) FROM dyrtransportes.cobranzas"))
     result = res.fetchone()
 
     # Set the autoincrement start value (if supported by your database)
     if result is not None:
         print(
-            f"Setting AUTO_INCREMENT = {result[0] + 1}. Check if correct with table cobranzas")
+            f"Setting AUTO_INCREMENT = {result[0] + 1}. Check if correct with table cobranzas"
+        )
         op.execute(
-            f"ALTER TABLE dyrtransportes.shipment AUTO_INCREMENT = {result[0] + 1}")
+            f"ALTER TABLE dyrtransportes.shipment AUTO_INCREMENT = {result[0] + 1}"
+        )
 
     # ### end Alembic commands ###
 

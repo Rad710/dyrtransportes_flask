@@ -30,41 +30,43 @@ class Route(Base):
     * modification_user (str): The user who last modified this route record.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "route"
 
-    route_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
+    route_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     origin: Mapped[str] = mapped_column(String(100))
     destination: Mapped[str] = mapped_column(String(100))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     payroll_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     # cannot delete since it's a foreign key
-    deleted: Mapped[bool] = mapped_column(server_default='0')
+    deleted: Mapped[bool] = mapped_column(server_default="0")
     modification_user: Mapped[str] = mapped_column(String(100))
     modification_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.current_timestamp(), onupdate=functions.current_timestamp())
+        TIMESTAMP,
+        server_default=functions.current_timestamp(),
+        onupdate=functions.current_timestamp(),
+    )
 
-    # # Mapped[List["Shipment"]] will be serialized if added
-    # route_shipments = relationship("Shipment", back_populates="shipment_route")
+    # Mapped[List["Shipment"]] will be serialized if added
+    route_shipments = relationship("Shipment", back_populates="shipment_route")
 
     # Mapped[List["RouteAudit"]]
     route_audits = relationship("RouteAudit", back_populates="audit_route")
 
-
-    @validates('origin')
+    @validates("origin")
     def validate_origin(self, key, value):
         if not isinstance(value, str) or not value.strip():
             raise ValueError("origin must be a non-empty string")
         return value
 
-    @validates('destination')
+    @validates("destination")
     def validate_destination(self, key, value):
         if not isinstance(value, str) or not value.strip():
             raise ValueError("destination must be a non-empty string")
         return value
 
-    @validates('price')
+    @validates("price")
     def validate_price(self, key, value):
         if isinstance(value, str):
             try:
@@ -73,26 +75,23 @@ class Route(Base):
                 raise ValueError(f"Invalid price value: {value}") from e
 
         if not isinstance(value, Decimal):
-            raise TypeError(
-                "price must be a Decimal or convertible to Decimal")
+            raise TypeError("price must be a Decimal or convertible to Decimal")
 
         if value < 0:
             raise ValueError("price must be non-negative")
 
         return value
 
-    @validates('payroll_price')
+    @validates("payroll_price")
     def validate_payroll_price(self, key, value):
         if isinstance(value, str):
             try:
                 value = Decimal(value)
             except InvalidOperation as e:
-                raise ValueError(
-                    f"Invalid payroll_price value: {value}") from e
+                raise ValueError(f"Invalid payroll_price value: {value}") from e
 
         if not isinstance(value, Decimal):
-            raise TypeError(
-                "payroll_price must be a Decimal or convertible to Decimal")
+            raise TypeError("payroll_price must be a Decimal or convertible to Decimal")
 
         if value < 0:
             raise ValueError("payroll_price must be non-negative")
@@ -115,11 +114,11 @@ class RouteAudit(Base):
     * modification_user (str): The user who last modified this route record.
     * modification_timestamp (TIMESTAMP): The time at which this route record was modified.
     """
+
     __tablename__ = "route_audit"
 
-    audit_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
-    route_code: Mapped[int] = mapped_column(ForeignKey('route.route_code'))
+    audit_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    route_code: Mapped[int] = mapped_column(ForeignKey("route.route_code"))
     origin: Mapped[str] = mapped_column(String(100))
     destination: Mapped[str] = mapped_column(String(100))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
@@ -130,4 +129,3 @@ class RouteAudit(Base):
 
     # Mapped["Route"]
     audit_route = relationship("Route", back_populates="route_audits")
-
