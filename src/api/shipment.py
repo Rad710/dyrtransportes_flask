@@ -219,11 +219,21 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         )
 
         entry_to_update.shipment_date = payload.shipment_date
+
+        entry_to_update.driver_name = payload.driver_name
+        entry_to_update.truck_plate = payload.truck_plate
+        entry_to_update.trailer_plate = payload.trailer_plate
         entry_to_update.driver_code = payload.driver_code
+
         entry_to_update.product_code = payload.product_code
+        entry_to_update.product_name = payload.product_name
+
         entry_to_update.route_code = payload.route_code
+        entry_to_update.origin = payload.origin
+        entry_to_update.destination = payload.destination
         entry_to_update.price = payload.price
         entry_to_update.payroll_price = payload.payroll_price
+
         entry_to_update.dispatch_code = payload.dispatch_code
         entry_to_update.receipt_code = payload.receipt_code
         entry_to_update.origin_weight = payload.origin_weight
