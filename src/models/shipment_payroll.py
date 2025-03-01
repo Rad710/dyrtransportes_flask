@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import date
 from typing import Optional
 from dataclasses import dataclass
 
@@ -54,27 +55,31 @@ class ShipmentPayroll(Base):
 
     @validates("payroll_timestamp")
     def validate_payroll_timestamp(self, key, value):
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError("payroll_timestamp must not be null")
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
 
-        try:
-            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
-        except ValueError as e:
-            raise ValueError(
-                f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
-            ) from e
+        if not isinstance(value, date) or value is None:
+            raise ValueError("payroll_timestamp must be of type Date")
 
         return value
 
     @validates("collection_timestamp")
     def validate_collection_timestamp(self, key, value):
-        if value is not None and not isinstance(value, str):
+        if isinstance(value, str):
             try:
-                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
             except ValueError as e:
                 raise ValueError(
                     f"Invalid collection_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
                 ) from e
+
+        if not isinstance(value, date) or value is None:
+            raise ValueError("collection_timestamp must be of type Date")
 
         return value
 

@@ -9,7 +9,8 @@ from typing import Optional
 from typing import List
 from typing import Dict
 
-from sqlalchemy import select, Row, asc
+from sqlalchemy import select
+from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
@@ -21,8 +22,7 @@ from app_config import RequestWithUser
 from decorators.token_required import token_required
 
 from models.shipment import Shipment
-from models.product import Product
-from models.route import Route
+from models.driver_payroll import DriverPayroll
 
 from decimal import localcontext, ROUND_HALF_UP
 
@@ -166,9 +166,26 @@ def get_aggregated_shipment_list() -> Tuple[Response, int]:
 @token_required
 def post_shipment() -> Tuple[Response, int]:
     try:
+        shipment_dict = request.get_json()
+        driver_code: int | None = shipment_dict["driver_code"]
+
+        driver_payroll_stmt = (
+            select(DriverPayroll.payroll_code)
+            .where(
+                DriverPayroll.driver_code == driver_code,
+                DriverPayroll.deleted == False,
+                DriverPayroll.paid == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+            .order_by(desc(DriverPayroll.payroll_code))
+        )
+        driver_payroll_code = db_session.scalar(driver_payroll_stmt)
+        shipment_dict["driver_payroll_code"] = driver_payroll_code
+
         # json to db object
         payload = Shipment(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **shipment_dict,
+            modification_user=request.current_user.user_id,
         )
 
         # add to database

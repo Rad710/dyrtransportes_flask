@@ -1,5 +1,7 @@
-from datetime import datetime, date
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
+from datetime import date
+from decimal import Decimal
+from decimal import InvalidOperation
 from dataclasses import dataclass
 
 from typing import Optional
@@ -115,15 +117,16 @@ class Shipment(Base):
 
     @validates("shipment_date")
     def validate_shipment_date(self, key, value):
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError("shipment_date must not be null")
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid shipment_date: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
 
-        try:
-            value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
-        except ValueError as e:
-            raise ValueError(
-                f"Invalid shipment_date: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
-            ) from e
+        if not isinstance(value, date) or value is None:
+            raise ValueError("shipment_date must be of type Date")
 
         return value
 
