@@ -91,10 +91,12 @@ def get_shipment_list() -> Tuple[Response, int]:
 @token_required
 def get_aggregated_shipment_list() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
+    if shipment_payroll_code_param is None:
+        logger.error("Invalid 'shipment_payroll_code' parameter")
+        return jsonify({"message": "Parámetros inválidos"}), 400
+
     try:
-        shipment_payroll_code: Optional[int] = (
-            int(shipment_payroll_code_param) if shipment_payroll_code_param else None
-        )
+        shipment_payroll_code: int = int(shipment_payroll_code_param)
     except ValueError as e:
         logger.error("Invalid 'shipment_payroll_code' parameter %s", e)
         return jsonify({"message": "Parámetros inválidos"}), 400
@@ -103,10 +105,8 @@ def get_aggregated_shipment_list() -> Tuple[Response, int]:
         stmt = select(Shipment).where(
             Shipment.deleted == False,
             Shipment.modification_user == request.current_user.user_id,
+            Shipment.shipment_payroll_code == shipment_payroll_code,
         )
-
-        if shipment_payroll_code:
-            stmt = stmt.where(Shipment.shipment_payroll_code == shipment_payroll_code)
 
         shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
 
