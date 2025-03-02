@@ -78,7 +78,7 @@ class ShipmentPayroll(Base):
                     f"Invalid collection_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
                 ) from e
 
-        if not isinstance(value, date) or value is None:
+        if value is not None and not isinstance(value, date):
             raise ValueError("collection_timestamp must be of type Date")
 
         return value

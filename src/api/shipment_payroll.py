@@ -181,6 +181,83 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar planilla"}), 500
 
 
+@app.route(
+    "/api/shipment-payroll/<int:payroll_code>/collection-status", methods=["PATCH"]
+)
+@token_required
+def update_shipment_payroll_collection_status(
+    payroll_code: int,
+) -> Tuple[Response, int]:
+    try:
+        # Get the entry to update
+        stmt = select(ShipmentPayroll).where(
+            ShipmentPayroll.payroll_code == payroll_code,
+        )
+        entry_to_update: Optional[ShipmentPayroll] = db_session.scalar(stmt)
+
+        if entry_to_update is None:
+            logger.error(
+                "update collection status, payroll not found: %s", payroll_code
+            )
+            return jsonify({"message": "Planilla no encontrada"}), 404
+
+        # Get the payload
+        payload = request.get_json()
+
+        if "collected" not in payload:
+            logger.error("update collection status, missing collected field")
+            return jsonify({"message": "Campo 'collected' requerido"}), 400
+
+        # Update only the collection-related fields
+        entry_to_update.collected = payload["collected"]
+        # Set collection_timestamp to current timestamp if collected, otherwise set to None
+        if payload["collected"]:
+            entry_to_update.collection_timestamp = datetime.now()
+        else:
+            entry_to_update.collection_timestamp = None
+
+        entry_to_update.modification_user = request.current_user.user_id
+
+        logger.info(
+            "update collection status, payroll: %s, status: %s",
+            payroll_code,
+            "collected" if entry_to_update.collected else "uncollected",
+        )
+
+        db_session.commit()
+
+        return (
+            jsonify(
+                {
+                    **asdict(entry_to_update),
+                    "message": f"Estado de cobranza actualizado a {'cobrado' if entry_to_update.collected else 'no cobrado'}",
+                }
+            ),
+            200,
+        )
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("invalid collection status update: %s", e)
+        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("update collection status: connection error %s", e)
+        return (
+            jsonify(
+                {
+                    "message": "Error al actualizar estado de cobranza: problema de conexión"
+                }
+            ),
+            503,
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("update collection status, error: %s", e)
+        return jsonify({"message": "Error al actualizar estado de cobranza"}), 500
+
+
 @app.route("/api/shipment-payroll/<int:payroll_code>", methods=["DELETE"])
 @token_required
 def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
