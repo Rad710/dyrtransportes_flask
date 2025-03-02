@@ -290,6 +290,83 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar Carga"}), 500
 
 
+@app.route("/api/move-shipments", methods=["PATCH"])
+@token_required
+def move_shipments() -> Tuple[Response, int]:
+    try:
+        # Get payload from request
+        payload = request.get_json()
+
+        # Validate payload
+        if not isinstance(payload, dict):
+            return jsonify({"message": "Payload inválido"}), 400
+
+        shipment_payroll_code = payload.get("shipmentPayrollCode")
+        shipment_codes = payload.get("shipmentCodeList")
+
+        if not isinstance(shipment_payroll_code, int) or not isinstance(
+            shipment_codes, list
+        ):
+            return jsonify({"message": "Formato de datos inválido"}), 400
+
+        if not shipment_codes:
+            return jsonify({"message": "Lista de cargas vacía"}), 400
+
+        # Find all shipments that belong to the current user
+        stmt = select(Shipment).where(
+            Shipment.shipment_code.in_(shipment_codes),
+            Shipment.modification_user == request.current_user.user_id,
+        )
+        shipments_to_update = db_session.scalars(stmt).all()
+
+        if not shipments_to_update:
+            logger.error("move shipments, no shipments found")
+            return jsonify({"message": "No se encontraron cargas para actualizar"}), 404
+
+        # Track successfully updated shipments
+        updated_shipment_codes = []
+
+        # Update shipment_payroll_code for each shipment
+        for shipment in shipments_to_update:
+            shipment.shipment_payroll_code = shipment_payroll_code
+            shipment.modification_user = request.current_user.user_id
+            updated_shipment_codes.append(shipment.shipment_code)
+
+        db_session.commit()
+
+        logger.info(
+            "Updated shipment_payroll_code to %s for shipments: %s",
+            shipment_payroll_code,
+            updated_shipment_codes,
+        )
+
+        return (
+            jsonify(
+                {
+                    "message": "Cargas actualizadas exitosamente",
+                }
+            ),
+            200,
+        )
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("move shipments, invalid data error: %s", e)
+        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("move shipments, connection error: %s", e)
+        return (
+            jsonify({"message": "Error al actualizar cargas: problema de conexión"}),
+            503,
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("move shipments, database error: %s", e)
+        return jsonify({"message": "Error al actualizar cargas"}), 500
+
+
 @app.route("/api/shipment/<int:shipment_code>", methods=["DELETE"])
 @token_required
 def delete_shipment(shipment_code: int) -> Tuple[Response, int]:
