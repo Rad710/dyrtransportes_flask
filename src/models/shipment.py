@@ -111,6 +111,8 @@ class Shipment(Base):
             "dispatch_code",
             "receipt_code",
             "shipment_date",
+            "route_code",
+            "product_code",
             name="unique_driver_ticket_date",
         ),
     )

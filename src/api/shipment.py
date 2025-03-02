@@ -29,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError
 
 from app_config import logger
 from app_config import app
@@ -219,8 +220,26 @@ def post_shipment() -> Tuple[Response, int]:
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table Shipment, connection error: %s", e)
-
         return jsonify({"message": "Error al agregar Carga: problema de conexión"}), 503
+
+    except IntegrityError as e:
+        db_session.rollback()
+        error_message = str(e)
+        logger.error("insert table Shipment, error: %s", e)
+
+        # Check for duplicate entry error
+        if (
+            "Duplicate entry" in error_message
+            and "unique_driver_ticket_date" in error_message
+        ):
+            return jsonify({"message": "Error al agregar Carga: carga duplicada"}), 400
+        else:
+            return (
+                jsonify(
+                    {"message": "Error al agregar Carga: error de integridad de datos"}
+                ),
+                400,
+            )
 
     except SQLAlchemyError as e:
         db_session.rollback()
