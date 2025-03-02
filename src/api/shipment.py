@@ -1,13 +1,25 @@
-from flask import request
-from flask import jsonify
-from flask import Response
-from flask import make_response
+import io
 
 from typing import Sequence
 from typing import Tuple
 from typing import Optional
 from typing import List
 from typing import Dict
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
+from openpyxl.styles import numbers
+from openpyxl.styles import Border
+from openpyxl.styles import Side
+from openpyxl.styles import Font
+from openpyxl.styles import PatternFill
+from openpyxl.utils import get_column_letter
+
+from flask import request
+from flask import jsonify
+from flask import Response
+from flask import make_response
+
 
 from sqlalchemy import select
 from sqlalchemy import desc
@@ -25,6 +37,8 @@ from models.shipment import Shipment
 from models.driver_payroll import DriverPayroll
 
 from decimal import localcontext, ROUND_HALF_UP
+
+from datetime import datetime
 
 from dataclasses import asdict
 
@@ -451,18 +465,431 @@ def delete_shipment_list() -> Tuple[Response, int]:
 @app.route("/api/export-shipments", methods=["GET"])
 @token_required
 def export_shipments() -> Tuple[Response, int]:
-    # Similar implementation to export_routes, but for shipments
-    # This is an additional endpoint that matches the style of the route API
-    # Add implementation as needed
+    shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
+    if shipment_payroll_code_param is None:
+        logger.error("Invalid 'shipment_payroll_code' parameter")
+        return jsonify({"message": "Parámetros inválidos"}), 400
 
-    # Example implementation skeleton:
-    shipment_response, code = get_shipment_list()
+    try:
+        shipment_payroll_code: int = int(shipment_payroll_code_param)
+    except ValueError as e:
+        logger.error("Invalid 'shipment_payroll_code' parameter %s", e)
+        return jsonify({"message": "Parámetros inválidos"}), 400
 
-    if code != 200 or not shipment_response.is_json or shipment_response.json is None:
-        logger.error("export Shipments, fetch Shipments error")
-        return jsonify({"message": "Error enviar archivo Excel"}), 500
+    try:
+        stmt = (
+            select(Shipment)
+            .where(
+                Shipment.deleted == False,
+                Shipment.modification_user == request.current_user.user_id,
+                Shipment.shipment_payroll_code == shipment_payroll_code,
+            )
+            .order_by(
+                Shipment.product_code, Shipment.route_code, Shipment.shipment_code
+            )
+        )
+        shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
 
-    # Implementation would continue here with Excel generation
-    # Similar to the implementation in export_routes
+    except SQLAlchemyError as e:
+        logger.error("export Shipments, fetch Shipments error: %s", e)
+        return jsonify({"message": "Error al crear archivo Excel"}), 500
 
-    return jsonify({"message": "Not implemented yet"}), 501
+    # dict for subtotals
+    subtotal_groups: dict[str, str | int] = {}
+    default_group = {
+        "product": "",
+        "origin": 0,
+        "destination": 0,
+        "diff": "",
+        "tol": "",
+        "diff_tol": "",
+        "subtotal": "",
+        "last_entry": "",
+        "last_row": 0,
+    }
+
+    group_counter = 6
+    first_row = 0
+    for shipment in shipments:
+        group = (shipment.route_code, shipment.product_code)
+
+        if group not in subtotal_groups:
+            group_counter += 1
+            subtotal_groups[group] = default_group.copy()
+            first_row = group_counter
+            subtotal_groups[group]["product"] = shipment.product_name
+
+        subtotal_groups[group]["origin"] += shipment.origin_weight
+        subtotal_groups[group]["destination"] += shipment.destination_weight
+        subtotal_groups[group]["diff"] = f"=SUM(L{first_row}:L{group_counter})"
+        subtotal_groups[group]["tol"] = f"=SUM(M{first_row}:M{group_counter})"
+        subtotal_groups[group]["diff_tol"] = f"=SUM(N{first_row}:N{group_counter})"
+        subtotal_groups[group]["subtotal"] = f"=SUM(P{first_row}:P{group_counter})"
+        subtotal_groups[group]["last_entry"] = (
+            shipment.dispatch_code + "|" + shipment.receipt_code
+        )
+        subtotal_groups[group]["last_row"] = group_counter
+
+        group_counter += 1
+
+    # Create Excel file in memory
+    output = io.BytesIO()
+    workbook = Workbook()
+    sheet = workbook.active
+
+    sheet.column_dimensions["A"].width = 2.64
+    sheet.column_dimensions["B"].width = 11.00
+    sheet.column_dimensions["C"].width = 20.55
+    sheet.column_dimensions["D"].width = 9.09
+    sheet.column_dimensions["E"].width = 11.82
+    sheet.column_dimensions["F"].width = 18.64
+    sheet.column_dimensions["G"].width = 17.64
+    sheet.column_dimensions["H"].width = 9.91
+    sheet.column_dimensions["I"].width = 9.91
+    sheet.column_dimensions["J"].width = 10.91
+    sheet.column_dimensions["K"].width = 11.09
+    sheet.column_dimensions["L"].width = 7.18
+    sheet.column_dimensions["M"].width = 6.27
+    sheet.column_dimensions["N"].width = 6.36
+    sheet.column_dimensions["O"].width = 6.27
+    sheet.column_dimensions["P"].width = 14.64
+
+    # Agregar la fecha como la primera fila
+    sheet.append([])  # Agregar una fila en blanco después de la fecha
+    # Agregar una fila en blanco después de la fecha
+    sheet.append(["D & R TRANSPORTES"])
+
+    # Obtener el rango de columnas con valores None
+    column_start = 1  # Cambiar al índice de la primera columna con valor None
+    column_end = 16  # Cambiar al índice de la última columna con valor None
+
+    # Combinar las celdas en el rango de columnas
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=column_start,
+        end_row=sheet.max_row,
+        end_column=column_end,
+    )
+
+    # Centrar el contenido en la celda combinada
+    merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Aplicar el estilo de fuente deseado (Arial Black, size 22, purple color)
+    # Using a standard purple color index
+    font = Font(name="Arial Black", size=22, color="800080")
+    merged_cell.font = font
+
+    sheet.row_dimensions[2].height = 35
+
+    sheet.append([])  # Agregar una fila en blanco después de la fecha
+    sheet.append([None, datetime.now().strftime("%d/%m/%Y")])
+    sheet.append([])  # Agregar una fila en blanco después de la fecha
+
+    headers = [
+        "N°",
+        "Fecha",
+        "Chofer",
+        "Chapa",
+        "Producto",
+        "Origen",
+        "Destino",
+        "Remision",
+        "Tiquet",
+        "Kilos Origen",
+        "Kilos Destino",
+        "Dif.",
+        "Tolera",
+        "Dif. Tol.",
+        "Precio",
+        "Total",
+    ]
+    sheet.append(headers)
+
+    # Aplicar bordes y relleno a las celdas del encabezado
+    for col_idx, _ in enumerate(headers, start=1):
+        col_letter = get_column_letter(col_idx)
+        cell = sheet[f"{col_letter}6"]
+
+        # Aplicar bordes
+        thin_border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+        cell.border = thin_border
+
+        # Aplicar relleno con el color Gold, Accent 4, Lighter 40%
+        fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+        cell.fill = fill
+
+        # Aplicar alineación vertical y horizontal en la celda
+        cell.alignment = Alignment(horizontal="left", vertical="bottom")
+
+    sheet.row_dimensions[6].height = 30
+
+    # Agregar filas de datos
+    index = 1
+    counter = 7
+    for shipment in shipments:
+        row = [
+            index,
+            shipment.shipment_date.strftime("%d/%m/%Y"),
+            shipment.driver_name,
+            shipment.truck_plate,
+            shipment.product_name,
+            shipment.origin,
+            shipment.destination,
+            shipment.dispatch_code,
+            shipment.receipt_code,
+            shipment.origin_weight,
+            shipment.destination_weight,
+            f"=+K{counter}-J{counter}",
+            f"=ROUND(K{counter}*0.002, 0)",
+            f"=+M{counter}+L{counter}",
+            shipment.price,
+            f"=ROUND(K{counter}*O{counter}, 0)",
+        ]
+        sheet.append(row)
+
+        for col in range(9, 17):
+            cell = sheet.cell(row=sheet.max_row, column=col)
+
+            if col == 15:
+                cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+            else:
+                cell.number_format = "#,##0"
+
+        for col in range(1, 17):
+            cell = sheet.cell(row=sheet.max_row, column=col)
+            thin_border = Border(
+                left=Side(style="thin"),
+                right=Side(style="thin"),
+                top=Side(style="thin"),
+                bottom=Side(style="thin"),
+            )
+            cell.border = thin_border
+
+        group = (shipment.route_code, shipment.product_code)
+        if (
+            subtotal_groups[group]["last_entry"]
+            == shipment.dispatch_code + "|" + shipment.receipt_code
+        ):
+            counter += 1
+
+            sheet.append(
+                [
+                    "Subtotal",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    subtotal_groups[group]["origin"],
+                    subtotal_groups[group]["destination"],
+                    subtotal_groups[group]["diff"],
+                    subtotal_groups[group]["tol"],
+                    subtotal_groups[group]["diff_tol"],
+                    None,
+                    subtotal_groups[group]["subtotal"],
+                ]
+            )
+
+            # Obtener el rango de columnas con valores None
+            column_start = 1  # Cambiar al índice de la primera columna con valor None
+            column_end = 9  # Cambiar al índice de la última columna con valor None
+
+            # Combinar las celdas en el rango de columnas
+            sheet.merge_cells(
+                start_row=sheet.max_row,
+                start_column=column_start,
+                end_row=sheet.max_row,
+                end_column=column_end,
+            )
+
+            # Centrar el contenido en la celda combinada
+            merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
+            merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            # Formatear columnas 8 a 15 como números
+            for col in range(10, 17):
+                cell = sheet.cell(row=sheet.max_row, column=col)
+
+                if col == 15:
+                    cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+                else:
+                    cell.number_format = "#,##0"
+
+            for col in range(1, 17):
+                cell = sheet.cell(row=sheet.max_row, column=col)
+                thin_border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
+                )
+                cell.border = thin_border
+
+                # Aplicar relleno con el color Gray, Accent 4, Lighter 60%
+                # Gray, Accent 4, Lighter 60%
+                fill = PatternFill(
+                    start_color="969696", end_color="969696", fill_type="solid"
+                )
+                cell.fill = fill
+
+        counter += 1
+        index += 1
+
+    total = {
+        "origin": "=",
+        "destination": "=",
+        "diff": "=",
+        "tol": "=",
+        "diff_tol": "=",
+        "total": "=",
+        "products": {},
+    }
+    last_row = None
+    for group, subtotal_group in subtotal_groups.items():
+        last_row = subtotal_group["last_row"] + 1
+
+        total["origin"] += f"+J{last_row}"
+        total["destination"] += f"+K{last_row}"
+        total["diff"] += f"+L{last_row}"
+        total["tol"] += f"+M{last_row}"
+        total["diff_tol"] += f"+N{last_row}"
+        subtotal_row = f"+P{last_row}"
+        total["total"] += subtotal_row
+
+        product = subtotal_group["product"]
+        if product not in total["products"]:
+            total["products"][product] = "="
+
+        total["products"][product] += subtotal_row
+
+    sheet.append(
+        [
+            "TOTAL",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            total["origin"],
+            total["destination"],
+            total["diff"],
+            total["tol"],
+            total["diff_tol"],
+            None,
+            total["total"],
+        ]
+    )
+
+    # Obtener el rango de columnas con valores None
+    column_start = 1  # Cambiar al índice de la primera columna con valor None
+    column_end = 9  # Cambiar al índice de la última columna con valor None
+
+    # Combinar las celdas en el rango de columnas
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=column_start,
+        end_row=sheet.max_row,
+        end_column=column_end,
+    )
+
+    # Centrar el contenido en la celda combinada
+    merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Formatear columnas 8 a 15 como números
+    for col in range(10, 17):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+
+        if col == 15:
+            cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+        else:
+            cell.number_format = "#,##0"
+
+    for col in range(1, 17):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        thin_border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+        cell.border = thin_border
+
+        fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+        cell.fill = fill
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            f"=+P{last_row + 1}/11",
+        ]
+    )
+    cell = sheet.cell(row=sheet.max_row, column=16)
+    cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+
+    sheet.append([])
+    for product, subtotal in total["products"].items():
+        sheet.append(
+            [
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                product,
+                subtotal,
+            ]
+        )
+        cell = sheet.cell(row=sheet.max_row, column=16)
+        cell.number_format = "#,##0"
+
+    # Guardar el archivo Excel en el flujo de salida
+    workbook.save(output)
+    output.seek(0)
+
+    # Crear la respuesta para el cliente con el archivo Excel
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response.headers["Content-Disposition"] = (
+        f"attachment; filename=cobranza_{shipment_payroll_code}.xlsx"
+    )
+    logger.warning(f"Cobranza exportada {shipment_payroll_code}")
+
+    return response
