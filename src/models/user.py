@@ -12,8 +12,10 @@ from sqlalchemy.sql import functions
 
 from .base import Base
 
+
 def generate_uuid():
     return str(uuid.uuid4())
+
 
 class User(Base):
     __tablename__ = "user"
@@ -21,7 +23,7 @@ class User(Base):
     user_id: Mapped[str] = mapped_column(
         String(36),  # UUID strings are 36 characters
         primary_key=True,
-        default=generate_uuid
+        default=generate_uuid,
     )
 
     email: Mapped[str] = mapped_column(String(100), unique=True)
@@ -31,8 +33,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
 
     modification_user: Mapped[str] = mapped_column(String(100))
-    
+
     modification_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.current_timestamp(),
-        onupdate=functions.current_timestamp()
+        TIMESTAMP,
+        server_default=functions.current_timestamp(),
+        onupdate=functions.current_timestamp(),
     )
