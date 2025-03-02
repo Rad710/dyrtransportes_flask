@@ -6,6 +6,10 @@ from typing import Optional
 from typing import List
 from typing import Dict
 
+from datetime import datetime
+
+from dataclasses import asdict
+
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.styles import numbers
@@ -36,11 +40,6 @@ from decorators.token_required import token_required
 from models.shipment import Shipment
 from models.driver_payroll import DriverPayroll
 
-from decimal import localcontext, ROUND_HALF_UP
-
-from datetime import datetime
-
-from dataclasses import asdict
 
 request: RequestWithUser
 
@@ -490,6 +489,10 @@ def export_shipments() -> Tuple[Response, int]:
         )
         shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
 
+        if shipments is None or len(shipments) <= 0:
+            logger.error("export Shipments, fetch Shipments returned empty list")
+            return jsonify({"message": "Error al crear archivo Excel, sin datos"}), 500
+
     except SQLAlchemyError as e:
         logger.error("export Shipments, fetch Shipments error: %s", e)
         return jsonify({"message": "Error al crear archivo Excel"}), 500
@@ -890,6 +893,6 @@ def export_shipments() -> Tuple[Response, int]:
     response.headers["Content-Disposition"] = (
         f"attachment; filename=cobranza_{shipment_payroll_code}.xlsx"
     )
-    logger.warning(f"Cobranza exportada {shipment_payroll_code}")
+    logger.info("Shipment Excel file exported: %s", shipment_payroll_code)
 
-    return response
+    return response, 200
