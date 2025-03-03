@@ -192,6 +192,7 @@ def update_shipment_payroll_collection_status(
         # Get the entry to update
         stmt = select(ShipmentPayroll).where(
             ShipmentPayroll.payroll_code == payroll_code,
+            ShipmentPayroll.modification_user == request.current_user.user_id,
         )
         entry_to_update: Optional[ShipmentPayroll] = db_session.scalar(stmt)
 
