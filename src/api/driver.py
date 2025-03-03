@@ -66,7 +66,9 @@ def get_driver_list() -> Tuple[Response, int]:
             .where(
                 Driver.modification_user == request.current_user.user_id,
             )
-            .order_by(asc(Driver.driver_name), asc(Driver.driver_surname))
+            .order_by(
+                asc(Driver.deleted), asc(Driver.driver_name), asc(Driver.driver_surname)
+            )
         )
 
         drivers: Sequence[Driver] = db_session.scalars(stmt).all()
