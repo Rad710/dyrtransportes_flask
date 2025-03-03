@@ -83,7 +83,11 @@ def register():
                 {
                     "message": "Registration successful",
                     "token": token,
-                    "user": {"user_id": new_user.user_id, "email": new_user.email},
+                    "user": {
+                        "user_id": new_user.user_id,
+                        "email": new_user.email,
+                        "name": new_user.name,
+                    },
                 }
             ),
             201,
@@ -134,7 +138,12 @@ def login():
         return jsonify(
             {
                 "token": token,
-                "user": {"user_id": user.user_id, "email": user.email},
+                "user": {
+                    "user_id": user.user_id,
+                    "email": user.email,
+                    "name": user.name,
+                    "remember_me": remember_me,
+                },
                 "message": "Login successful",
             }
         )
