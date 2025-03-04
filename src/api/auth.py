@@ -19,6 +19,8 @@ from models.user import User
 
 from utils.security import hash_password
 from utils.security import verify_password
+from utils.security import validate_user_email
+from utils.security import validate_user_password
 
 
 @app.route("/api/auth/sign-up", methods=["POST"])
@@ -32,20 +34,18 @@ def register():
         if not name or not email or not password:
             return jsonify({"message": "Missing required fields"}), 400
 
-        # Validate email format
-        email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-        if not re.match(email_pattern, email):
-            return jsonify({"message": "Invalid email format"}), 400
-
-        # Validate password strength (example: minimum 8 characters)
-        if len(password) < 8:
-            return (
-                jsonify({"message": "Password must be at least 8 characters long"}),
-                400,
-            )
-
         if len(name) <= 0:
             return jsonify({"message": "Name must not be empty"}), 400
+
+        # Validate email format
+        email_validation = validate_user_email(email)
+        if email_validation:
+            return jsonify({"message": email_validation}), 400
+
+        # Validate password strength (example: minimum 8 characters)
+        password_validation = validate_user_password(password)
+        if password_validation:
+            return jsonify({"message": password_validation}), 400
 
         # Check if user already exists
         stmt = select(User).where(User.email == email)
@@ -71,7 +71,6 @@ def register():
         token = jwt.encode(
             {
                 "user_id": new_user.user_id,
-                "email": new_user.email,
                 "exp": datetime.now(timezone.utc) + timedelta(days=7),
             },
             app.config["SECRET_KEY"],
@@ -84,7 +83,6 @@ def register():
                     "message": "Registration successful",
                     "token": token,
                     "user": {
-                        "user_id": new_user.user_id,
                         "email": new_user.email,
                         "name": new_user.name,
                     },
@@ -128,7 +126,6 @@ def login():
         token = jwt.encode(
             {
                 "user_id": user.user_id,
-                "email": user.email,
                 "exp": exp,
             },
             app.config["SECRET_KEY"],
@@ -139,7 +136,6 @@ def login():
             {
                 "token": token,
                 "user": {
-                    "user_id": user.user_id,
                     "email": user.email,
                     "name": user.name,
                     "remember_me": remember_me,

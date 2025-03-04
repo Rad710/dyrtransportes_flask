@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import TIMESTAMP
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import functions
@@ -39,3 +40,13 @@ class User(Base):
         server_default=functions.current_timestamp(),
         onupdate=functions.current_timestamp(),
     )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "email",
+            name="unique_email_user",
+        ),
+    )
+
+
+# TODO ADD USER AUDIT TABLE
