@@ -141,7 +141,7 @@ def upgrade():
             );
         END;
 
-        CREATE TRIGGER cascade_shipment_payroll_delete
+        CREATE TRIGGER cascade_shipment_payroll_delete_shipments
         AFTER UPDATE ON shipment_payroll
         FOR EACH ROW
         BEGIN

@@ -69,7 +69,7 @@ def upgrade():
             );
         END;
 
-        CREATE TRIGGER cascade_driver_payroll_delete
+        CREATE TRIGGER cascade_driver_payroll_delete_shipments_expenses
         AFTER UPDATE ON driver_payroll
         FOR EACH ROW
         BEGIN
@@ -77,6 +77,12 @@ def upgrade():
             IF NEW.deleted != OLD.deleted THEN
                 -- Update all shipments with the same driver_payroll_code to match the deleted status
                 UPDATE shipment
+                SET deleted = NEW.deleted,
+                    modification_timestamp = CURRENT_TIMESTAMP,
+                    modification_user = NEW.modification_user
+                WHERE driver_payroll_code = NEW.payroll_code;
+
+                UPDATE shipment_expense
                 SET deleted = NEW.deleted,
                     modification_timestamp = CURRENT_TIMESTAMP,
                     modification_user = NEW.modification_user
