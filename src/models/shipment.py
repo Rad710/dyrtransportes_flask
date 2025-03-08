@@ -1,5 +1,4 @@
 from datetime import datetime
-from datetime import date
 from decimal import Decimal
 from decimal import InvalidOperation
 from dataclasses import dataclass
@@ -10,7 +9,6 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Numeric
-from sqlalchemy import Date
 from sqlalchemy import TIMESTAMP
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -49,7 +47,7 @@ class Shipment(Base):
     __tablename__ = "shipment"
 
     shipment_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    shipment_date: Mapped[date] = mapped_column(Date)
+    shipment_date: Mapped[datetime] = mapped_column(TIMESTAMP)
 
     driver_name: Mapped[str] = mapped_column(String(100))
     truck_plate: Mapped[str] = mapped_column(String(100))
@@ -121,14 +119,14 @@ class Shipment(Base):
     def validate_shipment_date(self, key, value):
         if isinstance(value, str):
             try:
-                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").date()
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
             except ValueError as e:
                 raise ValueError(
                     f"Invalid shipment_date: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
                 ) from e
 
-        if not isinstance(value, date) or value is None:
-            raise ValueError("shipment_date must be of type Date")
+        if not isinstance(value, datetime) or value is None:
+            raise ValueError("shipment_date must be of type datetime")
 
         return value
 
@@ -213,7 +211,7 @@ class ShipmentAudit(Base):
     shipment_code: Mapped[int] = mapped_column(
         Integer, ForeignKey("shipment.shipment_code")
     )
-    shipment_date: Mapped[date] = mapped_column(Date)
+    shipment_date: Mapped[datetime] = mapped_column(TIMESTAMP)
 
     driver_name: Mapped[str] = mapped_column(String(100))
     driver_code: Mapped[int] = mapped_column(ForeignKey("driver.driver_code"))

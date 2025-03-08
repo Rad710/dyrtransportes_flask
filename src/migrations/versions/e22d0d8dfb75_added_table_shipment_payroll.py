@@ -66,7 +66,7 @@ def upgrade():
             modification_user
         )
         SELECT 
-            fecha,
+            TIMESTAMP(fecha, '03:00:00'),
             'dyrtransportes'
         FROM 
             dyrtransportes.planillas;

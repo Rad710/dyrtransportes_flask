@@ -1,16 +1,16 @@
-from datetime import datetime, date
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from dataclasses import dataclass
 
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy import Numeric
-from sqlalchemy import Date
 from sqlalchemy import TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import validates
 from sqlalchemy.sql import functions
 
 
@@ -19,7 +19,7 @@ from .base import Base
 
 @dataclass
 class ShipmentExpense(Base):
-    """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
+    """(LiquidacionGastos) Represents a shipment expenses like gas, etc.
 
     Attributes:
     * expense_code (int): Unique identifier for the expense.
@@ -32,33 +32,54 @@ class ShipmentExpense(Base):
     * modification_user (str): The user who created this payroll record.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "shipment_expense"
 
-    expense_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
-    expense_date: Mapped[date] = mapped_column(Date)
+    expense_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    expense_date: Mapped[datetime] = mapped_column(TIMESTAMP)
     receipt: Mapped[Optional[str]] = mapped_column(String(100))
     amount: Mapped[Decimal] = mapped_column(Numeric(20, 0))
     reason: Mapped[Optional[str]] = mapped_column(String(100))
     driver_payroll_code: Mapped[int] = mapped_column(
-        ForeignKey('driver_payroll.payroll_code'))
-    deleted: Mapped[bool] = mapped_column(server_default='0')
+        ForeignKey("driver_payroll.payroll_code")
+    )
+    deleted: Mapped[bool] = mapped_column(server_default="0")
     modification_user: Mapped[str] = mapped_column(String(100))
     modification_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=functions.current_timestamp(), onupdate=functions.current_timestamp())
+        TIMESTAMP,
+        server_default=functions.current_timestamp(),
+        onupdate=functions.current_timestamp(),
+    )
 
     # Mapped["DriverPayroll"]
     shipment_expense_driver_payroll = relationship(
-        "DriverPayroll", back_populates="driver_payroll_shipment_expenses")
+        "DriverPayroll", back_populates="driver_payroll_shipment_expenses"
+    )
 
     # Mapped[List["ShipmentExpenseAudit"]]
     shipment_expense_audits = relationship(
-        "ShipmentExpenseAudit", back_populates="audit_shipment_expense")
+        "ShipmentExpenseAudit", back_populates="audit_shipment_expense"
+    )
+
+    @validates("expense_date")
+    def validate_expense_date(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid expense_date: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
+
+        if not isinstance(value, datetime) or value is None:
+            raise ValueError("expense_date must be of type datetime")
+
+        return value
 
 
 @dataclass
 class ShipmentExpenseAudit(Base):
-    """(LiquidacionGastos) Represents a shipment expenses like gas, etc. 
+    """(LiquidacionGastos) Represents a shipment expenses like gas, etc.
 
     Attributes:
     * expense_code (int): Unique identifier for the expense.
@@ -71,22 +92,25 @@ class ShipmentExpenseAudit(Base):
     * modification_user (str): The user who created this payroll record.
     * modification_timestamp (TIMESTAMP): The last modification time.
     """
+
     __tablename__ = "shipment_expense_audit"
 
-    audit_code: Mapped[int] = mapped_column(
-        primary_key=True, autoincrement=True)
+    audit_code: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     expense_code: Mapped[int] = mapped_column(
-        ForeignKey('shipment_expense.expense_code'))
-    expense_date: Mapped[date] = mapped_column(Date)
+        ForeignKey("shipment_expense.expense_code")
+    )
+    expense_date: Mapped[datetime] = mapped_column(TIMESTAMP)
     receipt: Mapped[Optional[str]] = mapped_column(String(100))
     amount: Mapped[Decimal] = mapped_column(Numeric(20, 0))
     reason: Mapped[Optional[str]] = mapped_column(String(100))
     driver_payroll_code: Mapped[int] = mapped_column(
-        ForeignKey('driver_payroll.payroll_code'))
+        ForeignKey("driver_payroll.payroll_code")
+    )
     deleted: Mapped[bool] = mapped_column()
     modification_user: Mapped[str] = mapped_column(String(100))
     modification_timestamp: Mapped[datetime] = mapped_column(TIMESTAMP)
 
     # Mapped["Shipment"]
     audit_shipment_expense = relationship(
-        "ShipmentExpense", back_populates="shipment_expense_audits")
+        "ShipmentExpense", back_populates="shipment_expense_audits"
+    )

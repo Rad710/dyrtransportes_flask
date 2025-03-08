@@ -68,6 +68,21 @@ def upgrade():
                 NEW.modification_timestamp
             );
         END;
+
+        CREATE TRIGGER cascade_driver_payroll_delete
+        AFTER UPDATE ON driver_payroll
+        FOR EACH ROW
+        BEGIN
+            -- Only proceed if the deleted status has changed
+            IF NEW.deleted != OLD.deleted THEN
+                -- Update all shipments with the same driver_payroll_code to match the deleted status
+                UPDATE shipment
+                SET deleted = NEW.deleted,
+                    modification_timestamp = CURRENT_TIMESTAMP,
+                    modification_user = NEW.modification_user
+                WHERE driver_payroll_code = NEW.payroll_code;
+            END IF;
+        END;
         """
     )
 
@@ -96,8 +111,8 @@ def upgrade():
         SELECT 
             temp_driver_table.driver_code, 
             l.pagado, 
-            CONVERT(l.fecha_liquidacion, datetime), 
-            IF(l.pagado, CONVERT(l.fecha_liquidacion, datetime), NULL) paid_timestamp,
+            TIMESTAMP(l.fecha_liquidacion, '03:00:00'), 
+            IF(l.pagado, TIMESTAMP(l.fecha_liquidacion, '03:00:00'), NULL) paid_timestamp,
             'dyrtransportes'
         FROM 
             dyrtransportes.liquidaciones l 

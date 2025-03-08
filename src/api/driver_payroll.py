@@ -30,6 +30,7 @@ from decorators.token_required import token_required
 
 from models.driver_payroll import DriverPayroll
 from models.driver import Driver
+from models.shipment import Shipment
 
 request: RequestWithUser
 
@@ -94,6 +95,40 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
     except SQLAlchemyError as e:
         logger.error("fetch driver payrolls, error: %s", e)
         return jsonify({"message": "Error al obtener liquidaciones del chofer"}), 500
+
+
+@app.route("/api/driver-payroll/<int:payroll_code>/shipments", methods=["GET"])
+@token_required
+def get_driver_payroll_shipments(payroll_code: int) -> Tuple[Response, int]:
+    try:
+        driver_payroll_stmt = select(DriverPayroll).where(
+            DriverPayroll.payroll_code == payroll_code,
+            DriverPayroll.modification_user == request.current_user.user_id,
+            DriverPayroll.deleted == False,
+        )
+
+        driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
+        if driver_payroll is None:
+            logger.error("fetch table DriverPayroll, not found")
+            return jsonify({"message": "No se encontró la liquidación"}), 404
+
+        logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
+        logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
+
+        shipments_stmt = select(Shipment).where(
+            Shipment.deleted == False,
+            Shipment.modification_user == request.current_user.user_id,
+            Shipment.driver_payroll_code == payroll_code,
+        )
+
+        shipments: Sequence[Shipment] = db_session.scalars(shipments_stmt).all()
+        logger.info("fetch shipments table Shipment, len: %s", len(shipments))
+        logger.debug("fetch shipments table Shipment, shipments: %s", shipments)
+        return jsonify(shipments), 200
+
+    except SQLAlchemyError as e:
+        logger.error("fetch shipments table Shipment, error: %s", e)
+        return jsonify({"message": "Error al obtener planillas"}), 500
 
 
 @app.route("/api/driver-payroll/<int:payroll_code>/paid-status", methods=["PATCH"])

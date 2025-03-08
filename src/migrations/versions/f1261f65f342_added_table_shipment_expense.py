@@ -86,7 +86,7 @@ def upgrade():
             modification_user
         )
         SELECT
-            CONVERT(lg.fecha, DATE) expense_date,
+            TIMESTAMP(lg.fecha, '03:00:00') expense_date,
             lg.boleta receipt,
             lg.importe amount,
             lg.razon reason,
@@ -99,7 +99,7 @@ def upgrade():
             l.chofer = d.driver_name 
         INNER JOIN dyrtransportes.driver_payroll dp ON
             dp.driver_code = d.driver_code AND
-            dp.payroll_timestamp = CONVERT(l.fecha_liquidacion, DATETIME) 
+            dp.payroll_timestamp = TIMESTAMP(l.fecha_liquidacion, '03:00:00')
         WHERE d.driver_code IS NOT NULL;
         """
     )

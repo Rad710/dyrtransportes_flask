@@ -140,6 +140,21 @@ def upgrade():
                 NEW.modification_timestamp
             );
         END;
+
+        CREATE TRIGGER cascade_shipment_payroll_delete
+        AFTER UPDATE ON shipment_payroll
+        FOR EACH ROW
+        BEGIN
+            -- Only proceed if the deleted status has changed
+            IF NEW.deleted != OLD.deleted THEN
+                -- Update all shipments with the same shipment_payroll_code to match the deleted status
+                UPDATE shipment
+                SET deleted = NEW.deleted,
+                    modification_timestamp = CURRENT_TIMESTAMP,
+                    modification_user = NEW.modification_user
+                WHERE shipment_payroll_code = NEW.payroll_code;
+            END IF;
+        END;
         """
     )
 
@@ -188,7 +203,7 @@ def upgrade():
             modification_user
         )
         SELECT
-            c.fecha_viaje,
+            TIMESTAMP(c.fecha_viaje, '03:00:00'),
 
             d.driver_name,
             d.truck_plate, 
@@ -230,7 +245,7 @@ def upgrade():
         LEFT JOIN dyrtransportes.liquidacion_viajes lv ON
             lv.id = c.id
         LEFT JOIN dyrtransportes.shipment_payroll sp ON
-            sp.payroll_timestamp = CONVERT(c.fecha_creacion, DATETIME)
+            sp.payroll_timestamp = TIMESTAMP(c.fecha_creacion, '03:00:00')
         LEFT JOIN dyrtransportes.liquidaciones l ON
             l.id = lv.id_liquidacion 
         LEFT JOIN dyrtransportes.driver_payroll dp ON
