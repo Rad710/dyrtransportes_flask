@@ -108,15 +108,13 @@ def put_user_profile() -> Tuple[Response, int]:
         # Check for duplicate entry error
         if "Duplicate entry" in error_message and "unique_email_user" in error_message:
             return jsonify({"message": "El correo electrónico ya está en uso"}), 400
-        else:
-            return (
-                jsonify(
-                    {
-                        "message": "Error al actualizar Perfil: error de integridad de datos"
-                    }
-                ),
-                400,
-            )
+
+        return (
+            jsonify(
+                {"message": "Error al actualizar Perfil: error de integridad de datos"}
+            ),
+            400,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()

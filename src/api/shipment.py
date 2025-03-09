@@ -4,7 +4,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import Optional
 from typing import List
-from typing import Dict
 
 from datetime import datetime
 
@@ -39,9 +38,9 @@ from app_config import RequestWithUser
 from decorators.token_required import token_required
 
 from models.shipment import Shipment
-from models.api_models import GroupedShipments
+from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
-
+from models.shipment_payroll import ShipmentPayroll
 
 request: RequestWithUser
 
@@ -102,46 +101,44 @@ def get_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": "Error al obtener planillas"}), 500
 
 
-def shipment_list_to_grouped_shipments_list(
-    shipments: Sequence[Shipment],
-) -> List[GroupedShipments]:
-    grouped_shipments_dict: Dict[str, GroupedShipments] = {}
-    for shipment in shipments:
-        shipment_route_product = f"R{shipment.route_code}|P{shipment.product_code}"
+@app.route("/api/shipment/grouped-shipments", methods=["GET"])
+@token_required
+def get_grouped_shipments_list() -> Tuple[Response, int]:
+    shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
+    shipment_payroll_code = None
 
-        if shipment_route_product not in grouped_shipments_dict:
-            grouped_shipments_dict[shipment_route_product] = GroupedShipments(
-                product_name=shipment.product_name,
-                origin=shipment.origin,
-                destination=shipment.destination,
+    # If shipment_payroll_code_param is provided, validate it
+    if shipment_payroll_code_param:
+        try:
+            shipment_payroll_code = int(shipment_payroll_code_param)
+
+            # Validate that the shipment_payroll exists in the database
+            stmt_shipment_payroll = select(ShipmentPayroll).where(
+                ShipmentPayroll.payroll_code == shipment_payroll_code,
+                ShipmentPayroll.deleted == False,
+                ShipmentPayroll.modification_user == request.current_user.user_id,
             )
 
-        grouped_shipments_dict[shipment_route_product].add_shipment(shipment)
+            shipment_payroll = db_session.scalar(stmt_shipment_payroll)
+            if not shipment_payroll:
+                logger.error(
+                    "ShipmentPayroll with code %s not found", shipment_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
 
-        grouped_shipments_dict[shipment_route_product].update_subtotals(
-            origin_weight=shipment.origin_weight,
-            destination_weight=shipment.destination_weight,
-            difference=shipment.destination_weight - shipment.origin_weight,
-            money=shipment.price * shipment.destination_weight,
-        )
-
-    result = list(grouped_shipments_dict.items())
-    result.sort(key=lambda x: x[0].split("|"))
-    return [pair[1] for pair in result]
-
-
-@app.route(
-    "/api/shipment-payroll/<int:shipment_payroll_code>/shipments/grouped-shipments",
-    methods=["GET"],
-)
-@token_required
-def get_grouped_shipments_list(shipment_payroll_code: int) -> Tuple[Response, int]:
-    if shipment_payroll_code is None or not isinstance(shipment_payroll_code, int):
-        logger.error("Invalid 'shipment_payroll_code' parameter")
-        return jsonify({"message": "Parámetros inválidos"}), 400
+        except ValueError:
+            logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
 
     try:
-        stmt = (
+        stmt_shipment = (
             select(Shipment)
             .where(
                 Shipment.deleted == False,
@@ -156,8 +153,12 @@ def get_grouped_shipments_list(shipment_payroll_code: int) -> Tuple[Response, in
             )
         )
 
-        shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
+        if shipment_payroll_code:
+            stmt_shipment = stmt_shipment.where(
+                Shipment.shipment_payroll_code == shipment_payroll_code
+            )
 
+        shipments: Sequence[Shipment] = db_session.scalars(stmt_shipment).all()
         result = shipment_list_to_grouped_shipments_list(shipments)
 
         logger.info(
@@ -230,13 +231,13 @@ def post_shipment() -> Tuple[Response, int]:
             and "unique_driver_ticket_date" in error_message
         ):
             return jsonify({"message": "Error al agregar Carga: carga duplicada"}), 400
-        else:
-            return (
-                jsonify(
-                    {"message": "Error al agregar Carga: error de integridad de datos"}
-                ),
-                400,
-            )
+
+        return (
+            jsonify(
+                {"message": "Error al agregar Carga: error de integridad de datos"}
+            ),
+            400,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()
@@ -319,9 +320,9 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar Carga"}), 500
 
 
-@app.route("/api/shipment-payroll/move-shipments", methods=["PATCH"])
+@app.route("/api/shipments/change-shipment-payroll", methods=["PATCH"])
 @token_required
-def shipment_payroll_move_shipments() -> Tuple[Response, int]:
+def shipments_change_shipment_payroll() -> Tuple[Response, int]:
     try:
         # Get payload from request
         payload = request.get_json()
@@ -477,22 +478,44 @@ def delete_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar Carga"}), 500
 
 
-@app.route("/api/export-shipments", methods=["GET"])
+@app.route("/api/shipments/export-excel", methods=["GET"])
 @token_required
-def export_shipments() -> Tuple[Response, int]:
+def export_shipments_excel() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
-    if shipment_payroll_code_param is None:
-        logger.error("Invalid 'shipment_payroll_code' parameter")
-        return jsonify({"message": "Parámetros inválidos"}), 400
+    shipment_payroll_code = None
+
+    # If shipment_payroll_code_param is provided, validate it
+    if shipment_payroll_code_param:
+        try:
+            shipment_payroll_code = int(shipment_payroll_code_param)
+
+            # Validate that the shipment_payroll exists in the database
+            stmt_shipment_payroll = select(ShipmentPayroll).where(
+                ShipmentPayroll.payroll_code == shipment_payroll_code,
+                ShipmentPayroll.deleted == False,
+                ShipmentPayroll.modification_user == request.current_user.user_id,
+            )
+
+            shipment_payroll = db_session.scalar(stmt_shipment_payroll)
+            if not shipment_payroll:
+                logger.error(
+                    "ShipmentPayroll with code %s not found", shipment_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
 
     try:
-        shipment_payroll_code: int = int(shipment_payroll_code_param)
-    except ValueError as e:
-        logger.error("Invalid 'shipment_payroll_code' parameter %s", e)
-        return jsonify({"message": "Parámetros inválidos"}), 400
-
-    try:
-        stmt = (
+        stmt_shipment = (
             select(Shipment)
             .where(
                 Shipment.deleted == False,
@@ -506,7 +529,12 @@ def export_shipments() -> Tuple[Response, int]:
                 Shipment.shipment_code,
             )
         )
-        shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
+
+        if shipment_payroll_code:
+            stmt_shipment = stmt_shipment.where(
+                Shipment.shipment_payroll_code == shipment_payroll_code
+            )
+        shipments: Sequence[Shipment] = db_session.scalars(stmt_shipment).all()
 
         if shipments is None or len(shipments) <= 0:
             logger.error("export Shipments, fetch Shipments returned empty list")
