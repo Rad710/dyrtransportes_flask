@@ -39,6 +39,7 @@ from app_config import RequestWithUser
 from decorators.token_required import token_required
 
 from models.shipment import Shipment
+from models.api_models import GroupedShipments
 from models.driver_payroll import DriverPayroll
 
 
@@ -101,67 +102,63 @@ def get_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": "Error al obtener planillas"}), 500
 
 
-@app.route("/api/shipments-aggregated", methods=["GET"])
+def shipment_list_to_grouped_shipments_list(
+    shipments: Sequence[Shipment],
+) -> List[GroupedShipments]:
+    grouped_shipments_dict: Dict[str, GroupedShipments] = {}
+    for shipment in shipments:
+        shipment_route_product = f"R{shipment.route_code}|P{shipment.product_code}"
+
+        if shipment_route_product not in grouped_shipments_dict:
+            grouped_shipments_dict[shipment_route_product] = GroupedShipments(
+                product_name=shipment.product_name,
+                origin=shipment.origin,
+                destination=shipment.destination,
+            )
+
+        grouped_shipments_dict[shipment_route_product].add_shipment(shipment)
+
+        grouped_shipments_dict[shipment_route_product].update_subtotals(
+            origin_weight=shipment.origin_weight,
+            destination_weight=shipment.destination_weight,
+            difference=shipment.destination_weight - shipment.origin_weight,
+            money=shipment.price * shipment.destination_weight,
+        )
+
+    result = list(grouped_shipments_dict.items())
+    result.sort(key=lambda x: x[0].split("|"))
+    return [pair[1] for pair in result]
+
+
+@app.route(
+    "/api/shipment-payroll/<int:shipment_payroll_code>/shipments/grouped-shipments",
+    methods=["GET"],
+)
 @token_required
-def get_aggregated_shipment_list() -> Tuple[Response, int]:
-    shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
-    if shipment_payroll_code_param is None:
+def get_grouped_shipments_list(shipment_payroll_code: int) -> Tuple[Response, int]:
+    if shipment_payroll_code is None or not isinstance(shipment_payroll_code, int):
         logger.error("Invalid 'shipment_payroll_code' parameter")
         return jsonify({"message": "Parámetros inválidos"}), 400
 
     try:
-        shipment_payroll_code: int = int(shipment_payroll_code_param)
-    except ValueError as e:
-        logger.error("Invalid 'shipment_payroll_code' parameter %s", e)
-        return jsonify({"message": "Parámetros inválidos"}), 400
-
-    try:
-        stmt = select(Shipment).where(
-            Shipment.deleted == False,
-            Shipment.modification_user == request.current_user.user_id,
-            Shipment.shipment_payroll_code == shipment_payroll_code,
+        stmt = (
+            select(Shipment)
+            .where(
+                Shipment.deleted == False,
+                Shipment.modification_user == request.current_user.user_id,
+                Shipment.shipment_payroll_code == shipment_payroll_code,
+            )
+            .order_by(
+                Shipment.shipment_date,
+                Shipment.shipment_code,
+                Shipment.route_code,
+                Shipment.product_code,
+            )
         )
 
         shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
 
-        aggregated_shipments: Dict[str, Dict] = {}
-        # TODO: do this with a single query
-        for shipment in shipments:
-            shipment_product_route = (
-                f"{shipment.product_name}|{shipment.origin}|{shipment.destination}"
-            )
-
-            if shipment_product_route not in aggregated_shipments:
-                aggregated_shipments[shipment_product_route] = {
-                    "shipments": [],
-                    "subtotalOrigin": 0,
-                    "subtotalDestination": 0,
-                    "subtotalDifference": 0,
-                    "subtotalMoney": 0,
-                    "product": shipment.product_name,
-                    "origin": shipment.origin,
-                    "destination": shipment.destination,
-                }
-
-            aggregated_shipments[shipment_product_route]["shipments"].append(shipment)
-
-            aggregated_shipments[shipment_product_route][
-                "subtotalOrigin"
-            ] += shipment.origin_weight
-            aggregated_shipments[shipment_product_route][
-                "subtotalDestination"
-            ] += shipment.destination_weight
-            aggregated_shipments[shipment_product_route]["subtotalDifference"] += (
-                shipment.destination_weight - shipment.origin_weight
-            )
-
-            aggregated_shipments[shipment_product_route]["subtotalMoney"] += (
-                shipment.price * shipment.destination_weight
-            )
-
-        result = list(aggregated_shipments.items())
-        result.sort(key=lambda x: x[0].split("|"))
-        result = [pair[1] for pair in result]
+        result = shipment_list_to_grouped_shipments_list(shipments)
 
         logger.info(
             "fetch shipments table Shipment and aggregated, len: %s", len(shipments)
@@ -503,7 +500,10 @@ def export_shipments() -> Tuple[Response, int]:
                 Shipment.shipment_payroll_code == shipment_payroll_code,
             )
             .order_by(
-                Shipment.product_code, Shipment.route_code, Shipment.shipment_code
+                Shipment.route_code,
+                Shipment.product_code,
+                Shipment.shipment_date,
+                Shipment.shipment_code,
             )
         )
         shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
@@ -533,7 +533,7 @@ def export_shipments() -> Tuple[Response, int]:
     group_counter = 6
     first_row = 0
     for shipment in shipments:
-        group = (shipment.route_code, shipment.product_code)
+        group = f"R{shipment.route_code}|P{shipment.product_code}"
 
         if group not in subtotal_groups:
             group_counter += 1
@@ -693,7 +693,7 @@ def export_shipments() -> Tuple[Response, int]:
             )
             cell.border = thin_border
 
-        group = (shipment.route_code, shipment.product_code)
+        group = f"R{shipment.route_code}|P{shipment.product_code}"
         if (
             subtotal_groups[group]["last_entry"]
             == shipment.dispatch_code + "|" + shipment.receipt_code
@@ -776,7 +776,7 @@ def export_shipments() -> Tuple[Response, int]:
         "products": {},
     }
     last_row = None
-    for group, subtotal_group in subtotal_groups.items():
+    for _, subtotal_group in subtotal_groups.items():
         last_row = subtotal_group["last_row"] + 1
 
         total["origin"] += f"+J{last_row}"
