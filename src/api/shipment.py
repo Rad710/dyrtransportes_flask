@@ -319,9 +319,9 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar Carga"}), 500
 
 
-@app.route("/api/move-shipments", methods=["PATCH"])
+@app.route("/api/shipment-payroll/move-shipments", methods=["PATCH"])
 @token_required
-def move_shipments() -> Tuple[Response, int]:
+def shipment_payroll_move_shipments() -> Tuple[Response, int]:
     try:
         # Get payload from request
         payload = request.get_json()
