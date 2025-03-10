@@ -345,12 +345,12 @@ def delete_shipment_payrolls() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar planilla"}), 500
 
 
-@app.route("/api/export-shipment-payrolls", methods=["GET"])
+@app.route("/api/shipment-payrolls/export-excel", methods=["GET"])
 @token_required
 def export_shipment_payrolls() -> Tuple[Response, int]:
     # Get date range parameters
-    start_date_str = request.args.get("startDate", "")
-    end_date_str = request.args.get("endDate", "")
+    start_date_str = request.args.get("start_date", "")
+    end_date_str = request.args.get("end_date", "")
 
     try:
         # Convert date parameters as needed
@@ -443,7 +443,7 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         response.headers["Content-Disposition"] = (
-            "attachment; filename=lista_de_cobranzas.xlsx"
+            'attachment; filename="lista_de_planillas.xlsx"'
         )
 
         logger.info("exported ShipmentPayrolls excel file")

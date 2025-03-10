@@ -247,9 +247,9 @@ def delete_routes() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar ruta"}), 500
 
 
-@app.route("/api/export-routes", methods=["GET"])
+@app.route("/api/routes/export-excel", methods=["GET"])
 @token_required
-def export_routes() -> Tuple[Response, int]:
+def routes_export_excel() -> Tuple[Response, int]:
     route_response, code = get_route_list()
 
     if code != 200 or not route_response.is_json or route_response.json is None:
@@ -305,7 +305,7 @@ def export_routes() -> Tuple[Response, int]:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response.headers["Content-Disposition"] = (
-        "attachment; filename=lista_de_precios.xlsx"
+        'attachment; filename="lista_de_precios.xlsx"'
     )
 
     logger.info("exported Routes excel file")

@@ -66,7 +66,7 @@ def create_flask_app():
     app.config["SECRET_KEY"] = API_KEY
 
     if DEBUG:
-        CORS(app)
+        CORS(app, expose_headers=["Content-Disposition"])
 
     return app
 

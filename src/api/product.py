@@ -263,9 +263,9 @@ def delete_products() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar producto"}), 500
 
 
-@app.route("/api/export-products", methods=["GET"])
+@app.route("/api/products/export-excel", methods=["GET"])
 @token_required
-def export_products() -> Tuple[Response, int]:
+def products_export_excel() -> Tuple[Response, int]:
     product_response, code = get_product_list()
 
     if code != 200 or not product_response.is_json or product_response.json is None:
@@ -317,7 +317,7 @@ def export_products() -> Tuple[Response, int]:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response.headers["Content-Disposition"] = (
-        "attachment; filename=lista_de_productos.xlsx"
+        'attachment; filename="lista_de_productos.xlsx"'
     )
 
     logger.info("exported Products excel file")
