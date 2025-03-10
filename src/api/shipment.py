@@ -938,7 +938,7 @@ def export_shipments_excel() -> Tuple[Response, int]:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response.headers["Content-Disposition"] = (
-        f"attachment; filename=cobranza_{shipment_payroll_code}.xlsx"
+        f'attachment; filename="cobranza_{shipment_payroll_code or "todos"}.xlsx"'
     )
     logger.info("Shipment Excel file exported: %s", shipment_payroll_code)
 
