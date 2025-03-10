@@ -250,13 +250,21 @@ def delete_routes() -> Tuple[Response, int]:
 @app.route("/api/routes/export-excel", methods=["GET"])
 @token_required
 def routes_export_excel() -> Tuple[Response, int]:
-    route_response, code = get_route_list()
+    try:
+        stmt = (
+            select(Route)
+            .where(
+                Route.deleted == False,
+                Route.modification_user == request.current_user.user_id,
+            )
+            .order_by(asc(Route.origin), asc(Route.destination))
+        )
 
-    if code != 200 or not route_response.is_json or route_response.json is None:
-        logger.error("export Routes, fetch Routes error")
-        return jsonify({"message": "Error enviar archivo Excel"}), 500
+        route_list: Sequence[Route] = db_session.scalars(stmt).all()
 
-    route_list = [Route(**x) for x in route_response.json]
+    except SQLAlchemyError as e:
+        logger.error("fetch routes table Route, error: %s", e)
+        return jsonify({"message": "Error al crear archivo Excel"}), 500
 
     # Create file
     output = io.BytesIO()

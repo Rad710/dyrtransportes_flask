@@ -1,15 +1,20 @@
 import io
-from typing import Optional, Sequence, Tuple, List
+from datetime import datetime
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+from typing import List
+
 from dataclasses import asdict
 
 from flask import request, jsonify, Response, make_response
 from sqlalchemy import select, desc
 from sqlalchemy.sql import extract
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
-from datetime import datetime
 
 from openpyxl import Workbook
-from openpyxl.styles import numbers, Border, Side
+from openpyxl.styles import Border
+from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger, app, db_session, RequestWithUser

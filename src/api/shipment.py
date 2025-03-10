@@ -74,13 +74,37 @@ def get_shipment(shipment_code: int) -> Tuple[Response, int]:
 @token_required
 def get_shipment_list() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
-    try:
-        shipment_payroll_code: Optional[int] = (
-            int(shipment_payroll_code_param) if shipment_payroll_code_param else None
-        )
-    except ValueError as e:
-        logger.error("Invalid 'shipment_payroll_code' parameter %s", e)
-        return jsonify({"message": "Parámetros inválidos"}), 400
+    shipment_payroll_code = None
+
+    # If shipment_payroll_code_param is provided, validate it
+    if shipment_payroll_code_param:
+        try:
+            shipment_payroll_code = int(shipment_payroll_code_param)
+
+            # Validate that the shipment_payroll exists in the database
+            stmt_shipment_payroll = select(ShipmentPayroll).where(
+                ShipmentPayroll.payroll_code == shipment_payroll_code,
+                ShipmentPayroll.deleted == False,
+                ShipmentPayroll.modification_user == request.current_user.user_id,
+            )
+
+            shipment_payroll = db_session.scalar(stmt_shipment_payroll)
+            if not shipment_payroll:
+                logger.error(
+                    "ShipmentPayroll with code %s not found", shipment_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
 
     try:
         stmt = select(Shipment).where(
@@ -323,21 +347,46 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
 @app.route("/api/shipments/change-shipment-payroll", methods=["PATCH"])
 @token_required
 def shipments_change_shipment_payroll() -> Tuple[Response, int]:
+    shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
+    shipment_payroll_code = None
+
+    # If shipment_payroll_code_param is provided, validate it
+    if shipment_payroll_code_param:
+        try:
+            shipment_payroll_code = int(shipment_payroll_code_param)
+
+            # Validate that the shipment_payroll exists in the database
+            stmt_shipment_payroll = select(ShipmentPayroll).where(
+                ShipmentPayroll.payroll_code == shipment_payroll_code,
+                ShipmentPayroll.deleted == False,
+                ShipmentPayroll.modification_user == request.current_user.user_id,
+            )
+
+            shipment_payroll = db_session.scalar(stmt_shipment_payroll)
+            if not shipment_payroll:
+                logger.error(
+                    "ShipmentPayroll with code %s not found", shipment_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
     try:
         # Get payload from request
-        payload = request.get_json()
+        shipment_codes = request.get_json()
 
         # Validate payload
-        if not isinstance(payload, dict):
+        if not isinstance(shipment_codes, list):
             return jsonify({"message": "Payload inválido"}), 400
-
-        shipment_payroll_code = payload.get("shipmentPayrollCode")
-        shipment_codes = payload.get("shipmentCodeList")
-
-        if not isinstance(shipment_payroll_code, int) or not isinstance(
-            shipment_codes, list
-        ):
-            return jsonify({"message": "Formato de datos inválido"}), 400
 
         if not shipment_codes:
             return jsonify({"message": "Lista de cargas vacía"}), 400

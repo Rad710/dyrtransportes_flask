@@ -266,13 +266,21 @@ def delete_products() -> Tuple[Response, int]:
 @app.route("/api/products/export-excel", methods=["GET"])
 @token_required
 def products_export_excel() -> Tuple[Response, int]:
-    product_response, code = get_product_list()
+    try:
+        stmt = (
+            select(Product)
+            .where(
+                Product.deleted == False,
+                Product.modification_user == request.current_user.user_id,
+            )
+            .order_by(asc(Product.product_name))
+        )
 
-    if code != 200 or not product_response.is_json or product_response.json is None:
-        logger.error("export Products, fetch Products error")
-        return jsonify({"message": "Error enviar archivo Excel"}), 500
+        product_list: Sequence[Product] = db_session.scalars(stmt).all()
 
-    product_list = [Product(**x) for x in product_response.json]
+    except SQLAlchemyError as e:
+        logger.error("fetch products table Product, error: %s", e)
+        return jsonify({"message": "Error al obtener productos"}), 500
 
     # Create file
     output = io.BytesIO()

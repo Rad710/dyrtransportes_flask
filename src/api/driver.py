@@ -18,7 +18,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
 from openpyxl import Workbook
-from openpyxl.styles import numbers, Border, Side
+from openpyxl.styles import Border
+from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
@@ -264,7 +265,7 @@ def delete_drivers() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar chofer"}), 500
 
 
-@app.route("/api/driver/<int:driver_code>", methods=["PATCH"])
+@app.route("/api/driver/<int:driver_code>/restore", methods=["PATCH"])
 @token_required
 def restore_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -298,9 +299,9 @@ def restore_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al restaurar chofer"}), 500
 
 
-@app.route("/api/export-drivers", methods=["GET"])
+@app.route("/api/drivers/export-excel", methods=["GET"])
 @token_required
-def export_drivers() -> Tuple[Response, int]:
+def drivers_export_excel() -> Tuple[Response, int]:
     try:
         stmt = (
             select(Driver)
@@ -313,62 +314,62 @@ def export_drivers() -> Tuple[Response, int]:
 
         driver_list: Sequence[Driver] = db_session.scalars(stmt).all()
 
-        # Create file
-        output = io.BytesIO()
-        workbook = Workbook(write_only=False, iso_dates=False)
-        sheet = workbook.active
+    except SQLAlchemyError as e:
+        logger.error("export Drivers, error: %s", e)
+        return jsonify({"message": "Error al enviar archivo Excel"}), 500
 
-        headers = ["C.I.", "Nombre", "Apellido", "Chapa Camión", "Chapa Carreta"]
-        sheet.append(headers)
+    # Create file
+    output = io.BytesIO()
+    workbook = Workbook(write_only=False, iso_dates=False)
+    sheet = workbook.active
 
-        for col_idx in range(1, len(headers) + 1):
-            sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+    headers = ["C.I.", "Nombre", "Apellido", "Chapa Camión", "Chapa Carreta"]
+    sheet.append(headers)
 
-        # Estilo de borde
-        border_style = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
+    for col_idx in range(1, len(headers) + 1):
+        sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+
+    # Estilo de borde
+    border_style = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    # Aplicar el estilo de borde a cada celda en la fila
+    for cell in sheet[sheet.max_row]:
+        cell.border = border_style
+
+    # Agregar filas de datos
+    for driver in driver_list:
+        row = [
+            driver.driver_id,
+            driver.driver_name,
+            driver.driver_surname,
+            driver.truck_plate,
+            driver.trailer_plate,
+        ]
+
+        sheet.append(row)
 
         # Aplicar el estilo de borde a cada celda en la fila
         for cell in sheet[sheet.max_row]:
             cell.border = border_style
 
-        # Agregar filas de datos
-        for driver in driver_list:
-            row = [
-                driver.driver_id,
-                driver.driver_name,
-                driver.driver_surname,
-                driver.truck_plate,
-                driver.trailer_plate,
-            ]
+    # Guardar el archivo Excel en el flujo de salida
+    workbook.save(output)
+    output.seek(0)
 
-            sheet.append(row)
+    # Crear la respuesta para el cliente con el archivo Excel
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response.headers["Content-Disposition"] = (
+        "attachment; filename=nomina_de_choferes.xlsx"
+    )
 
-            # Aplicar el estilo de borde a cada celda en la fila
-            for cell in sheet[sheet.max_row]:
-                cell.border = border_style
+    logger.info("exported Drivers excel file")
 
-        # Guardar el archivo Excel en el flujo de salida
-        workbook.save(output)
-        output.seek(0)
-
-        # Crear la respuesta para el cliente con el archivo Excel
-        response = make_response(output.getvalue())
-        response.headers["Content-Type"] = (
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        response.headers["Content-Disposition"] = (
-            "attachment; filename=nomina_de_choferes.xlsx"
-        )
-
-        logger.info("exported Drivers excel file")
-
-        return response, 200
-
-    except SQLAlchemyError as e:
-        logger.error("export Drivers, error: %s", e)
-        return jsonify({"message": "Error al enviar archivo Excel"}), 500
+    return response, 200
