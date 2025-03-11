@@ -167,7 +167,6 @@ def get_grouped_shipments_list() -> Tuple[Response, int]:
             .where(
                 Shipment.deleted == False,
                 Shipment.modification_user == request.current_user.user_id,
-                Shipment.shipment_payroll_code == shipment_payroll_code,
             )
             .order_by(
                 Shipment.shipment_date,

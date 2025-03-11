@@ -55,7 +55,7 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
 @app.route("/api/shipment-expenses", methods=["GET"])
 @token_required
-def get_shipment_expense_list(payroll_code: int) -> Tuple[Response, int]:
+def get_shipment_expense_list() -> Tuple[Response, int]:
     driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
     driver_payroll_code = None
 
@@ -93,7 +93,6 @@ def get_shipment_expense_list(payroll_code: int) -> Tuple[Response, int]:
         shipment_expenses_stmt = select(ShipmentExpense).where(
             ShipmentExpense.deleted == False,
             ShipmentExpense.modification_user == request.current_user.user_id,
-            ShipmentExpense.driver_payroll_code == payroll_code,
         )
 
         if driver_payroll_code:
