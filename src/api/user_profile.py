@@ -52,16 +52,16 @@ def put_user_profile() -> Tuple[Response, int]:
             return jsonify({"message": "Name must not be empty"}), 400
 
         # Validate email format
-        email_validation = validate_user_email(email)
-        if email_validation:
-            return jsonify({"message": email_validation}), 400
+        email_error = validate_user_email(email)
+        if email_error:
+            return jsonify({"message": email_error}), 400
 
         # Validate new_password strength (example: minimum 8 characters)
-        new_password_validation = (
+        new_password_error = (
             validate_user_password(new_password) if new_password else None
         )
-        if new_password_validation:
-            return jsonify({"message": new_password_validation}), 400
+        if new_password_error:
+            return jsonify({"message": new_password_error}), 400
 
         entry_to_update.name = name
         entry_to_update.email = email

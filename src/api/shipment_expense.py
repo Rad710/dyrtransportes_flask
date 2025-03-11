@@ -1,5 +1,3 @@
-import io
-from datetime import datetime
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -34,6 +32,7 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
     try:
         stmt = select(ShipmentExpense).where(
             ShipmentExpense.expense_code == expense_code,
+            ShipmentExpense.deleted == False,
             ShipmentExpense.modification_user == request.current_user.user_id,
         )
 
@@ -54,29 +53,53 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error de transacción"}), 500
 
 
-@app.route("/api/driver-payroll/<int:payroll_code>/shipment-expenses", methods=["GET"])
+@app.route("/api/shipment-expenses", methods=["GET"])
 @token_required
-def get_driver_payroll_shipment_expenses(payroll_code: int) -> Tuple[Response, int]:
+def get_shipment_expense_list(payroll_code: int) -> Tuple[Response, int]:
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    driver_payroll_code = None
+
+    # If driver_payroll_code_param is provided, validate it
+    if driver_payroll_code_param:
+        try:
+            driver_payroll_code = int(driver_payroll_code_param)
+
+            # Validate that the driver_payroll exists in the database
+            stmt_driver_payroll = select(DriverPayroll).where(
+                DriverPayroll.payroll_code == driver_payroll_code,
+                DriverPayroll.deleted == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+
+            driver_payroll = db_session.scalar(stmt_driver_payroll)
+            if not driver_payroll:
+                logger.error(
+                    "DriverPayroll with code %s not found", driver_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
     try:
-        driver_payroll_stmt = select(DriverPayroll).where(
-            DriverPayroll.payroll_code == payroll_code,
-            DriverPayroll.modification_user == request.current_user.user_id,
-            DriverPayroll.deleted == False,
-        )
-
-        driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
-        if driver_payroll is None:
-            logger.error("fetch table DriverPayroll, not found")
-            return jsonify({"message": "No se encontró la liquidación"}), 404
-
-        logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
-        logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
-
         shipment_expenses_stmt = select(ShipmentExpense).where(
             ShipmentExpense.deleted == False,
             ShipmentExpense.modification_user == request.current_user.user_id,
             ShipmentExpense.driver_payroll_code == payroll_code,
         )
+
+        if driver_payroll_code:
+            shipment_expenses_stmt = shipment_expenses_stmt.where(
+                ShipmentExpense.driver_payroll_code == driver_payroll_code
+            )
 
         shipment_expenses: Sequence[ShipmentExpense] = db_session.scalars(
             shipment_expenses_stmt

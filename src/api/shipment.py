@@ -385,11 +385,8 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
         shipment_codes = request.get_json()
 
         # Validate payload
-        if not isinstance(shipment_codes, list):
+        if not shipment_codes or not isinstance(shipment_codes, list):
             return jsonify({"message": "Payload inválido"}), 400
-
-        if not shipment_codes:
-            return jsonify({"message": "Lista de cargas vacía"}), 400
 
         # Find all shipments that belong to the current user
         stmt = select(Shipment).where(

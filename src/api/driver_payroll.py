@@ -98,6 +98,7 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al obtener liquidaciones del chofer"}), 500
 
 
+# TODO: combine into endpoint of shipments.py
 @app.route("/api/driver-payroll/<int:payroll_code>/shipments", methods=["GET"])
 @token_required
 def get_driver_payroll_shipments(payroll_code: int) -> Tuple[Response, int]:
@@ -331,27 +332,50 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar liquidación"}), 500
 
 
-@app.route("/api/driver-payroll/move-shipments", methods=["PATCH"])
+# TODO: combine into shipment.py endpoint
+@app.route("/api/shipments/change-driver-payroll", methods=["PATCH"])
 @token_required
-def driver_payroll_move_shipments() -> Tuple[Response, int]:
+def shipments_change_driver_payroll() -> Tuple[Response, int]:
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    driver_payroll_code = None
+
+    # If driver_payroll_code_param is provided, validate it
+    if driver_payroll_code_param:
+        try:
+            driver_payroll_code = int(driver_payroll_code_param)
+
+            # Validate that the driver_payroll exists in the database
+            stmt_driver_payroll = select(DriverPayroll).where(
+                DriverPayroll.payroll_code == driver_payroll_code_param,
+                DriverPayroll.deleted == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+
+            driver_payroll = db_session.scalar(stmt_driver_payroll)
+            if not driver_payroll:
+                logger.error(
+                    "DriverPayroll with code %s not found", driver_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
     try:
         # Get payload from request
-        payload = request.get_json()
+        shipment_codes = request.get_json()
 
         # Validate payload
-        if not isinstance(payload, dict):
+        if not shipment_codes or not isinstance(shipment_codes, list):
             return jsonify({"message": "Payload inválido"}), 400
-
-        driver_payroll_code = payload.get("driverPayrollCode")
-        shipment_codes = payload.get("shipmentCodeList")
-
-        if not isinstance(driver_payroll_code, int) or not isinstance(
-            shipment_codes, list
-        ):
-            return jsonify({"message": "Formato de datos inválido"}), 400
-
-        if not shipment_codes:
-            return jsonify({"message": "Lista de cargas vacía"}), 400
 
         # Find all shipments that belong to the current user
         stmt = select(Shipment).where(
@@ -496,9 +520,12 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar liquidación"}), 500
 
 
-@app.route("/api/export-driver-payrolls", methods=["GET"])
+# TODO: IMPLEMENT
+@app.route("/api/driver-payrolls/export-excel", methods=["GET"])
 @token_required
 def export_driver_payrolls() -> Tuple[Response, int]:
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+
     try:
         stmt = (
             select(DriverPayroll, Driver)
