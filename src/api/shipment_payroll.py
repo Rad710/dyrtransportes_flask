@@ -8,7 +8,10 @@ from typing import List
 from dataclasses import asdict
 
 from flask import request, jsonify, Response, make_response
-from sqlalchemy import select, desc
+from sqlalchemy import select
+from sqlalchemy import desc
+from sqlalchemy import cast
+from sqlalchemy import Date
 from sqlalchemy.sql import extract
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 
@@ -72,7 +75,9 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
                 extract("year", ShipmentPayroll.payroll_timestamp) == year
             )
 
-        stmt = stmt.order_by(desc(ShipmentPayroll.payroll_timestamp))
+        stmt = stmt.order_by(
+            desc(ShipmentPayroll.payroll_timestamp), desc(ShipmentPayroll.payroll_code)
+        )
 
         shipment_payrolls: Sequence[ShipmentPayroll] = db_session.scalars(stmt).all()
         logger.info(
@@ -369,11 +374,17 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
         )
 
         if start_date:
-            stmt = stmt.where(ShipmentPayroll.payroll_timestamp >= start_date)
+            stmt = stmt.where(
+                cast(ShipmentPayroll.payroll_timestamp, Date) >= start_date.date()
+            )
         if end_date:
-            stmt = stmt.where(ShipmentPayroll.payroll_timestamp <= end_date)
+            stmt = stmt.where(
+                cast(ShipmentPayroll.payroll_timestamp, Date) <= end_date.date()
+            )
 
-        stmt = stmt.order_by(desc(ShipmentPayroll.payroll_timestamp))
+        stmt = stmt.order_by(
+            desc(ShipmentPayroll.payroll_timestamp), desc(ShipmentPayroll.payroll_code)
+        )
 
         payroll_list: Sequence[ShipmentPayroll] = db_session.scalars(stmt).all()
 

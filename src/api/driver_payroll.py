@@ -14,6 +14,8 @@ from flask import make_response
 
 from sqlalchemy import select
 from sqlalchemy import desc
+from sqlalchemy import cast
+from sqlalchemy import Date
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
@@ -526,33 +528,63 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
 @app.route("/api/driver-payrolls/export-excel", methods=["GET"])
 @token_required
 def export_driver_payrolls() -> Tuple[Response, int]:
-    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    # Get date range parameters
+    driver_code_str = request.args.get("driver_code", "")
+    start_date_str = request.args.get("start_date", "")
+    end_date_str = request.args.get("end_date", "")
 
     try:
-        stmt = (
-            select(DriverPayroll, Driver)
-            .join(Driver, DriverPayroll.driver_code == Driver.driver_code)
-            .where(
-                DriverPayroll.deleted == False,
-                DriverPayroll.modification_user == request.current_user.user_id,
-            )
-            .order_by(asc(DriverPayroll.payroll_timestamp))
+        # Convert date parameters as needed
+        driver_code = int(driver_code_str) if driver_code_str else None
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+
+        # Build query for shipment payrolls in date range
+        stmt = select(DriverPayroll).where(
+            DriverPayroll.deleted == False,
+            DriverPayroll.modification_user == request.current_user.user_id,
         )
 
-        results = db_session.execute(stmt).all()
+        if driver_code:
+            stmt = stmt.where(DriverPayroll.driver_code == driver_code)
+        if start_date:
+            stmt = stmt.where(
+                cast(DriverPayroll.payroll_timestamp, Date) >= start_date.date()
+            )
+        if end_date:
+            stmt = stmt.where(
+                cast(DriverPayroll.payroll_timestamp, Date) <= end_date.date()
+            )
+
+        stmt = stmt.order_by(
+            desc(DriverPayroll.payroll_timestamp), desc(DriverPayroll.payroll_code)
+        )
+
+        payroll_list: Sequence[DriverPayroll] = db_session.scalars(stmt).all()
+
+        if not payroll_list:
+            logger.warning("export DriverPayroll, no data found in date range")
+            return (
+                jsonify(
+                    {
+                        "message": "No hay datos para exportar en el rango de fechas seleccionado"
+                    }
+                ),
+                404,
+            )
 
         # Create file
         output = io.BytesIO()
         workbook = Workbook(write_only=False, iso_dates=False)
         sheet = workbook.active
 
-        headers = ["Código", "Fecha", "Chofer", "Estado de Pago", "Fecha de Pago"]
+        headers = ["Código", "Fecha", "Cobrado", "Fecha de Cobro"]
         sheet.append(headers)
 
-        for col_idx in range(1, len(headers) + 1):
+        for col_idx in range(1, 5):
             sheet.column_dimensions[get_column_letter(col_idx)].width = 20
 
-        # Estilo de borde
+        # Border style
         border_style = Border(
             left=Side(style="thin"),
             right=Side(style="thin"),
@@ -560,47 +592,62 @@ def export_driver_payrolls() -> Tuple[Response, int]:
             bottom=Side(style="thin"),
         )
 
-        # Aplicar el estilo de borde a cada celda en la fila
+        # Apply border style to each cell in the header row
         for cell in sheet[sheet.max_row]:
             cell.border = border_style
 
-        # Agregar filas de datos
-        for payroll, driver in results:
+        # Add data rows
+        for payroll in payroll_list:
+            # Format dates for display
+            payroll_date = (
+                payroll.payroll_timestamp.strftime("%d/%m/%Y")
+                if payroll.payroll_timestamp
+                else ""
+            )
+            paid_date = (
+                payroll.paid_timestamp.strftime("%d/%m/%Y")
+                if payroll.paid_timestamp
+                else ""
+            )
+
             row = [
                 payroll.payroll_code,
-                payroll.payroll_timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                f"{driver.driver_name} {driver.driver_surname}",
-                "Pagado" if payroll.paid else "No Pagado",
-                (
-                    payroll.paid_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                    if payroll.paid_timestamp
-                    else ""
-                ),
+                payroll_date,
+                "Sí" if payroll.paid else "No",
+                paid_date,
             ]
 
             sheet.append(row)
 
-            # Aplicar el estilo de borde a cada celda en la fila
+            # Apply border style to each cell in the data row
             for cell in sheet[sheet.max_row]:
                 cell.border = border_style
 
-        # Guardar el archivo Excel en el flujo de salida
+        # Save Excel file to output stream
         workbook.save(output)
         output.seek(0)
 
-        # Crear la respuesta para el cliente con el archivo Excel
+        # Create response with Excel file
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         response.headers["Content-Disposition"] = (
-            "attachment; filename=liquidaciones_de_choferes.xlsx"
+            'attachment; filename="lista_de_planillas.xlsx"'
         )
 
-        logger.info("exported DriverPayrolls excel file")
+        logger.info("exported ShipmentPayrolls excel file")
 
         return response, 200
 
+    except ValueError as e:
+        logger.error("export ShipmentPayrolls, invalid date format: %s", e)
+        return jsonify({"message": "Formato de fecha inválido"}), 400
+
     except SQLAlchemyError as e:
-        logger.error("export DriverPayrolls, error: %s", e)
-        return jsonify({"message": "Error al enviar archivo Excel"}), 500
+        logger.error("export ShipmentPayrolls, database error: %s", e)
+        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+
+    except Exception as e:
+        logger.error("export ShipmentPayrolls, unexpected error: %s", e)
+        return jsonify({"message": "Error al generar el archivo de exportación"}), 500

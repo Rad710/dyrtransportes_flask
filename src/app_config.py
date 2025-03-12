@@ -92,6 +92,8 @@ def create_flask_logger(flask_app: Flask):
 
     if DEBUG:
         flask_logger.setLevel(logging.DEBUG)
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+        logging.getLogger("sqlalchemy.engine").addHandler(logging.StreamHandler())
 
     @flask_app.before_request
     def start_timer():
