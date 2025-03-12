@@ -8,6 +8,8 @@ from sqlalchemy import TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import validates
+
 from sqlalchemy.sql import functions
 
 from .base import Base
@@ -62,6 +64,36 @@ class DriverPayroll(Base):
     driver_payroll_audits = relationship(
         "DriverPayrollAudit", back_populates="audit_driver_payroll"
     )
+
+    @validates("payroll_timestamp")
+    def validate_payroll_timestamp(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid payroll_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
+
+        if not isinstance(value, datetime) or value is None:
+            raise ValueError("payroll_timestamp must be of type datetime")
+
+        return value
+
+    @validates("paid_timestamp")
+    def validate_paid_timestamp(self, key, value):
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z")
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid paid_timestamp: {value}. Expected format: 'Day, DD Mon YYYY HH:MM:SS GMT'"
+                ) from e
+
+        if value is not None and not isinstance(value, datetime):
+            raise ValueError("paid_timestamp must be of type datetime")
+
+        return value
 
 
 @dataclass

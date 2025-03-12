@@ -215,6 +215,10 @@ def post_shipment() -> Tuple[Response, int]:
             .order_by(desc(DriverPayroll.payroll_code))
         )
         driver_payroll_code = db_session.scalar(driver_payroll_stmt)
+        if driver_payroll_code is None:
+            logger.error("update table Shipment, driver_payroll_code not found")
+            return jsonify({"message": "El chofer no tiene liquidaciones"}), 404
+
         shipment_dict["driver_payroll_code"] = driver_payroll_code
 
         # json to db object
@@ -283,9 +287,30 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
             logger.error("update table Shipment, shipment not found")
             return jsonify({"message": "Carga no encontrada"}), 404
 
+        ## UPDATE: DRIVER PAYROLL
+        shipment_dict = request.get_json()
+        driver_code: int | None = shipment_dict["driver_code"]
+
+        driver_payroll_stmt = (
+            select(DriverPayroll.payroll_code)
+            .where(
+                DriverPayroll.driver_code == driver_code,
+                DriverPayroll.deleted == False,
+                DriverPayroll.paid == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+            .order_by(desc(DriverPayroll.payroll_code))
+        )
+        driver_payroll_code = db_session.scalar(driver_payroll_stmt)
+        if driver_payroll_code is None:
+            logger.error("update table Shipment, driver_payroll_code not found")
+            return jsonify({"message": "El chofer no tiene liquidaciones"}), 404
+
+        shipment_dict["driver_payroll_code"] = driver_payroll_code
+
         # json to db object
         payload = Shipment(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **shipment_dict, modification_user=request.current_user.user_id
         )
 
         entry_to_update.shipment_date = payload.shipment_date

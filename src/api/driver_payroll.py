@@ -82,7 +82,9 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
                 DriverPayroll.modification_user == request.current_user.user_id,
                 DriverPayroll.deleted == False,
             )
-            .order_by(desc(DriverPayroll.payroll_timestamp))
+            .order_by(
+                desc(DriverPayroll.payroll_timestamp), desc(DriverPayroll.payroll_code)
+            )
         )
 
         payrolls: Sequence[DriverPayroll] = db_session.scalars(stmt).all()
