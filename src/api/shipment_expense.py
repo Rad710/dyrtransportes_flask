@@ -244,6 +244,108 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar gasto"}), 500
 
 
+@app.route("/api/shipment-expenses/change-driver-payroll", methods=["PATCH"])
+@token_required
+def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    driver_payroll_code = None
+
+    # If driver_payroll_code_param is provided, validate it
+    if driver_payroll_code_param:
+        try:
+            driver_payroll_code = int(driver_payroll_code_param)
+
+            # Validate that the driver_payroll exists in the database
+            stmt_driver_payroll = select(DriverPayroll).where(
+                DriverPayroll.payroll_code == driver_payroll_code_param,
+                DriverPayroll.deleted == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+
+            driver_payroll = db_session.scalar(stmt_driver_payroll)
+            if not driver_payroll:
+                logger.error(
+                    "DriverPayroll with code %s not found", driver_payroll_code
+                )
+                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
+    try:
+        # Get payload from request
+        shipment_expenses_codes = request.get_json()
+
+        # Validate payload
+        if not shipment_expenses_codes or not isinstance(shipment_expenses_codes, list):
+            return jsonify({"message": "Payload inválido"}), 400
+
+        # Find all shipment expenses that belong to the current user
+        stmt = select(ShipmentExpense).where(
+            ShipmentExpense.expense_code.in_(shipment_expenses_codes),
+            ShipmentExpense.modification_user == request.current_user.user_id,
+        )
+        shipment_expenses_to_update = db_session.scalars(stmt).all()
+
+        if not shipment_expenses_to_update:
+            logger.error("move shipment expenses, no expenses found")
+            return (
+                jsonify({"message": "No se encontraron los gastos para actualizar"}),
+                404,
+            )
+
+        # Track successfully updated shipment expenses
+        updated_shipment_expense_codes = []
+
+        # Update driver_payroll_code for each shipment expenses
+        for shipment_expense in shipment_expenses_to_update:
+            shipment_expense.driver_payroll_code = driver_payroll_code
+            shipment_expense.modification_user = request.current_user.user_id
+            updated_shipment_expense_codes.append(shipment_expense.expense_code)
+
+        db_session.commit()
+
+        logger.info(
+            "Updated driver_payroll_code to %s for shipment expenses: %s",
+            driver_payroll_code,
+            updated_shipment_expense_codes,
+        )
+
+        return (
+            jsonify(
+                {
+                    "message": "Gastos actualizadas exitosamente",
+                }
+            ),
+            200,
+        )
+
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error("move shipment expenses, invalid data error: %s", e)
+        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+
+    except OperationalError as e:
+        db_session.rollback()
+        logger.error("move shipment expenses, connection error: %s", e)
+        return (
+            jsonify({"message": "Error al actualizar cargas: problema de conexión"}),
+            503,
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error("move shipment expenses, database error: %s", e)
+        return jsonify({"message": "Error al actualizar cargas"}), 500
+
+
 @app.route("/api/shipment-expense/<int:expense_code>", methods=["DELETE"])
 @token_required
 def delete_shipment_expense(expense_code: int) -> Tuple[Response, int]:
