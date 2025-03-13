@@ -4,6 +4,7 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import List
+from typing import Any
 
 from dataclasses import asdict
 
@@ -20,8 +21,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
 from openpyxl import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Border
 from openpyxl.styles import Side
+from openpyxl.styles import Alignment
+from openpyxl.styles import Font
+from openpyxl.styles import numbers
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
@@ -34,6 +39,7 @@ from decorators.token_required import token_required
 from models.driver_payroll import DriverPayroll
 from models.driver import Driver
 from models.shipment import Shipment
+from models.shipment_expense import ShipmentExpense
 
 request: RequestWithUser
 
@@ -44,6 +50,7 @@ def get_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
         stmt = select(DriverPayroll).where(
             DriverPayroll.payroll_code == payroll_code,
+            DriverPayroll.deleted == False,
             DriverPayroll.modification_user == request.current_user.user_id,
         )
 
@@ -651,3 +658,737 @@ def export_driver_payrolls() -> Tuple[Response, int]:
     except Exception as e:
         logger.error("export ShipmentPayrolls, unexpected error: %s", e)
         return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+
+
+@app.route(
+    "/api/driver-payroll/export-excel/<int:driver_payroll_code>", methods=["GET"]
+)
+@token_required
+def exportar_liquidacion(driver_payroll_code: int):
+    try:
+        driver_payroll_stmt = select(DriverPayroll).where(
+            DriverPayroll.payroll_code == driver_payroll_code,
+            DriverPayroll.deleted == False,
+            DriverPayroll.modification_user == request.current_user.user_id,
+        )
+        driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
+        if driver_payroll is None:
+            logger.error("fetch table DriverPayroll, not found")
+            return jsonify({"message": "No se encontró la liquidación"}), 404
+
+        logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
+        logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
+
+        driver_stmt = select(Driver).where(
+            Driver.driver_code == driver_payroll.driver_code,
+            Driver.deleted == False,
+            Driver.modification_user == request.current_user.user_id,
+        )
+        driver: Optional[Driver] = db_session.scalar(driver_stmt)
+        if driver is None:
+            logger.error("fetch table Driver, not found")
+            return jsonify({"message": "No se encontró al chofer"}), 404
+
+        logger.debug("fetch table Driver, found: %s", driver)
+
+        shipments_stmt = select(Shipment).where(
+            Shipment.driver_payroll_code == driver_payroll_code,
+            Shipment.deleted == False,
+            Shipment.modification_user == request.current_user.user_id,
+        )
+        shipments: Sequence[Shipment] = db_session.scalars(shipments_stmt).all()
+
+        shipment_expenses_no_receipt_stmt = select(ShipmentExpense).where(
+            ShipmentExpense.driver_payroll_code == driver_payroll_code,
+            ShipmentExpense.deleted == False,
+            ShipmentExpense.receipt == None,
+            ShipmentExpense.modification_user == request.current_user.user_id,
+        )
+        shipment_expenses_no_receipt: Sequence[ShipmentExpense] = db_session.scalars(
+            shipment_expenses_no_receipt_stmt
+        ).all()
+
+        shipment_expenses_receipt_stmt = select(ShipmentExpense).where(
+            ShipmentExpense.driver_payroll_code == driver_payroll_code,
+            ShipmentExpense.deleted == False,
+            ShipmentExpense.receipt != None,
+            ShipmentExpense.modification_user == request.current_user.user_id,
+        )
+        shipment_expenses_receipt: Sequence[ShipmentExpense] = db_session.scalars(
+            shipment_expenses_receipt_stmt
+        ).all()
+
+    except SQLAlchemyError as e:
+        logger.error("fetch table DriverPayroll, error: %s", e)
+        return jsonify({"message": "Error de transacción"}), 500
+
+    max_len = max(
+        len(shipments),
+        len(shipment_expenses_no_receipt),
+        len(shipment_expenses_receipt),
+    )
+
+    # Rellenar las listas para que tengan la misma longitud con None si es necesario
+    shipments += [None] * (max_len - len(shipments))
+    shipment_expenses_no_receipt += [None] * (
+        max_len - len(shipment_expenses_no_receipt)
+    )
+    shipment_expenses_receipt += [None] * (max_len - len(shipment_expenses_receipt))
+
+    # Combinar las tres listas en una lista de tuplas usando zip
+    results = zip(shipments, shipment_expenses_no_receipt, shipment_expenses_receipt)
+
+    # Crear un archivo Excel en memoria
+    output = io.BytesIO()
+    workbook = Workbook()
+    sheet = workbook.active
+
+    # define columns
+    columns: dict[str, dict[str, Any]] = {
+        "code": {"letter": "A", "number": 1},
+        "shipment_date": {"letter": "B", "number": 2},
+        "product": {"letter": "C", "number": 3},
+        "ticket_number": {"letter": "D", "number": 4},
+        "origin": {"letter": "E", "number": 5},
+        "destination": {"letter": "F", "number": 6},
+        "origin_weight": {"letter": "G", "number": 7},
+        "destination_weight": {"letter": "H", "number": 8},
+        "difference": {"letter": "I", "number": 9},
+        "price_weight": {"letter": "J", "number": 10},
+        "shipment_amount": {"letter": "K", "number": 11},
+        "untaxed_expense_date": {"letter": "L", "number": 12},
+        "untaxed_espense_reason": {"letter": "M", "number": 13},
+        "untaxed_expense_amount": {"letter": "N", "number": 14},
+        "taxed_expense_date": {"letter": "O", "number": 15},
+        "taxed_expense_receipt": {"letter": "P", "number": 16},
+        "taxed_expense_reason": {"letter": "Q", "number": 17},
+        "taxed_expense_amount": {"letter": "R", "number": 18},
+    }
+
+    columns_length = len(columns)
+
+    # style
+    border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    render_driver_payroll_headers(sheet, columns, driver, border)
+    render_driver_payroll_shipment_expense(sheet, columns, results, border)
+    last_row = 5 + max_len
+
+    untaxed_expense_amount_column = columns["untaxed_expense_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
+
+    # Subtotals
+    subtotal_sin_boleta = f"=SUM(${untaxed_expense_amount_column}6:${untaxed_expense_amount_column}{last_row})"
+    subtotal_con_boleta = f"=SUM(${taxed_expense_amount_column}6:${taxed_expense_amount_column}{last_row})"
+    subtotales = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "Subtotal",
+        None,
+        subtotal_sin_boleta,
+        "Subtotal",
+        None,
+        None,
+        subtotal_con_boleta,
+    ]
+    sheet.append(subtotales)
+
+    for col in range(1, columns_length + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    for col in [columns["untaxed_expense_date"]["number"], columns_length]:
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.number_format = "#,##0"
+        cell.border = border
+
+    shipment_amount_column = columns["shipment_amount"]["letter"]
+    untaxed_expense_amount_column = columns["untaxed_expense_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
+
+    # TOTAL SHIPMENT-EXPENSE
+    total_gastos = f"=+${untaxed_expense_amount_column}{last_row + 1}+${taxed_expense_amount_column}{last_row + 1}"
+    subtotal_viajes = (
+        f"=SUM(${shipment_amount_column}6:${shipment_amount_column}{last_row})"
+    )
+    total = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "TOTAL FLETES:",
+        None,
+        subtotal_viajes,
+        "TOTAL GASTOS:",
+        None,
+        None,
+        None,
+        None,
+        None,
+        total_gastos,
+    ]
+    sheet.append(total)
+
+    for col in [columns["shipment_amount"]["number"], len(columns)]:
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.number_format = "#,##0"
+        cell.border = border
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    sheet.append([None])
+
+    render_driver_payroll_totals(sheet, columns, border, last_row)
+
+    # Save and send Excel file
+    workbook.save(output)
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    name = (driver.driver_name or "") + " " + (driver.driver_surname or "")
+    date = driver_payroll.payroll_timestamp.date().strftime("%d/%m/%Y")
+
+    response.headers["Content-Disposition"] = (
+        f"attachment; filename={name.strip()}_Liquidacion_{date}.xlsx"
+    )
+    logger.info(
+        "Liquidacion %s %s exportada", driver.driver_code, driver_payroll.payroll_code
+    )
+    return response
+
+
+def render_driver_payroll_headers(
+    sheet: Worksheet,
+    columns: dict[str, dict[str, Any]],
+    driver: Driver,
+    border: Border,
+):
+    # set column widths
+    sheet.column_dimensions[columns["code"]["letter"]].width = 2.64
+    sheet.column_dimensions[columns["shipment_date"]["letter"]].width = 10.6
+    sheet.column_dimensions[columns["product"]["letter"]].width = 5.00
+    sheet.column_dimensions[columns["ticket_number"]["letter"]].width = 9.00
+    sheet.column_dimensions[columns["origin"]["letter"]].width = 16
+    sheet.column_dimensions[columns["destination"]["letter"]].width = 16
+    sheet.column_dimensions[columns["origin_weight"]["letter"]].width = 9
+    sheet.column_dimensions[columns["destination_weight"]["letter"]].width = 9
+    sheet.column_dimensions[columns["difference"]["letter"]].width = 5
+    sheet.column_dimensions[columns["price_weight"]["letter"]].width = 7.60
+    sheet.column_dimensions[columns["shipment_amount"]["letter"]].width = 10.27
+    sheet.column_dimensions[columns["untaxed_expense_date"]["letter"]].width = 10.82
+    sheet.column_dimensions[columns["untaxed_espense_reason"]["letter"]].width = 7.0
+    sheet.column_dimensions[columns["untaxed_expense_amount"]["letter"]].width = 10.27
+    sheet.column_dimensions[columns["taxed_expense_date"]["letter"]].width = 10.82
+    sheet.column_dimensions[columns["taxed_expense_receipt"]["letter"]].width = 8.5
+    sheet.column_dimensions[columns["taxed_expense_reason"]["letter"]].width = 7.0
+    sheet.column_dimensions[columns["taxed_expense_amount"]["letter"]].width = 10.82
+
+    # Title
+    sheet.append([])
+    sheet.append(["LIQUIDACION DE FLETES"])
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=1,
+        end_row=sheet.max_row,
+        end_column=len(columns),
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    sheet.row_dimensions[2].height = 21
+
+    # Driver Information
+    sheet.append(
+        [
+            f'Conductor: {(driver.driver_name or "") + " " + (driver.driver_surname or "")}                Chapa: {driver.truck_plate}                Fecha: {datetime.now().strftime("%d/%m/%Y")}'
+        ]
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=1,
+        end_row=sheet.max_row,
+        end_column=len(columns),
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    sheet.row_dimensions[3].height = 21
+
+    # Columns division
+    sheet.append(
+        [
+            "FLETES",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "GASTOS (VIATICO/GASOIL)",
+            None,
+            None,
+            None,
+            None,
+        ]
+    )
+
+    # Merge FLETES title
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=1,
+        end_row=sheet.max_row,
+        end_column=columns["shipment_amount"]["number"],
+    )
+    merged_cell = sheet.cell(row=sheet.max_row, column=1)
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    # Merge GASTOS title
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=columns["untaxed_expense_date"]["number"],
+        end_row=sheet.max_row,
+        end_column=len(columns),
+    )
+    merged_cell = sheet.cell(
+        row=sheet.max_row, column=columns["untaxed_expense_date"]["number"]
+    )
+    merged_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    # Table Header
+    headers = [
+        "N°",
+        "Fecha",
+        "Prod.",
+        "Recepcion N°",
+        "Origen",
+        "Destino",
+        "Kg. Origen",
+        "Kg. Llegada",
+        "Dif.",
+        "Gs. p/ Kg",
+        "Importe Gs.",
+        "Fecha",
+        "Razón",
+        "Importe Gs.",
+        "Fecha",
+        "Boleta N°",
+        "Razón",
+        "Importe Gs.",
+    ]
+
+    sheet.append(headers)
+    for col in range(1, len(columns) + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+    sheet.row_dimensions[5].height = 25
+
+
+def render_driver_payroll_shipment_expense(
+    sheet: Worksheet,
+    columns: dict[str, dict[str, Any]],
+    results: tuple[Shipment, ShipmentExpense, ShipmentExpense],
+    border: Border,
+):
+    origin_weight_column = columns["origin_weight"]["letter"]
+    destination_weight_column = columns["destination_weight"]["letter"]
+    price_weight_column = columns["price_weight"]["letter"]
+
+    contador = 1
+    for shipment, no_receipt, receipt in results:
+        row = [contador]
+
+        if shipment:
+            current_row = contador + 5
+            diff = f"=+${destination_weight_column}{current_row}-${origin_weight_column}{current_row}"
+            money = f"=ROUND(${destination_weight_column}{current_row}*${price_weight_column}{current_row}, 0)"
+
+            shipment_row = [
+                shipment.shipment_date.strftime("%d/%m/%Y"),
+                shipment.product_name,
+                shipment.receipt_code,
+                shipment.origin,
+                shipment.destination,
+                shipment.origin_weight,
+                shipment.destination_weight,
+                diff,
+                shipment.payroll_price,
+                money,
+            ]
+
+            row.extend(shipment_row)
+
+        else:
+            row.extend([None] * 10)
+
+        if no_receipt:
+            no_receipt_row = [
+                no_receipt.expense_date.strftime("%d/%m/%Y"),
+                no_receipt.reason,
+                no_receipt.amount,
+            ]
+            row.extend(no_receipt_row)
+        else:
+            row.extend([None] * 3)
+
+        if receipt:
+            receipt_fila = [
+                receipt.expense_date.strftime("%d/%m/%Y"),
+                receipt.receipt,
+                receipt.reason,
+                receipt.amount,
+            ]
+            row.extend(receipt_fila)
+        else:
+            row.extend([None] * 4)
+
+        sheet.append(row)
+
+        for col in range(1, len(columns) + 1):
+            cell = sheet.cell(row=sheet.max_row, column=col)
+            cell.border = border
+
+            if col == columns["price_weight"]["number"]:
+                cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED2
+            else:
+                cell.number_format = "#,##0"
+
+        contador += 1
+
+
+def render_driver_payroll_totals(sheet, columns, border, last_row):
+    price_weight_column = columns["price_weight"]["letter"]
+    shipment_amount_column = columns["shipment_amount"]["letter"]
+    taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
+
+    totals_start_column = 7
+    totals_end_column = 12
+    title_end_column = 9
+
+    # PAYROLL TOTAL
+    total_cobrar = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "TOTAL A COBRAR:",
+        None,
+        None,
+        f"=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 2}",
+        None,
+    ]
+    sheet.append(total_cobrar)
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=title_end_column + 1,
+        end_row=sheet.max_row,
+        end_column=title_end_column + 2,
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(
+        columns["origin_weight"]["number"], columns["shipment_amount"]["number"]
+    ):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+        if col == columns["shipment_amount"]["number"]:
+            cell.number_format = "#,##0"
+
+    total_facturar = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "TOTAL A FACTURAR:",
+        None,
+        None,
+        f"=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 1}",
+        None,
+    ]
+    sheet.append(total_facturar)
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=title_end_column + 1,
+        end_row=sheet.max_row,
+        end_column=title_end_column + 2,
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(
+        columns["origin_weight"]["number"], columns["shipment_amount"]["number"]
+    ):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+        if col == columns["shipment_amount"]["number"]:
+            cell.number_format = "#,##0"
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4",
+            None,
+            None,
+            None,
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=totals_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+
+    sheet.append([])
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Descripcion",
+            None,
+            None,
+            "Exenta",
+            "IVA 5%",
+            "IVA 10%",
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Servicio de Flete",
+            None,
+            None,
+            0,
+            0,
+            f"=+${price_weight_column}{last_row + 5}",
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
+
+    sheet.append([None, None, None, None, None, None, None, None, None, None, None])
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Subtotal",
+            None,
+            None,
+            f"=+J{last_row + 9}",
+            0,
+            f"=+L{last_row + 9}",
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Total",
+            None,
+            None,
+            None,
+            None,
+            f"=+J{last_row + 11}+L{last_row + 11}",
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
+
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "IVA 10%",
+            None,
+            f"=+L{last_row + 12}/11",
+            None,
+        ]
+    )
+
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=totals_start_column,
+        end_row=sheet.max_row,
+        end_column=title_end_column,
+    )
+
+    for col in range(totals_start_column, totals_end_column + 1):
+        cell = sheet.cell(row=sheet.max_row, column=col)
+        cell.border = border
+        cell.font = Font(bold=True)
+
+        if col >= title_end_column:
+            cell.number_format = "#,##0"
