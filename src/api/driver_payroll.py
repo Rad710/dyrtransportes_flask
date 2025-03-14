@@ -4,7 +4,7 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import List
-from typing import Any
+from typing import Iterator
 
 from dataclasses import asdict
 
@@ -744,7 +744,7 @@ def exportar_liquidacion(driver_payroll_code: int):
     sheet = workbook.active
 
     # define columns
-    columns: dict[str, dict[str, Any]] = {
+    columns: dict[str, dict[str, str | int]] = {
         "code": {"letter": "A", "number": 1},
         "shipment_date": {"letter": "B", "number": 2},
         "product": {"letter": "C", "number": 3},
@@ -884,7 +884,7 @@ def exportar_liquidacion(driver_payroll_code: int):
 
 def render_driver_payroll_headers(
     sheet: Worksheet,
-    columns: dict[str, dict[str, Any]],
+    columns: dict[str, dict[str, str | int]],
     driver: Driver,
     border: Border,
 ):
@@ -1037,8 +1037,8 @@ def render_driver_payroll_headers(
 
 def render_driver_payroll_shipment_expense(
     sheet: Worksheet,
-    columns: dict[str, dict[str, Any]],
-    results: tuple[Shipment, ShipmentExpense, ShipmentExpense],
+    columns: dict[str, dict[str, str | int]],
+    results: Iterator[tuple[Shipment, ShipmentExpense, ShipmentExpense]],
     border: Border,
 ):
     origin_weight_column = columns["origin_weight"]["letter"]
