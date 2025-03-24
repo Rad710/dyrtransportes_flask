@@ -212,7 +212,9 @@ def post_shipment() -> Tuple[Response, int]:
                 DriverPayroll.paid == False,
                 DriverPayroll.modification_user == request.current_user.user_id,
             )
-            .order_by(desc(DriverPayroll.payroll_code))
+            .order_by(
+                desc(DriverPayroll.payroll_timestamp), desc(DriverPayroll.payroll_code)
+            )
         )
         driver_payroll_code = db_session.scalar(driver_payroll_stmt)
         if driver_payroll_code is None:
@@ -299,7 +301,9 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
                 DriverPayroll.paid == False,
                 DriverPayroll.modification_user == request.current_user.user_id,
             )
-            .order_by(desc(DriverPayroll.payroll_code))
+            .order_by(
+                desc(DriverPayroll.payroll_timestamp), desc(DriverPayroll.payroll_code)
+            )
         )
         driver_payroll_code = db_session.scalar(driver_payroll_stmt)
         if driver_payroll_code is None:
