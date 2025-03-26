@@ -11,6 +11,7 @@ from api.shipment import *
 from api.user_profile import *
 from api.driver_payroll import *
 from api.shipment_expense import *
+from api.dinatran import *
 
 
 @app.route("/api/hello-world")
