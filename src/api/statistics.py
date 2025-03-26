@@ -1,122 +1,372 @@
-# from flask import jsonify, request
-# from sqlalchemy import text
+import io
 
-# from dateutil import parser
+from typing import Tuple
 
-# from app_config import db_session
+from datetime import datetime
 
+from flask import request
+from flask import jsonify
+from flask import Response
+from flask import make_response
 
-# from app_config import logger
-
-# from app_config import app
-
-# @app.route('/statistics/<string:fecha_inicio>/<string:fecha_fin>', methods=['GET'])
-# def get_statistics(fecha_inicio, fecha_fin):
-#     try:
-#         ipread1 = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
-#         logger.warning(f"The client IP is: {ipread1}")
-
-#         fecha_inicio = parser.isoparse(fecha_inicio).date()
-#         fecha_fin = parser.isoparse(fecha_fin).date()
-
-#         params = {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
-
-#         viajes_query = text("""
-#                             SELECT
-#                                 chofer, COUNT(cobranzas.id) as viajes,
-#                                 SUM(kilos_origen) as total_origen,
-#                                 SUM(kilos_destino) as total_destino,
-#                                 SUM(precio * (10 / 11) * kilos_destino) as total_flete,
-#                                 SUM(precio_liquidacion * kilos_destino) as total_liquidacion
-#                             FROM cobranzas
-#                             JOIN liquidacion_viajes ON liquidacion_viajes.id = cobranzas.id
-#                             WHERE fecha_viaje BETWEEN :fecha_inicio AND :fecha_fin
-#                             GROUP BY chofer
-#                             """)
-
-#         # Execute the query with parameters
-#         viajes = db_session.execute(viajes_query, params).fetchall()
-
-#         facturado_query = text("""
-#                             SELECT chofer, SUM(importe) as total_facturado 
-#                             FROM liquidacion_gastos
-#                             JOIN liquidaciones ON liquidacion_gastos.id_liquidacion = liquidaciones.id
-#                             WHERE (fecha BETWEEN :fecha_inicio AND :fecha_fin) AND boleta IS NOT NULL
-#                             GROUP BY chofer;
-#                             """)
-
-#         gasto_facturado = db_session.execute(facturado_query, params).fetchall()
-
-#         no_facturado_query = text("""
-#                             SELECT chofer, SUM(importe) as total_facturado 
-#                             FROM liquidacion_gastos
-#                             JOIN liquidaciones ON liquidacion_gastos.id_liquidacion = liquidaciones.id
-#                             WHERE (fecha BETWEEN :fecha_inicio AND :fecha_fin) AND boleta IS NULL
-#                             GROUP BY chofer;
-#                             """)
-
-#         gasto_no_facturado = db_session.execute(no_facturado_query, params).fetchall()
-
-#         result = {}
-#         result_total = {'viajes': 0, 'kgOrigen': 0, 'kgDestino': 0, 'totalFletes': 0, 'totalPerdidas': 0,
-#                         'totalLiquidacionViajes': 0, 'totalGastoFacturado': 0, 'totalGastoNoFacturado': 0}
-
-#         default_chofer =  {
-#                 'viajes': 0, 'totalOrigen': 0, 'totalDestino': 0, 'totalFlete': 0,
-#                 'totalLiquidacion': 0, 'totalFacturado': 0, 'totalNoFacturado': 0
-#             }
-
-#         for viaje in viajes:
-#             chofer = viaje[0]
-#             viajes = viaje[1]
-#             total_origen = viaje[2]
-#             total_destino = viaje[3]
-#             total_fletes = viaje[4]
-#             total_liquidacion = viaje[5]
-
-#             result_total['viajes'] += viajes
-#             result_total['kgOrigen'] += total_origen
-#             result_total['kgDestino'] += total_destino
-#             result_total['totalFletes'] += total_fletes
-#             result_total['totalLiquidacionViajes'] += total_liquidacion
-
-#             if chofer not in result:
-#                 result[chofer] = default_chofer.copy()
-
-#             result[chofer].update({
-#                 'viajes': viajes, 'totalOrigen': total_origen, 'totalDestino': total_destino,
-#                 'totalFlete': total_fletes, 'totalLiquidacion': total_liquidacion
-#             })
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 
-#         for gasto in gasto_facturado:
-#             chofer = gasto[0]
-#             total_facturado = gasto[1]
-#             result_total['totalGastoFacturado'] += total_facturado
+from openpyxl import Workbook
+from openpyxl.styles import Border
+from openpyxl.styles import Side
+from openpyxl.utils import get_column_letter
 
-#             if chofer not in result:
-#                 result[chofer] = default_chofer.copy()
+from app_config import logger
+from app_config import app
+from app_config import db_session
+from app_config import RequestWithUser
 
-#             result[chofer].update({'totalFacturado': total_facturado})
 
-#         for gasto in gasto_no_facturado:
-#             chofer = gasto[0]
-#             total_no_facturado = gasto[1]
-#             result_total['totalGastoNoFacturado'] = total_no_facturado
+request: RequestWithUser
 
-#             if chofer not in result:
-#                 result[chofer] = default_chofer.copy()
 
-#             result[chofer].update({'totalNoFacturado': total_no_facturado})
+@app.route("/api/statistics", methods=["GET"])
+def get_statistics_data() -> Tuple[Response, int]:
+    try:
+        start_date_str = request.args.get("start_date")
+        end_date_str = request.args.get("end_date")
 
-#         for _, datos in result.items():
-#             total_perdida = datos['totalLiquidacion'] - (datos['totalFacturado'] + datos['totalNoFacturado'])
-#             if total_perdida < 0:
-#                 result_total['totalPerdidas'] += abs(total_perdida)
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
 
-#         return jsonify({'choferes': result, 'totales': result_total}), 200
+        if not start_date or not end_date:
+            return (
+                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                400,
+            )
 
-#     except Exception as e:
-#         error_message = f"Error en GET Statistics {str(e)}"
-#         logger.warning(error_message)
-#         return jsonify({'error': error_message}), 500
+        params = {"start_date": start_date.date(), "end_date": end_date.date()}
+        t = text(
+            """
+            SELECT
+                sts.driver_code,
+                d.driver_name,
+                sts.shipments,
+                sts.total_origin_weight,
+                sts.total_destination_weight,
+                sts.total_diff,
+                sts.total_shipment_payroll,
+                sts.total_driver_payroll,
+                sts.total_expenses_amount_receipt,
+                sts.total_expenses_amount_no_receipt,
+                (sts.total_expenses_amount_receipt + sts.total_expenses_amount_no_receipt) AS total_expenses_amount
+            FROM
+                (
+                SELECT
+                    s.driver_code,
+                    shipments,
+                    total_origin_weight,
+                    total_destination_weight,
+                    total_diff,
+                    total_shipment_payroll,
+                    total_driver_payroll,
+                    COALESCE(ser.total_expenses_amount_receipt, 0) AS total_expenses_amount_receipt,
+                    COALESCE(senr.total_expenses_amount_no_receipt, 0) AS total_expenses_amount_no_receipt
+                FROM
+                    (
+                    SELECT
+                        s.driver_code,
+                        COUNT(s.shipment_code) AS shipments,
+                        SUM(s.origin_weight) AS total_origin_weight,
+                        SUM(s.destination_weight) AS total_destination_weight,
+                        SUM(s.destination_weight) - SUM(s.origin_weight) AS total_diff,
+                        SUM(s.price * s.destination_weight) AS total_shipment_payroll,
+                        SUM(s.payroll_price * s.destination_weight) AS total_driver_payroll
+                    FROM
+                        shipment s
+                    WHERE
+                        CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                    GROUP BY
+                        s.driver_code
+                ) s
+                LEFT JOIN (
+                    SELECT
+                        dp.driver_code,
+                        SUM(se.amount) AS total_expenses_amount_receipt
+                    FROM
+                        shipment_expense se
+                    INNER JOIN driver_payroll dp ON
+                        dp.payroll_code = se.driver_payroll_code
+                    WHERE
+                        se.receipt IS NOT NULL
+                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                    GROUP BY
+                        dp.driver_code
+                ) ser ON
+                    ser.driver_code = s.driver_code
+                LEFT JOIN (
+                    SELECT
+                        dp.driver_code,
+                        SUM(se.amount) AS total_expenses_amount_no_receipt
+                    FROM
+                        shipment_expense se
+                    INNER JOIN driver_payroll dp ON
+                        dp.payroll_code = se.driver_payroll_code
+                    WHERE
+                        se.receipt IS NULL
+                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                    GROUP BY
+                        dp.driver_code
+                ) senr ON
+                    senr.driver_code = s.driver_code
+            ) sts
+            INNER JOIN driver d ON
+                d.driver_code = sts.driver_code
+            """
+        )
+
+        # Execute the query
+        statistics = db_session.execute(t, params).all()
+
+        logger.debug("fetch statistics, found: %s", statistics)
+
+        return (
+            jsonify(
+                [
+                    {
+                        "driver_code": row.driver_code,
+                        "driver_name": row.driver_name,
+                        "shipments": row.shipments,
+                        "total_origin_weight": row.total_origin_weight,
+                        "total_destination_weight": row.total_destination_weight,
+                        "total_diff": row.total_diff,
+                        "total_shipment_payroll": row.total_shipment_payroll,
+                        "total_driver_payroll": row.total_driver_payroll,
+                        "total_expenses_amount_receipt": row.total_expenses_amount_receipt,
+                        "total_expenses_amount_no_receipt": row.total_expenses_amount_no_receipt,
+                        "total_expenses_amount": row.total_expenses_amount,
+                    }
+                    for row in statistics
+                ]
+            ),
+            200,
+        )
+
+    except SQLAlchemyError as e:
+        logger.error("fetch statistics, error: %s", e)
+        return jsonify({"message": "Error de transacción"}), 500
+
+    except Exception as e:
+        logger.error("fetch statistics, error: %s", e)
+        return jsonify({"message": "Error de transacción"}), 500
+
+
+@app.route("/api/statistics/export-excel", methods=["GET"])
+def export_statistics_excel() -> Tuple[Response, int]:
+    try:
+        start_date_str = request.args.get("start_date")
+        end_date_str = request.args.get("end_date")
+
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+
+        if not start_date or not end_date:
+            return (
+                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                400,
+            )
+
+        params = {"start_date": start_date.date(), "end_date": end_date.date()}
+        t = text(
+            """
+            SELECT
+                sts.driver_code,
+                d.driver_name,
+                sts.shipments,
+                sts.total_origin_weight,
+                sts.total_destination_weight,
+                sts.total_diff,
+                sts.total_shipment_payroll,
+                sts.total_driver_payroll,
+                sts.total_expenses_amount_receipt,
+                sts.total_expenses_amount_no_receipt,
+                (sts.total_expenses_amount_receipt + sts.total_expenses_amount_no_receipt) AS total_expenses_amount
+            FROM
+                (
+                SELECT
+                    s.driver_code,
+                    shipments,
+                    total_origin_weight,
+                    total_destination_weight,
+                    total_diff,
+                    total_shipment_payroll,
+                    total_driver_payroll,
+                    COALESCE(ser.total_expenses_amount_receipt, 0) AS total_expenses_amount_receipt,
+                    COALESCE(senr.total_expenses_amount_no_receipt, 0) AS total_expenses_amount_no_receipt
+                FROM
+                    (
+                    SELECT
+                        s.driver_code,
+                        COUNT(s.shipment_code) AS shipments,
+                        SUM(s.origin_weight) AS total_origin_weight,
+                        SUM(s.destination_weight) AS total_destination_weight,
+                        SUM(s.destination_weight) - SUM(s.origin_weight) AS total_diff,
+                        SUM(s.price * s.destination_weight) AS total_shipment_payroll,
+                        SUM(s.payroll_price * s.destination_weight) AS total_driver_payroll
+                    FROM
+                        shipment s
+                    WHERE
+                        CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                    GROUP BY
+                        s.driver_code
+                ) s
+                LEFT JOIN (
+                    SELECT
+                        dp.driver_code,
+                        SUM(se.amount) AS total_expenses_amount_receipt
+                    FROM
+                        shipment_expense se
+                    INNER JOIN driver_payroll dp ON
+                        dp.payroll_code = se.driver_payroll_code
+                    WHERE
+                        se.receipt IS NOT NULL
+                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                    GROUP BY
+                        dp.driver_code
+                ) ser ON
+                    ser.driver_code = s.driver_code
+                LEFT JOIN (
+                    SELECT
+                        dp.driver_code,
+                        SUM(se.amount) AS total_expenses_amount_no_receipt
+                    FROM
+                        shipment_expense se
+                    INNER JOIN driver_payroll dp ON
+                        dp.payroll_code = se.driver_payroll_code
+                    WHERE
+                        se.receipt IS NULL
+                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                    GROUP BY
+                        dp.driver_code
+                ) senr ON
+                    senr.driver_code = s.driver_code
+            ) sts
+            INNER JOIN driver d ON
+                d.driver_code = sts.driver_code
+            """
+        )
+
+        # Execute the query
+        statistics = db_session.execute(t, params).all()
+
+        logger.debug("fetch statistics for Excel export, found: %s", statistics)
+
+        # Create Excel file
+        output = io.BytesIO()
+        workbook = Workbook(write_only=False, iso_dates=False)
+        sheet = workbook.active
+        sheet.title = "Estadísticas"
+
+        # Define headers
+        headers = [
+            "Código de Conductor",
+            "Nombre de Conductor",
+            "Cantidad de Cargas",
+            "Total Kg. Origen",
+            "Total Kg. Destino",
+            "Diferencia",
+            "Fletes (Gs.)",
+            "Liquidaciones (Gs.)",
+            "Gastos con Recibo (Gs.)",
+            "Gastos sin Recibo (Gs.)",
+            "Total Gastos (Gs.)",
+        ]
+        sheet.append(headers)
+
+        # Set column width
+        for col_idx in range(1, len(headers) + 1):
+            sheet.column_dimensions[get_column_letter(col_idx)].width = 25
+
+        # Border style
+        border_style = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+
+        # Apply border to header cells
+        for cell in sheet[sheet.max_row]:
+            cell.border = border_style
+
+        # Add data rows
+        for row in statistics:
+            data_row = [
+                row.driver_code,
+                row.driver_name,
+                row.shipments,
+                (
+                    float(row.total_origin_weight)
+                    if row.total_origin_weight is not None
+                    else 0
+                ),
+                (
+                    float(row.total_destination_weight)
+                    if row.total_destination_weight is not None
+                    else 0
+                ),
+                (float(row.total_diff) if row.total_diff is not None else 0),
+                (
+                    float(row.total_shipment_payroll)
+                    if row.total_shipment_payroll is not None
+                    else 0
+                ),
+                (
+                    float(row.total_driver_payroll)
+                    if row.total_driver_payroll is not None
+                    else 0
+                ),
+                (
+                    float(row.total_expenses_amount_receipt)
+                    if row.total_expenses_amount_receipt is not None
+                    else 0
+                ),
+                (
+                    float(row.total_expenses_amount_no_receipt)
+                    if row.total_expenses_amount_no_receipt is not None
+                    else 0
+                ),
+                (
+                    float(row.total_expenses_amount)
+                    if row.total_expenses_amount is not None
+                    else 0
+                ),
+            ]
+
+            sheet.append(data_row)
+
+            # Apply border to each cell in the row
+            for cell in sheet[sheet.max_row]:
+                cell.border = border_style
+
+        # Save Excel file to output stream
+        workbook.save(output)
+        output.seek(0)
+
+        # Create response with Excel file
+        response = make_response(output.getvalue())
+        response.headers["Content-Type"] = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response.headers["Content-Disposition"] = (
+            f"attachment; filename=estadisticas_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
+        )
+
+        logger.info("exported statistics data to Excel file")
+
+        return response, 200
+
+    except SQLAlchemyError as e:
+        logger.error("export statistics Excel, error: %s", e)
+        return jsonify({"message": "Error al generar archivo Excel"}), 500
+
+    except Exception as e:
+        logger.error("export statistics Excel, error: %s", e)
+        return jsonify({"message": "Error al generar archivo Excel"}), 500

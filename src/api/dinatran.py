@@ -2,8 +2,6 @@ import io
 
 from typing import Tuple
 
-
-from app_config import logger, app, db_session, RequestWithUser
 from models.shipment import Shipment
 
 from datetime import datetime
@@ -56,6 +54,10 @@ def get_dinatran_data() -> Tuple[Response, int]:
                 func.count(Shipment.shipment_code).label("shipments"),
                 func.sum(Shipment.origin_weight).label("total_origin_weight"),
                 func.sum(Shipment.destination_weight).label("total_destination_weight"),
+                (
+                    func.sum(Shipment.destination_weight)
+                    - func.sum(Shipment.origin_weight)
+                ).label("total_diff"),
                 func.sum(Shipment.price * Shipment.destination_weight).label(
                     "total_shipment_payroll"
                 ),
@@ -80,26 +82,11 @@ def get_dinatran_data() -> Tuple[Response, int]:
                     {
                         "truck_plate": row.truck_plate,
                         "shipments": row.shipments,
-                        "total_origin_weight": (
-                            float(row.total_origin_weight)
-                            if row.total_origin_weight is not None
-                            else None
-                        ),
-                        "total_destination_weight": (
-                            float(row.total_destination_weight)
-                            if row.total_destination_weight is not None
-                            else None
-                        ),
-                        "total_shipment_payroll": (
-                            float(row.total_shipment_payroll)
-                            if row.total_shipment_payroll is not None
-                            else None
-                        ),
-                        "total_driver_payroll": (
-                            float(row.total_driver_payroll)
-                            if row.total_driver_payroll is not None
-                            else None
-                        ),
+                        "total_origin_weight": row.total_origin_weight,
+                        "total_destination_weight": row.total_destination_weight,
+                        "total_diff": row.total_diff,
+                        "total_shipment_payroll": row.total_shipment_payroll,
+                        "total_driver_payroll": row.total_driver_payroll,
                     }
                     for row in dinatran_shipments_grouped
                 ]
