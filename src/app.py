@@ -1,3 +1,5 @@
+from flask import send_from_directory
+
 from app_config import app
 
 from decorators.token_required import token_required
@@ -24,6 +26,24 @@ def hello_world():
 @token_required
 def protected_hello_world():
     return "Protected Hello, World!"
+
+
+# Serve static assets directly
+@app.route("/assets/<path:path>")
+def serve_assets(path: str):
+    return send_from_directory("static/assets", path)
+
+
+# Catch-all route to serve index.html for any non-API routes
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_react(path: str):
+    # If path starts with /api/, let Flask continue to the next route handler
+    if path.startswith("api/"):
+        return app.dispatch_request()
+
+    # Otherwise serve the index.html file for client-side routing
+    return send_from_directory("static", "index.html")
 
 
 if __name__ == "__main__":
