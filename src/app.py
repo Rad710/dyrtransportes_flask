@@ -1,20 +1,11 @@
 from flask import send_from_directory
 
 from app_config import app
+from app_config import DEBUG
 
 from decorators.token_required import token_required
 
-from api.auth import *
-from api.route import *
-from api.product import *
-from api.driver import *
-from api.shipment_payroll import *
-from api.shipment import *
-from api.user_profile import *
-from api.driver_payroll import *
-from api.shipment_expense import *
-from api.dinatran import *
-from api.statistics import *
+from api import *
 
 
 @app.route("/api/hello-world")
@@ -48,4 +39,4 @@ def serve_react(path: str):
 
 if __name__ == "__main__":
     # flask --app app/app.py run --host 0.0.0.0 --port 8081 --debug
-    app.run(host="0.0.0.0", debug=False, port=8080)
+    app.run(host="0.0.0.0", debug=bool(DEBUG), port=8080)
