@@ -2,8 +2,6 @@ import io
 
 from typing import Tuple
 
-from models.shipment import Shipment
-
 from datetime import datetime
 
 from flask import request
@@ -30,10 +28,13 @@ from app_config import RequestWithUser
 
 from models.shipment import Shipment
 
+from decorators.token_required import token_required
+
 request: RequestWithUser
 
 
 @app.route("/api/dinatran", methods=["GET"])
+@token_required
 def get_dinatran_data() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")
@@ -104,6 +105,7 @@ def get_dinatran_data() -> Tuple[Response, int]:
 
 
 @app.route("/api/dinatran/export-excel", methods=["GET"])
+@token_required
 def export_dinatran_excel() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")

@@ -23,11 +23,13 @@ from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
+from decorators.token_required import token_required
 
 request: RequestWithUser
 
 
 @app.route("/api/statistics", methods=["GET"])
+@token_required
 def get_statistics_data() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")
@@ -159,6 +161,7 @@ def get_statistics_data() -> Tuple[Response, int]:
 
 
 @app.route("/api/statistics/export-excel", methods=["GET"])
+@token_required
 def export_statistics_excel() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")
