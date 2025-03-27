@@ -1,7 +1,7 @@
 import logging
 import time
 
-from os import getenv
+import os
 from pathlib import Path
 from subprocess import run
 from subprocess import CalledProcessError
@@ -32,13 +32,13 @@ from models.shipment_expense import ShipmentExpense, ShipmentExpenseAudit
 project_root_path = Path(__file__).parents[1].absolute()
 load_dotenv(f"{project_root_path}/.env")
 
-DB_USERNAME = getenv("DB_USERNAME")
-DB_PASSWORD = getenv("DB_PASSWORD")
-DB_HOST = getenv("DB_HOST")
-DB_PORT = getenv("DB_PORT")
-DB_NAME = getenv("DB_NAME")
-API_KEY = getenv("API_KEY")
-DEBUG = getenv("DEBUG")
+DB_USERNAME = os.getenv("DB_USERNAME")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+API_KEY = os.getenv("API_KEY")
+DEBUG = os.getenv("DEBUG")
 
 
 # Custom logging filter to include method and request path
@@ -62,13 +62,13 @@ request: RequestWithUser
 
 def create_flask_app():
     """Initializes flask app"""
-    app: Flask = Flask(__name__)
-    app.config["SECRET_KEY"] = API_KEY
+    flask_app: Flask = Flask(__name__)
+    flask_app.config["SECRET_KEY"] = API_KEY
 
     if DEBUG:
-        CORS(app, expose_headers=["Content-Disposition"])
+        CORS(flask_app, expose_headers=["Content-Disposition"])
 
-    return app
+    return flask_app
 
 
 def create_flask_logger(flask_app: Flask):
@@ -129,13 +129,23 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
     flask_logger.info("init database...")
     Base.metadata.create_all(bind=engine)
 
+    # Get the absolute path to the alembic.ini file
+    # This gets the directory of the current script file (__file__), not the working directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    alembic_ini_path = os.path.join(script_dir, "migrations", "alembic.ini")
+
+    flask_logger.info(f"Using alembic.ini at: {alembic_ini_path}")
+
     flask_logger.info("running migration scripts...")
-    alembic_command = ["alembic", "-c", "src/migrations/alembic.ini", "upgrade", "head"]
+    alembic_command = ["alembic", "-c", alembic_ini_path, "upgrade", "head"]
     try:
         run(alembic_command, check=True)
         flask_logger.info("Alembic migration applied successfully!")
     except CalledProcessError as e:
-        flask_logger.info("Error while applying Alembic migration: %s", e)
+        flask_logger.error("Error while applying Alembic migration: %s", e)
+        # Print more detailed error information
+        flask_logger.error(f"Command attempted: {' '.join(alembic_command)}")
+        flask_logger.error(f"Working directory: {os.getcwd()}")
 
     flask_db_session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
