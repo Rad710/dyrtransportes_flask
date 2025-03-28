@@ -47,6 +47,3 @@ class User(Base):
             name="unique_email_user",
         ),
     )
-
-
-# TODO ADD USER AUDIT TABLE

@@ -106,6 +106,39 @@ def get_shipment_list() -> Tuple[Response, int]:
                 400,
             )
 
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    driver_payroll_code = None
+
+    # If driver_payroll_code_param is provided, validate it
+    if driver_payroll_code_param:
+        try:
+            driver_payroll_code = int(driver_payroll_code_param)
+
+            # Validate that the driver_payroll exists in the database
+            stmt_driver_payroll = select(DriverPayroll).where(
+                DriverPayroll.payroll_code == driver_payroll_code,
+                DriverPayroll.deleted == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+
+            driver_payroll = db_session.scalar(stmt_driver_payroll)
+            if not driver_payroll:
+                logger.error(
+                    "driverPayroll with code %s not found", driver_payroll_code
+                )
+                return jsonify({"message": "Liquidación no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
     try:
         stmt = select(Shipment).where(
             Shipment.deleted == False,
@@ -114,6 +147,9 @@ def get_shipment_list() -> Tuple[Response, int]:
 
         if shipment_payroll_code:
             stmt = stmt.where(Shipment.shipment_payroll_code == shipment_payroll_code)
+
+        if driver_payroll_code:
+            stmt = stmt.where(Shipment.driver_payroll_code == driver_payroll_code)
 
         shipments: Sequence[Shipment] = db_session.scalars(stmt).all()
         logger.info("fetch shipments table Shipment, len: %s", len(shipments))
@@ -372,7 +408,7 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar Carga"}), 500
 
 
-@app.route("/api/shipments/change-shipment-payroll", methods=["PATCH"])
+@app.route("/api/shipments/change-payroll", methods=["PATCH"])
 @token_required
 def shipments_change_shipment_payroll() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
@@ -408,6 +444,39 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
                 400,
             )
 
+    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
+    driver_payroll_code = None
+
+    # If driver_payroll_code_param is provided, validate it
+    if driver_payroll_code_param:
+        try:
+            driver_payroll_code = int(driver_payroll_code_param)
+
+            # Validate that the driver_payroll exists in the database
+            stmt_driver_payroll = select(DriverPayroll).where(
+                DriverPayroll.payroll_code == driver_payroll_code,
+                DriverPayroll.deleted == False,
+                DriverPayroll.modification_user == request.current_user.user_id,
+            )
+
+            driver_payroll = db_session.scalar(stmt_driver_payroll)
+            if not driver_payroll:
+                logger.error(
+                    "driverPayroll with code %s not found", driver_payroll_code
+                )
+                return jsonify({"message": "Liquidación no encontrada"}), 404
+
+        except ValueError:
+            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
+            return (
+                jsonify(
+                    {
+                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
+                    }
+                ),
+                400,
+            )
+
     try:
         # Get payload from request
         shipment_codes = request.get_json()
@@ -432,7 +501,12 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
 
         # Update shipment_payroll_code for each shipment
         for shipment in shipments_to_update:
-            shipment.shipment_payroll_code = shipment_payroll_code
+            if shipment_payroll_code:
+                shipment.shipment_payroll_code = shipment_payroll_code
+
+            if driver_payroll_code:
+                shipment.driver_payroll_code = driver_payroll_code
+
             shipment.modification_user = request.current_user.user_id
             updated_shipment_codes.append(shipment.shipment_code)
 

@@ -109,41 +109,6 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al obtener liquidaciones del chofer"}), 500
 
 
-# TODO: combine into endpoint of shipments.py
-@app.route("/api/driver-payroll/<int:payroll_code>/shipments", methods=["GET"])
-@token_required
-def get_driver_payroll_shipments(payroll_code: int) -> Tuple[Response, int]:
-    try:
-        driver_payroll_stmt = select(DriverPayroll).where(
-            DriverPayroll.payroll_code == payroll_code,
-            DriverPayroll.modification_user == request.current_user.user_id,
-            DriverPayroll.deleted == False,
-        )
-
-        driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
-        if driver_payroll is None:
-            logger.error("fetch table DriverPayroll, not found")
-            return jsonify({"message": "No se encontró la liquidación"}), 404
-
-        logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
-        logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
-
-        shipments_stmt = select(Shipment).where(
-            Shipment.deleted == False,
-            Shipment.modification_user == request.current_user.user_id,
-            Shipment.driver_payroll_code == payroll_code,
-        )
-
-        shipments: Sequence[Shipment] = db_session.scalars(shipments_stmt).all()
-        logger.info("fetch shipments table Shipment, len: %s", len(shipments))
-        logger.debug("fetch shipments table Shipment, shipments: %s", shipments)
-        return jsonify(shipments), 200
-
-    except SQLAlchemyError as e:
-        logger.error("fetch shipments table Shipment, error: %s", e)
-        return jsonify({"message": "Error al obtener planillas"}), 500
-
-
 @app.route("/api/driver-payroll/<int:payroll_code>/paid-status", methods=["PATCH"])
 @token_required
 def update_driver_payroll_paid_status(
@@ -343,106 +308,6 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": "Error al actualizar liquidación"}), 500
 
 
-# TODO: combine into shipment.py endpoint
-@app.route("/api/shipments/change-driver-payroll", methods=["PATCH"])
-@token_required
-def shipments_change_driver_payroll() -> Tuple[Response, int]:
-    driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
-    driver_payroll_code = None
-
-    # If driver_payroll_code_param is provided, validate it
-    if driver_payroll_code_param:
-        try:
-            driver_payroll_code = int(driver_payroll_code_param)
-
-            # Validate that the driver_payroll exists in the database
-            stmt_driver_payroll = select(DriverPayroll).where(
-                DriverPayroll.payroll_code == driver_payroll_code_param,
-                DriverPayroll.deleted == False,
-                DriverPayroll.modification_user == request.current_user.user_id,
-            )
-
-            driver_payroll = db_session.scalar(stmt_driver_payroll)
-            if not driver_payroll:
-                logger.error(
-                    "DriverPayroll with code %s not found", driver_payroll_code
-                )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
-
-        except ValueError:
-            logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
-            return (
-                jsonify(
-                    {
-                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
-                    }
-                ),
-                400,
-            )
-
-    try:
-        # Get payload from request
-        shipment_codes = request.get_json()
-
-        # Validate payload
-        if not shipment_codes or not isinstance(shipment_codes, list):
-            return jsonify({"message": "Payload inválido"}), 400
-
-        # Find all shipments that belong to the current user
-        stmt = select(Shipment).where(
-            Shipment.shipment_code.in_(shipment_codes),
-            Shipment.modification_user == request.current_user.user_id,
-        )
-        shipments_to_update = db_session.scalars(stmt).all()
-
-        if not shipments_to_update:
-            logger.error("move shipments, no shipments found")
-            return jsonify({"message": "No se encontraron cargas para actualizar"}), 404
-
-        # Track successfully updated shipments
-        updated_shipment_codes = []
-
-        # Update driver_payroll_code for each shipment
-        for shipment in shipments_to_update:
-            shipment.driver_payroll_code = driver_payroll_code
-            shipment.modification_user = request.current_user.user_id
-            updated_shipment_codes.append(shipment.shipment_code)
-
-        db_session.commit()
-
-        logger.info(
-            "Updated driver_payroll_code to %s for shipments: %s",
-            driver_payroll_code,
-            updated_shipment_codes,
-        )
-
-        return (
-            jsonify(
-                {
-                    "message": "Cargas actualizadas exitosamente",
-                }
-            ),
-            200,
-        )
-
-    except (TypeError, ValueError, KeyError) as e:
-        logger.error("move shipments, invalid data error: %s", e)
-        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
-
-    except OperationalError as e:
-        db_session.rollback()
-        logger.error("move shipments, connection error: %s", e)
-        return (
-            jsonify({"message": "Error al actualizar cargas: problema de conexión"}),
-            503,
-        )
-
-    except SQLAlchemyError as e:
-        db_session.rollback()
-        logger.error("move shipments, database error: %s", e)
-        return jsonify({"message": "Error al actualizar cargas"}), 500
-
-
 @app.route("/api/driver-payroll/<int:payroll_code>", methods=["DELETE"])
 @token_required
 def delete_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
@@ -531,10 +396,9 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
         return jsonify({"message": "Error al eliminar liquidación"}), 500
 
 
-# TODO: IMPLEMENT
 @app.route("/api/driver-payrolls/export-excel", methods=["GET"])
 @token_required
-def export_driver_payrolls() -> Tuple[Response, int]:
+def export_driver_payroll_list() -> Tuple[Response, int]:
     # Get date range parameters
     driver_code_str = request.args.get("driver_code", "")
     start_date_str = request.args.get("start_date", "")
@@ -664,7 +528,7 @@ def export_driver_payrolls() -> Tuple[Response, int]:
     "/api/driver-payroll/export-excel/<int:driver_payroll_code>", methods=["GET"]
 )
 @token_required
-def exportar_liquidacion(driver_payroll_code: int):
+def exportar_driver_payroll(driver_payroll_code: int):
     try:
         driver_payroll_stmt = select(DriverPayroll).where(
             DriverPayroll.payroll_code == driver_payroll_code,

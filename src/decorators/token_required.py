@@ -40,9 +40,6 @@ def token_required(f):
             if not current_user:
                 return jsonify({"message": "User not found"}), 401
 
-            # TODO: REMOVE!!!!
-            current_user.user_id = "dyrtransportes"
-
             # Add user to request context
             request.current_user = current_user
 
