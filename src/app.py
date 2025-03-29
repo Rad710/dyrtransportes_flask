@@ -56,7 +56,7 @@ def database_backup():
                 "mysqldump",
                 "-u",
                 DB_USERNAME,
-                f"-p{DB_PASSWORD}",
+                f"-p{DB_PASSWORD}",  ## Remove for prod
                 "-h",
                 DB_HOST,
                 "--set-gtid-purged=OFF",
