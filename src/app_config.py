@@ -138,6 +138,8 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
         # Print more detailed error information
         flask_logger.error(f"Command attempted: {' '.join(alembic_command)}")
         flask_logger.error(f"Working directory: {os.getcwd()}")
+    except Exception as e:
+        flask_logger.error("Error while applying Alembic migration: %s", e)
 
     flask_db_session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine)

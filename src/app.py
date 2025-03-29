@@ -110,6 +110,13 @@ def serve_react(path: str):
     return send_from_directory("static", "index.html")
 
 
+## TODO: import endpoint
+
+## TODO: create driver payroll when creating new driver
+
+## TODO: create driver payroll when changing status to paid
+
+
 if __name__ == "__main__":
     # flask --app app/app.py run --host 0.0.0.0 --port 8081 --debug
     app.run(host="0.0.0.0", debug=bool(DEBUG), port=8080)
