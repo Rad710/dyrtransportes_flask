@@ -110,6 +110,8 @@ def serve_react(path: str):
     return send_from_directory("static", "index.html")
 
 
+## TODO: translate endpoints
+
 ## TODO: import endpoint
 
 ## TODO: create driver payroll when creating new driver
