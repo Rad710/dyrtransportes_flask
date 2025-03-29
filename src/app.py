@@ -1,22 +1,85 @@
+import tempfile
+import os
+import subprocess
+from datetime import datetime
+
+
 from flask import send_from_directory
+from flask import send_file
 
 from app_config import app
 from app_config import DEBUG
+from app_config import DB_USERNAME
+from app_config import DB_HOST
+from app_config import DB_NAME
+from app_config import DB_PASSWORD
 
 from decorators.token_required import token_required
 
 from api import *
 
 
-@app.route("/api/hello-world")
+@app.route("/api/hello-world", methods=["GET"])
 def hello_world():
     return "Hello, World!"
 
 
-@app.route("/api/protected/hello-world")
+@app.route("/api/protected/hello-world", methods=["GET"])
 @token_required
 def protected_hello_world():
     return "Protected Hello, World!"
+
+
+@app.route("/api/protected/database-backup", methods=["GET"])
+def database_backup():
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"database_backup_{timestamp}.sql"
+
+        # Create a temporary directory that will be automatically cleaned up
+        temp_dir = tempfile.mkdtemp()
+        dump_file = os.path.join(temp_dir, "temp_dump.sql")
+
+        # Use mysqldump to create a SQL dump of your MySQL database
+        result = subprocess.run(
+            [
+                "mysqldump",
+                "-u",
+                DB_USERNAME,
+                f"-p{DB_PASSWORD}",
+                "-h",
+                DB_HOST,
+                "--set-gtid-purged=OFF",
+                "--no-tablespaces",
+                DB_NAME,
+                "--result-file=" + dump_file,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,  # Explicitly set check to False since we handle errors manually
+        )
+
+        # Check if the process executed successfully
+        if result.returncode != 0:
+            logger.error("mysqldump failed: %s", result.stderr)
+            return jsonify({"message": f"Error al crear backup: {result.stderr}"}), 500
+
+        # Check if file exists before sending
+        if not os.path.exists(dump_file):
+            logger.error("Dump file was not created")
+            return jsonify({"message": "El archivo de respaldo no fue creado"}), 500
+
+        # Send the file with the timestamped filename
+        return send_file(
+            dump_file,
+            as_attachment=True,
+            download_name=backup_filename,
+            mimetype="application/sql",
+        )
+
+    except Exception as e:
+        logger.error("Backup error: %s", e)
+        return jsonify({"message": f"Error al crear backup: {str(e)}"}), 500
 
 
 # Serve static assets directly
