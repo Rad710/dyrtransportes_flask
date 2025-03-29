@@ -51,26 +51,45 @@ def database_backup():
         dump_file = os.path.join(temp_dir, "temp_dump.sql")
 
         # Use mysqldump to create a SQL dump of your MySQL database
-        result = subprocess.run(
-            [
-                "mysqldump",
-                "-u",
-                DB_USERNAME,
-                f"-p{DB_PASSWORD}",  ## Remove for prod
-                "-h",
-                DB_HOST,
-                "--set-gtid-purged=OFF",
-                "--no-tablespaces",
-                DB_NAME,
-                "--result-file=" + dump_file,
-            ],
-            capture_output=True,
-            text=True,
-            check=False,  # Explicitly set check to False since we handle errors manually
-        )
+        result = None
+        if DEBUG:
+            result = subprocess.run(
+                [
+                    "mysqldump",
+                    "-u",
+                    DB_USERNAME,
+                    f"-p{DB_PASSWORD}",
+                    "-h",
+                    DB_HOST,
+                    "--set-gtid-purged=OFF",
+                    "--no-tablespaces",
+                    DB_NAME,
+                    "--result-file=" + dump_file,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,  # Explicitly set check to False since we handle errors manually
+            )
+        else:
+            result = subprocess.run(
+                [
+                    "mysqldump",
+                    "-u",
+                    DB_USERNAME,
+                    "-h",
+                    DB_HOST,
+                    "--set-gtid-purged=OFF",
+                    "--no-tablespaces",
+                    DB_NAME,
+                    "--result-file=" + dump_file,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,  # Explicitly set check to False since we handle errors manually
+            )
 
         # Check if the process executed successfully
-        if result.returncode != 0:
+        if result is None or result.returncode != 0:
             logger.error("mysqldump failed: %s", result.stderr)
             return jsonify({"message": f"Error al crear backup: {result.stderr}"}), 500
 
