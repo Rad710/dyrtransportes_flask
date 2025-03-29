@@ -114,7 +114,7 @@ MESSAGES = {
         "vat_10": "VAT 10%",
         "shipping_service": "Shipping Service",
         "total": "Total",
-        "settlement_for": "Settlement for",
+        "payroll_file": "Payroll",
     },
     "es": {
         # Error messages
@@ -176,7 +176,7 @@ MESSAGES = {
         "vat_10": "IVA 10%",
         "shipping_service": "Servicio de Flete",
         "total": "Total",
-        "settlement_for": "Liquidacion",
+        "payroll_file": "Liquidacion",
     },
 }
 
@@ -953,7 +953,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
     date = driver_payroll.payroll_timestamp.date().strftime("%d/%m/%Y")
 
     # Use translated settlement term in filename
-    settlement_term = get_message(MESSAGES, "settlement_for")
+    settlement_term = get_message(MESSAGES, "payroll_file")
     response.headers["Content-Disposition"] = (
         f"attachment; filename={name.strip()}_{settlement_term}_{date}.xlsx"
     )
