@@ -41,8 +41,113 @@ from models.shipment import Shipment
 from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
 from models.shipment_payroll import ShipmentPayroll
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "shipment_not_found": "Shipment not found",
+        "transaction_error": "Transaction error",
+        "get_shipments_error": "Error getting shipments",
+        "shipment_payroll_not_found": "Shipment payroll not found",
+        "invalid_shipment_payroll_param": "Parameter 'shipment_payroll_code' must be an integer",
+        "driver_payroll_not_found": "Driver payroll not found",
+        "invalid_driver_payroll_param": "Parameter 'driver_payroll_code' must be an integer",
+        "driver_no_payrolls": "The driver has no payrolls",
+        "invalid_shipment_data": "Invalid shipment data",
+        "connection_error": "Connection error",
+        "add_shipment_error": "Error adding shipment",
+        "duplicate_shipment": "Error adding shipment: duplicate shipment",
+        "data_integrity_error": "Error adding shipment: data integrity error",
+        "update_shipment_error": "Error updating shipment",
+        "invalid_payload": "Invalid payload",
+        "shipments_not_found_to_update": "No shipments found to update",
+        "update_shipments_error": "Error updating shipments",
+        "delete_shipment_error": "Error deleting shipment",
+        "shipment_not_found_for_delete": "Error deleting shipment: shipment not found",
+        "excel_creation_error": "Error creating Excel file",
+        "excel_no_data": "Error creating Excel file, no data",
+        # Success messages
+        "shipment_added": "Shipment added successfully",
+        "shipment_updated": "Shipment updated successfully",
+        "shipments_updated": "Shipments updated successfully",
+        "shipment_deleted": "Shipment deleted successfully",
+        # Excel headers and values
+        "num": "No.",
+        "date": "Date",
+        "driver": "Driver",
+        "plate": "Plate",
+        "product": "Product",
+        "origin": "Origin",
+        "destination": "Destination",
+        "dispatch": "Dispatch",
+        "ticket": "Ticket",
+        "origin_weight": "Origin Weight",
+        "destination_weight": "Destination Weight",
+        "difference": "Diff.",
+        "tolerance": "Tolerance",
+        "difference_tolerance": "Diff. Tol.",
+        "price": "Price",
+        "total": "Total",
+        "subtotal": "Subtotal",
+        "total_row": "TOTAL",
+        "company_name": "D & R TRANSPORT",
+        "collection": "collection",
+    },
+    "es": {
+        # Error messages
+        "shipment_not_found": "No se encontró la Carga",
+        "transaction_error": "Error de transacción",
+        "get_shipments_error": "Error al obtener planillas",
+        "shipment_payroll_not_found": "Planilla de carga no encontrada",
+        "invalid_shipment_payroll_param": "Parámetro 'shipment_payroll_code' debe ser un número entero",
+        "driver_payroll_not_found": "Liquidación no encontrada",
+        "invalid_driver_payroll_param": "Parámetro 'driver_payroll_code' debe ser un número entero",
+        "driver_no_payrolls": "El chofer no tiene liquidaciones",
+        "invalid_shipment_data": "Datos de la Carga inválidos",
+        "connection_error": "problema de conexión",
+        "add_shipment_error": "Error al agregar Carga",
+        "duplicate_shipment": "Error al agregar Carga: carga duplicada",
+        "data_integrity_error": "Error al agregar Carga: error de integridad de datos",
+        "update_shipment_error": "Error al actualizar Carga",
+        "invalid_payload": "Payload inválido",
+        "shipments_not_found_to_update": "No se encontraron cargas para actualizar",
+        "update_shipments_error": "Error al actualizar cargas",
+        "delete_shipment_error": "Error al eliminar Carga",
+        "shipment_not_found_for_delete": "Error al eliminar Carga: Carga no encontrada",
+        "excel_creation_error": "Error al crear archivo Excel",
+        "excel_no_data": "Error al crear archivo Excel, sin datos",
+        # Success messages
+        "shipment_added": "Carga agregada exitosamente",
+        "shipment_updated": "Carga actualizada exitosamente",
+        "shipments_updated": "Cargas actualizadas exitosamente",
+        "shipment_deleted": "Carga eliminada exitosamente",
+        # Excel headers and values
+        "num": "N°",
+        "date": "Fecha",
+        "driver": "Chofer",
+        "plate": "Chapa",
+        "product": "Producto",
+        "origin": "Origen",
+        "destination": "Destino",
+        "dispatch": "Remision",
+        "ticket": "Tiquet",
+        "origin_weight": "Kilos Origen",
+        "destination_weight": "Kilos Destino",
+        "difference": "Dif.",
+        "tolerance": "Tolera",
+        "difference_tolerance": "Dif. Tol.",
+        "price": "Precio",
+        "total": "Total",
+        "subtotal": "Subtotal",
+        "total_row": "TOTAL",
+        "company_name": "D & R TRANSPORTES",
+        "collection": "cobranza",
+    },
+}
 
 
 @app.route("/api/shipment/<int:shipment_code>", methods=["GET"])
@@ -58,7 +163,10 @@ def get_shipment(shipment_code: int) -> Tuple[Response, int]:
         shipment: Optional[Shipment] = db_session.scalar(stmt)
         if shipment is None:
             logger.error("fetch table Shipment, not found")
-            return jsonify({"message": "No se encontró la Carga"}), 404
+            return (
+                jsonify({"message": get_message(MESSAGES, "shipment_not_found")}),
+                404,
+            )
 
         logger.info("fetch table Shipment, found: %s", shipment.shipment_code)
         logger.debug("fetch table Shipment, found: %s", shipment)
@@ -67,7 +175,7 @@ def get_shipment(shipment_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table Shipment, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/shipments", methods=["GET"])
@@ -93,15 +201,18 @@ def get_shipment_list() -> Tuple[Response, int]:
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
                 ),
                 400,
             )
@@ -126,15 +237,18 @@ def get_shipment_list() -> Tuple[Response, int]:
                 logger.error(
                     "driverPayroll with code %s not found", driver_payroll_code
                 )
-                return jsonify({"message": "Liquidación no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "driver_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_driver_payroll_param")}
                 ),
                 400,
             )
@@ -158,7 +272,7 @@ def get_shipment_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch shipments table Shipment, error: %s", e)
-        return jsonify({"message": "Error al obtener planillas"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_shipments_error")}), 500
 
 
 @app.route("/api/shipment/grouped-shipments", methods=["GET"])
@@ -184,15 +298,18 @@ def get_grouped_shipments_list() -> Tuple[Response, int]:
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
                 ),
                 400,
             )
@@ -230,7 +347,7 @@ def get_grouped_shipments_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch shipments table Shipment and aggregated, error: %s", e)
-        return jsonify({"message": "Error al obtener planillas"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_shipments_error")}), 500
 
 
 @app.route("/api/shipment", methods=["POST"])
@@ -255,7 +372,10 @@ def post_shipment() -> Tuple[Response, int]:
         driver_payroll_code = db_session.scalar(driver_payroll_stmt)
         if driver_payroll_code is None:
             logger.error("update table Shipment, driver_payroll_code not found")
-            return jsonify({"message": "El chofer no tiene liquidaciones"}), 404
+            return (
+                jsonify({"message": get_message(MESSAGES, "driver_no_payrolls")}),
+                404,
+            )
 
         shipment_dict["driver_payroll_code"] = driver_payroll_code
 
@@ -272,18 +392,30 @@ def post_shipment() -> Tuple[Response, int]:
         db_session.commit()
         logger.info("inserted table Shipment, shipment: %s", payload.shipment_code)
         return (
-            jsonify({**asdict(payload), "message": "Carga agregada exitosamente"}),
+            jsonify(
+                {**asdict(payload), "message": get_message(MESSAGES, "shipment_added")}
+            ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Shipment, invalid shipment error: %s", e)
-        return jsonify({"message": f"Error, datos de la Carga inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table Shipment, connection error: %s", e)
-        return jsonify({"message": "Error al agregar Carga: problema de conexión"}), 503
+        return (
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_shipment_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
+            503,
+        )
 
     except IntegrityError as e:
         db_session.rollback()
@@ -295,19 +427,20 @@ def post_shipment() -> Tuple[Response, int]:
             "Duplicate entry" in error_message
             and "unique_driver_ticket_date" in error_message
         ):
-            return jsonify({"message": "Error al agregar Carga: carga duplicada"}), 400
+            return (
+                jsonify({"message": get_message(MESSAGES, "duplicate_shipment")}),
+                400,
+            )
 
         return (
-            jsonify(
-                {"message": "Error al agregar Carga: error de integridad de datos"}
-            ),
+            jsonify({"message": get_message(MESSAGES, "data_integrity_error")}),
             400,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table Shipment, error: %s", e)
-        return jsonify({"message": "Error al agregar Carga"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_shipment_error")}), 500
 
 
 @app.route("/api/shipment/<int:shipment_code>", methods=["PUT"])
@@ -323,7 +456,10 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table Shipment, shipment not found")
-            return jsonify({"message": "Carga no encontrada"}), 404
+            return (
+                jsonify({"message": get_message(MESSAGES, "shipment_not_found")}),
+                404,
+            )
 
         ## UPDATE: DRIVER PAYROLL
         shipment_dict = request.get_json()
@@ -344,7 +480,10 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         driver_payroll_code = db_session.scalar(driver_payroll_stmt)
         if driver_payroll_code is None:
             logger.error("update table Shipment, driver_payroll_code not found")
-            return jsonify({"message": "El chofer no tiene liquidaciones"}), 404
+            return (
+                jsonify({"message": get_message(MESSAGES, "driver_no_payrolls")}),
+                404,
+            )
 
         shipment_dict["driver_payroll_code"] = driver_payroll_code
 
@@ -384,28 +523,38 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         logger.info("updated table Shipment, shipment: %s", shipment_code)
         return (
             jsonify(
-                {**asdict(entry_to_update), "message": "Carga actualizada exitosamente"}
+                {
+                    **asdict(entry_to_update),
+                    "message": get_message(MESSAGES, "shipment_updated"),
+                }
             ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("update table Shipment, invalid shipment error: %s", e)
-        return jsonify({"message": f"Error, datos de la Carga inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update table Shipment, connection error: %s", e)
 
         return (
-            jsonify({"message": "Error al actualizar Carga: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_shipment_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table Shipment, error: %s", e)
-        return jsonify({"message": "Error al actualizar Carga"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_shipment_error")}), 500
 
 
 @app.route("/api/shipments/change-payroll", methods=["PATCH"])
@@ -431,15 +580,18 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
                 ),
                 400,
             )
@@ -464,15 +616,18 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
                 logger.error(
                     "driverPayroll with code %s not found", driver_payroll_code
                 )
-                return jsonify({"message": "Liquidación no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "driver_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_driver_payroll_param")}
                 ),
                 400,
             )
@@ -483,7 +638,7 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
 
         # Validate payload
         if not shipment_codes or not isinstance(shipment_codes, list):
-            return jsonify({"message": "Payload inválido"}), 400
+            return jsonify({"message": get_message(MESSAGES, "invalid_payload")}), 400
 
         # Find all shipments that belong to the current user
         stmt = select(Shipment).where(
@@ -494,7 +649,12 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
 
         if not shipments_to_update:
             logger.error("move shipments, no shipments found")
-            return jsonify({"message": "No se encontraron cargas para actualizar"}), 404
+            return (
+                jsonify(
+                    {"message": get_message(MESSAGES, "shipments_not_found_to_update")}
+                ),
+                404,
+            )
 
         # Track successfully updated shipments
         updated_shipment_codes = []
@@ -521,7 +681,7 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
         return (
             jsonify(
                 {
-                    "message": "Cargas actualizadas exitosamente",
+                    "message": get_message(MESSAGES, "shipments_updated"),
                 }
             ),
             200,
@@ -529,20 +689,30 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("move shipments, invalid data error: %s", e)
-        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
+        return jsonify({"message": error_msg}), 400
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("move shipments, connection error: %s", e)
         return (
-            jsonify({"message": "Error al actualizar cargas: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_shipments_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("move shipments, database error: %s", e)
-        return jsonify({"message": "Error al actualizar cargas"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "update_shipments_error")}),
+            500,
+        )
 
 
 @app.route("/api/shipment/<int:shipment_code>", methods=["DELETE"])
@@ -557,26 +727,35 @@ def delete_shipment(shipment_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table Shipment, shipment not found")
-            return jsonify({"message": "Carga no encontrada"}), 404
+            return (
+                jsonify({"message": get_message(MESSAGES, "shipment_not_found")}),
+                404,
+            )
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table Shipment, shipment: %s", shipment_code)
-        return jsonify({"message": "Carga eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "shipment_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Shipment, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar Carga: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_shipment_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Shipment, error: %s", e)
-        return jsonify({"message": "Error al eliminar Carga"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
 @app.route("/api/shipments", methods=["DELETE"])
@@ -584,7 +763,12 @@ def delete_shipment(shipment_code: int) -> Tuple[Response, int]:
 def delete_shipment_list() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
         logger.error("delete shipments table Shipment, shipment list is empty")
-        return jsonify({"message": "Error al eliminar Carga: Carga no encontrada"}), 404
+        return (
+            jsonify(
+                {"message": get_message(MESSAGES, "shipment_not_found_for_delete")}
+            ),
+            404,
+        )
 
     shipment_list: List[int] = request.get_json()
     logger.debug("delete shipments table Shipment, payload: %s", shipment_list)
@@ -600,7 +784,11 @@ def delete_shipment_list() -> Tuple[Response, int]:
             if shipment is None:
                 return (
                     jsonify(
-                        {"message": "Error al eliminar Carga: Carga no encontrada"}
+                        {
+                            "message": get_message(
+                                MESSAGES, "shipment_not_found_for_delete"
+                            )
+                        }
                     ),
                     404,
                 )
@@ -610,20 +798,26 @@ def delete_shipment_list() -> Tuple[Response, int]:
             logger.info("delete table Shipment, shipment: %s", shipment_code)
 
         db_session.commit()
-        return jsonify({"message": "Carga eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "shipment_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Shipment, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar Carga: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_shipment_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Shipment, error: %s", e)
-        return jsonify({"message": "Error al eliminar Carga"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
 @app.route("/api/shipments/export-excel", methods=["GET"])
@@ -649,15 +843,18 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify(
+                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
+                    ),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'shipment_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
                 ),
                 400,
             )
@@ -686,11 +883,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
 
         if shipments is None or len(shipments) <= 0:
             logger.error("export Shipments, fetch Shipments returned empty list")
-            return jsonify({"message": "Error al crear archivo Excel, sin datos"}), 500
+            return jsonify({"message": get_message(MESSAGES, "excel_no_data")}), 500
 
     except SQLAlchemyError as e:
         logger.error("export Shipments, fetch Shipments error: %s", e)
-        return jsonify({"message": "Error al crear archivo Excel"}), 500
+        return jsonify({"message": get_message(MESSAGES, "excel_creation_error")}), 500
 
     # dict for subtotals
     subtotal_groups: dict[str, str | int] = {}
@@ -752,16 +949,16 @@ def export_shipments_excel() -> Tuple[Response, int]:
     sheet.column_dimensions["O"].width = 6.27
     sheet.column_dimensions["P"].width = 14.64
 
-    # Agregar la fecha como la primera fila
-    sheet.append([])  # Agregar una fila en blanco después de la fecha
-    # Agregar una fila en blanco después de la fecha
-    sheet.append(["D & R TRANSPORTES"])
+    # Add a blank row
+    sheet.append([])
+    # Add company name row
+    sheet.append([get_message(MESSAGES, "company_name")])
 
-    # Obtener el rango de columnas con valores None
+    # Get the range of columns with values None
     column_start = 1  # Cambiar al índice de la primera columna con valor None
     column_end = 16  # Cambiar al índice de la última columna con valor None
 
-    # Combinar las celdas en el rango de columnas
+    # Merge cells in the column range
     sheet.merge_cells(
         start_row=sheet.max_row,
         start_column=column_start,
@@ -769,47 +966,48 @@ def export_shipments_excel() -> Tuple[Response, int]:
         end_column=column_end,
     )
 
-    # Centrar el contenido en la celda combinada
+    # Center content in the merged cell
     merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
     merged_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    # Aplicar el estilo de fuente deseado (Arial Black, size 22, purple color)
+    # Apply desired font style (Arial Black, size 22, purple color)
     # Using a standard purple color index
     font = Font(name="Arial Black", size=22, color="800080")
     merged_cell.font = font
 
     sheet.row_dimensions[2].height = 35
 
-    sheet.append([])  # Agregar una fila en blanco después de la fecha
+    sheet.append([])  # Add a blank row after the date
     sheet.append([None, datetime.now().strftime("%d/%m/%Y")])
-    sheet.append([])  # Agregar una fila en blanco después de la fecha
+    sheet.append([])  # Add a blank row after the date
 
+    # Get translated headers
     headers = [
-        "N°",
-        "Fecha",
-        "Chofer",
-        "Chapa",
-        "Producto",
-        "Origen",
-        "Destino",
-        "Remision",
-        "Tiquet",
-        "Kilos Origen",
-        "Kilos Destino",
-        "Dif.",
-        "Tolera",
-        "Dif. Tol.",
-        "Precio",
-        "Total",
+        get_message(MESSAGES, "num"),
+        get_message(MESSAGES, "date"),
+        get_message(MESSAGES, "driver"),
+        get_message(MESSAGES, "plate"),
+        get_message(MESSAGES, "product"),
+        get_message(MESSAGES, "origin"),
+        get_message(MESSAGES, "destination"),
+        get_message(MESSAGES, "dispatch"),
+        get_message(MESSAGES, "ticket"),
+        get_message(MESSAGES, "origin_weight"),
+        get_message(MESSAGES, "destination_weight"),
+        get_message(MESSAGES, "difference"),
+        get_message(MESSAGES, "tolerance"),
+        get_message(MESSAGES, "difference_tolerance"),
+        get_message(MESSAGES, "price"),
+        get_message(MESSAGES, "total"),
     ]
     sheet.append(headers)
 
-    # Aplicar bordes y relleno a las celdas del encabezado
+    # Apply borders and fill to header cells
     for col_idx, _ in enumerate(headers, start=1):
         col_letter = get_column_letter(col_idx)
         cell = sheet[f"{col_letter}6"]
 
-        # Aplicar bordes
+        # Apply borders
         thin_border = Border(
             left=Side(style="thin"),
             right=Side(style="thin"),
@@ -818,16 +1016,16 @@ def export_shipments_excel() -> Tuple[Response, int]:
         )
         cell.border = thin_border
 
-        # Aplicar relleno con el color Gold, Accent 4, Lighter 40%
+        # Apply fill with Gold, Accent 4, Lighter 40% color
         fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
         cell.fill = fill
 
-        # Aplicar alineación vertical y horizontal en la celda
+        # Apply vertical and horizontal alignment in the cell
         cell.alignment = Alignment(horizontal="left", vertical="bottom")
 
     sheet.row_dimensions[6].height = 30
 
-    # Agregar filas de datos
+    # Add data rows
     index = 1
     counter = 7
     for shipment in shipments:
@@ -878,7 +1076,7 @@ def export_shipments_excel() -> Tuple[Response, int]:
 
             sheet.append(
                 [
-                    "Subtotal",
+                    get_message(MESSAGES, "subtotal"),
                     None,
                     None,
                     None,
@@ -897,11 +1095,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 ]
             )
 
-            # Obtener el rango de columnas con valores None
-            column_start = 1  # Cambiar al índice de la primera columna con valor None
-            column_end = 9  # Cambiar al índice de la última columna con valor None
+            # Get the range of columns with None values
+            column_start = 1
+            column_end = 9
 
-            # Combinar las celdas en el rango de columnas
+            # Merge cells in the column range
             sheet.merge_cells(
                 start_row=sheet.max_row,
                 start_column=column_start,
@@ -909,11 +1107,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 end_column=column_end,
             )
 
-            # Centrar el contenido en la celda combinada
+            # Center content in the merged cell
             merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
             merged_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            # Formatear columnas 8 a 15 como números
+            # Format columns 8 to 15 as numbers
             for col in range(10, 17):
                 cell = sheet.cell(row=sheet.max_row, column=col)
 
@@ -932,8 +1130,7 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 )
                 cell.border = thin_border
 
-                # Aplicar relleno con el color Gray, Accent 4, Lighter 60%
-                # Gray, Accent 4, Lighter 60%
+                # Apply fill with Gray, Accent 4, Lighter 60% color
                 fill = PatternFill(
                     start_color="969696", end_color="969696", fill_type="solid"
                 )
@@ -971,7 +1168,7 @@ def export_shipments_excel() -> Tuple[Response, int]:
 
     sheet.append(
         [
-            "TOTAL",
+            get_message(MESSAGES, "total_row"),
             None,
             None,
             None,
@@ -990,11 +1187,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
         ]
     )
 
-    # Obtener el rango de columnas con valores None
-    column_start = 1  # Cambiar al índice de la primera columna con valor None
-    column_end = 9  # Cambiar al índice de la última columna con valor None
+    # Get the range of columns with None values
+    column_start = 1
+    column_end = 9
 
-    # Combinar las celdas en el rango de columnas
+    # Merge cells in the column range
     sheet.merge_cells(
         start_row=sheet.max_row,
         start_column=column_start,
@@ -1002,11 +1199,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
         end_column=column_end,
     )
 
-    # Centrar el contenido en la celda combinada
+    # Center content in the merged cell
     merged_cell = sheet.cell(row=sheet.max_row, column=column_start)
     merged_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    # Formatear columnas 8 a 15 como números
+    # Format columns 8 to 15 as numbers
     for col in range(10, 17):
         cell = sheet.cell(row=sheet.max_row, column=col)
 
@@ -1076,17 +1273,20 @@ def export_shipments_excel() -> Tuple[Response, int]:
         cell = sheet.cell(row=sheet.max_row, column=16)
         cell.number_format = "#,##0"
 
-    # Guardar el archivo Excel en el flujo de salida
+    # Save Excel file to output stream
     workbook.save(output)
     output.seek(0)
 
-    # Crear la respuesta para el cliente con el archivo Excel
+    # Get translated filename component
+    collection_term = get_message(MESSAGES, "collection")
+
+    # Create client response with Excel file
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response.headers["Content-Disposition"] = (
-        f'attachment; filename="cobranza_{shipment_payroll_code or "todos"}.xlsx"'
+        f'attachment; filename={collection_term}_{shipment_payroll_code or "todos"}.xlsx'
     )
     logger.info("Shipment Excel file exported: %s", shipment_payroll_code)
 

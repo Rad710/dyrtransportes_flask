@@ -29,8 +29,41 @@ from app_config import RequestWithUser
 from models.shipment import Shipment
 
 from decorators.token_required import token_required
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        "missing_date_params": "The start_date and end_date parameters are required",
+        "transaction_error": "Transaction error",
+        "excel_generation_error": "Error generating Excel file",
+        # Excel headers
+        "plate": "Plate",
+        "shipment_count": "Shipment Count",
+        "total_origin_kg": "Total Origin Kg.",
+        "total_destination_kg": "Total Destination Kg.",
+        "shipment_fees": "Shipment Fees (Gs.)",
+        "settlements": "Settlements (Gs.)",
+        # Filename
+        "dinatran_data": "dinatran_data",
+    },
+    "es": {
+        "missing_date_params": "Se requieren los parámetros start_date y end_date",
+        "transaction_error": "Error de transacción",
+        "excel_generation_error": "Error al generar archivo Excel",
+        # Excel headers
+        "plate": "Chapa",
+        "shipment_count": "Cantidad de Cargas",
+        "total_origin_kg": "Total Kg. Origen",
+        "total_destination_kg": "Total Kg. Destino",
+        "shipment_fees": "Fletes (Gs.)",
+        "settlements": "Liquidaciones (Gs.)",
+        # Filename
+        "dinatran_data": "datos_dinatran",
+    },
+}
 
 
 @app.route("/api/dinatran", methods=["GET"])
@@ -45,7 +78,7 @@ def get_dinatran_data() -> Tuple[Response, int]:
 
         if not start_date or not end_date:
             return (
-                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
                 400,
             )
 
@@ -100,11 +133,11 @@ def get_dinatran_data() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch DINATRAN, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
     except Exception as e:
         logger.error("fetch DINATRAN, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/dinatran/export-excel", methods=["GET"])
@@ -119,7 +152,7 @@ def export_dinatran_excel() -> Tuple[Response, int]:
 
         if not start_date or not end_date:
             return (
-                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
                 400,
             )
 
@@ -158,14 +191,14 @@ def export_dinatran_excel() -> Tuple[Response, int]:
         sheet = workbook.active
         sheet.title = "DINATRAN"
 
-        # Define headers
+        # Define headers with translations
         headers = [
-            "Chapa",
-            "Cantidad de Cargas",
-            "Total Kg. Origen",
-            "Total Kg. Destino",
-            "Fletes (Gs.)",
-            "Liquidaciones (Gs.)",
+            get_message(MESSAGES, "plate"),
+            get_message(MESSAGES, "shipment_count"),
+            get_message(MESSAGES, "total_origin_kg"),
+            get_message(MESSAGES, "total_destination_kg"),
+            get_message(MESSAGES, "shipment_fees"),
+            get_message(MESSAGES, "settlements"),
         ]
         sheet.append(headers)
 
@@ -222,14 +255,14 @@ def export_dinatran_excel() -> Tuple[Response, int]:
         workbook.save(output)
         output.seek(0)
 
-        # Create response with Excel file
+        # Create response with Excel file using translated filename
+        filename = f"{get_message(MESSAGES, 'dinatran_data')}_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
+
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        response.headers["Content-Disposition"] = (
-            f"attachment; filename=datos_dinatran_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
-        )
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
 
         logger.info("exported DINATRAN data to Excel file")
 
@@ -237,8 +270,14 @@ def export_dinatran_excel() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("export DINATRAN Excel, error: %s", e)
-        return jsonify({"message": "Error al generar archivo Excel"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )
 
     except Exception as e:
         logger.error("export DINATRAN Excel, error: %s", e)
-        return jsonify({"message": "Error al generar archivo Excel"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )

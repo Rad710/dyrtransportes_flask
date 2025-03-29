@@ -12,7 +12,6 @@ from flask import jsonify
 from flask import Response
 from flask import make_response
 
-
 from sqlalchemy import select
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,8 +29,57 @@ from app_config import RequestWithUser
 from decorators.token_required import token_required
 
 from models.route import Route
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "route_not_found": "Route not found",
+        "transaction_error": "Transaction error",
+        "get_routes_error": "Error getting routes",
+        "invalid_route_data": "Invalid route data",
+        "connection_error": "Connection error",
+        "add_route_error": "Error adding route",
+        "update_route_error": "Error updating route",
+        "delete_route_error": "Error deleting route",
+        "create_excel_error": "Error creating Excel file",
+        # Success messages
+        "route_added": "Route added successfully",
+        "route_updated": "Route updated successfully",
+        "route_deleted": "Route deleted successfully",
+        # Excel headers and labels
+        "origin": "Origin",
+        "destination": "Destination",
+        "price": "Price",
+        "payroll_price": "Payroll Price",
+        "price_list": "price_list",
+    },
+    "es": {
+        # Error messages
+        "route_not_found": "No se encontró la ruta",
+        "transaction_error": "Error de transacción",
+        "get_routes_error": "Error al obtener rutas",
+        "invalid_route_data": "Datos de la Ruta inválidos",
+        "connection_error": "problema de conexión",
+        "add_route_error": "Error al agregar ruta",
+        "update_route_error": "Error al actualizar ruta",
+        "delete_route_error": "Error al eliminar ruta",
+        "create_excel_error": "Error al crear archivo Excel",
+        # Success messages
+        "route_added": "Ruta agregada exitosamente",
+        "route_updated": "Ruta actualizada exitosamente",
+        "route_deleted": "Ruta eliminada exitosamente",
+        # Excel headers and labels
+        "origin": "Origen",
+        "destination": "Destino",
+        "price": "Precio",
+        "payroll_price": "Precio de Liquidación",
+        "price_list": "lista_de_precios",
+    },
+}
 
 
 @app.route("/api/route/<int:route_code>", methods=["GET"])
@@ -47,7 +95,7 @@ def get_route(route_code: int) -> Tuple[Response, int]:
         route: Optional[Route] = db_session.scalar(stmt)
         if route is None:
             logger.error("fetch table Route, not found")
-            return jsonify({"message": "No se encontró la routa"}), 404
+            return jsonify({"message": get_message(MESSAGES, "route_not_found")}), 404
 
         logger.info("fetch table Route, found: %s", route.route_code)
         logger.debug("fetch table Route, found: %s", route)
@@ -56,7 +104,7 @@ def get_route(route_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table Route, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/routes", methods=["GET"])
@@ -79,7 +127,7 @@ def get_route_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch routes table Route, error: %s", e)
-        return jsonify({"message": "Error al obtener rutas"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_routes_error")}), 500
 
 
 @app.route("/api/route", methods=["POST"])
@@ -98,24 +146,36 @@ def post_route() -> Tuple[Response, int]:
         db_session.commit()
         logger.info("inserted table Route, route: %s", payload.route_code)
         return (
-            jsonify({**asdict(payload), "message": "Ruta agregada exitosamente"}),
+            jsonify(
+                {**asdict(payload), "message": get_message(MESSAGES, "route_added")}
+            ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Route, invalid route error: %s", e)
-        return jsonify({"message": f"Error, datos de la Ruta inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_route_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table Route, connection error: %s", e)
 
-        return jsonify({"message": "Error al agregar ruta: problema de conexión"}), 503
+        return (
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_route_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
+            503,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table Route, error: %s", e)
-        return jsonify({"message": "Error al agregar ruta"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_route_error")}), 500
 
 
 @app.route("/api/route/<int:route_code>", methods=["PUT"])
@@ -131,7 +191,7 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table Route, route not found")
-            return jsonify({"message": "Ruta no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "route_not_found")}), 404
 
         # json to db object
         payload = Route(
@@ -150,28 +210,38 @@ def put_route(route_code: int) -> Tuple[Response, int]:
         logger.info("updated table Route, route: %s", route_code)
         return (
             jsonify(
-                {**asdict(entry_to_update), "message": "Ruta actualizada exitosamente"}
+                {
+                    **asdict(entry_to_update),
+                    "message": get_message(MESSAGES, "route_updated"),
+                }
             ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid route: %s", e)
-        return jsonify({"message": f"Error, datos de la Ruta inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_route_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update table Route: connection error %s", e)
 
         return (
-            jsonify({"message": "Error al actualizar ruta: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_route_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table Route, error: %s", e)
-        return jsonify({"message": "Error al actualizar ruta"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_route_error")}), 500
 
 
 @app.route("/api/route/<int:route_code>", methods=["DELETE"])
@@ -186,23 +256,32 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table Route, route not found")
-            return jsonify({"message": "Ruta no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "route_not_found")}), 404
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table Route: route %s", route_code)
-        return jsonify({"message": "Ruta eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "route_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Route, connection error: %s", e)
-        return jsonify({"message": "Error al eliminar ruta: problema de conexión"}), 503
+        return (
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_route_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
+            503,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Route, error: %s", e)
-        return jsonify({"message": "Error al eliminar ruta"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_route_error")}), 500
 
 
 @app.route("/api/routes", methods=["DELETE"])
@@ -210,7 +289,16 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
 def delete_routes() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
         logger.error("delete routes table Route, route list is empty")
-        return jsonify({"message": "Error al eliminar ruta: ruta no encontrada"}), 404
+        return (
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_route_error")
+                    + ": "
+                    + get_message(MESSAGES, "route_not_found")
+                }
+            ),
+            404,
+        )
 
     route_list: List[int] = request.get_json()
     logger.debug("delete routes table Route, payload: %s", route_list)
@@ -225,7 +313,13 @@ def delete_routes() -> Tuple[Response, int]:
 
             if route is None:
                 return (
-                    jsonify({"message": "Error al eliminar ruta: ruta no encontrada"}),
+                    jsonify(
+                        {
+                            "message": get_message(MESSAGES, "delete_route_error")
+                            + ": "
+                            + get_message(MESSAGES, "route_not_found")
+                        }
+                    ),
                     404,
                 )
 
@@ -234,17 +328,26 @@ def delete_routes() -> Tuple[Response, int]:
             logger.info("delete table Route, route: %s", route_code)
 
         db_session.commit()
-        return jsonify({"message": "Ruta eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "route_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Route: connection error %s", e)
-        return jsonify({"message": "Error al eliminar ruta: problema de conexión"}), 503
+        return (
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_route_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
+            503,
+        )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Route, error: %s", e)
-        return jsonify({"message": "Error al eliminar ruta"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_route_error")}), 500
 
 
 @app.route("/api/routes/export-excel", methods=["GET"])
@@ -264,20 +367,26 @@ def routes_export_excel() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch routes table Route, error: %s", e)
-        return jsonify({"message": "Error al crear archivo Excel"}), 500
+        return jsonify({"message": get_message(MESSAGES, "create_excel_error")}), 500
 
     # Create file
     output = io.BytesIO()
     workbook = Workbook(write_only=False, iso_dates=False)
     sheet = workbook.active
 
-    headers = ["Origen", "Destino", "Precio", "Precio de Liquidación"]
+    # Get translated headers
+    headers = [
+        get_message(MESSAGES, "origin"),
+        get_message(MESSAGES, "destination"),
+        get_message(MESSAGES, "price"),
+        get_message(MESSAGES, "payroll_price"),
+    ]
     sheet.append(headers)
 
     for col_idx in range(1, 5):
         sheet.column_dimensions[get_column_letter(col_idx)].width = 20
 
-    # Estilo de borde
+    # Border style
     border_style = Border(
         left=Side(style="thin"),
         right=Side(style="thin"),
@@ -285,11 +394,11 @@ def routes_export_excel() -> Tuple[Response, int]:
         bottom=Side(style="thin"),
     )
 
-    # Aplicar el estilo de borde a cada celda en la fila
+    # Apply border style to each cell in the row
     for cell in sheet[sheet.max_row]:
         cell.border = border_style
 
-    # Agregar filas de datos
+    # Add data rows
     for route in route_list:
         row = [route.origin, route.destination, route.price, route.payroll_price]
 
@@ -299,22 +408,23 @@ def routes_export_excel() -> Tuple[Response, int]:
             cell = sheet.cell(row=sheet.max_row, column=i)
             cell.number_format = numbers.FORMAT_NUMBER_COMMA_SEPARATED1  # type: ignore
 
-        # Aplicar el estilo de borde a cada celda en la fila
+        # Apply border style to each cell in the row
         for cell in sheet[sheet.max_row]:
             cell.border = border_style
 
-    # Guardar el archivo Excel en el flujo de salida
+    # Save Excel file to output stream
     workbook.save(output)
     output.seek(0)
 
-    # Crear la respuesta para el cliente con el archivo Excel
+    # Create response with Excel file - use translated filename
+    filename = f'{get_message(MESSAGES, "price_list")}.xlsx'
+
+    # Create the client response with the Excel file
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response.headers["Content-Disposition"] = (
-        'attachment; filename="lista_de_precios.xlsx"'
-    )
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
 
     logger.info("exported Routes excel file")
 

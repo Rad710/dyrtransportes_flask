@@ -2,6 +2,10 @@
 set -e
 pid=$!
 
+pip install -r requirements-common.txt
+pip install -r requirements-dev.txt
+
+
 mypy --install-types
 mypy src/
 

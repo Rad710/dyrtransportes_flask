@@ -22,8 +22,61 @@ from decorators.token_required import token_required
 
 from models.driver_payroll import DriverPayroll
 from models.shipment_expense import ShipmentExpense
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "expense_not_found": "Expense not found",
+        "transaction_error": "Transaction error",
+        "get_expenses_error": "Error getting expenses",
+        "payroll_not_found": "Payroll not found",
+        "invalid_payroll_code_param": "Parameter 'driver_payroll_code' must be an integer",
+        "invalid_expense_data": "Invalid expense data",
+        "connection_error": "Connection error",
+        "add_expense_error": "Error adding expense",
+        "update_expense_error": "Error updating expense",
+        "delete_expense_error": "Error deleting expense",
+        "invalid_payload": "Invalid payload",
+        "expenses_not_found_to_update": "Expenses not found to update",
+        "update_expenses_error": "Error updating expenses",
+        "empty_expense_list": "Empty expense list",
+        "expenses_not_found": "Expenses not found",
+        # Success messages
+        "expense_added": "Expense added successfully",
+        "expense_updated": "Expense updated successfully",
+        "expense_deleted": "Expense deleted successfully",
+        "expenses_deleted": "Expenses deleted successfully",
+        "expenses_updated": "Expenses updated successfully",
+    },
+    "es": {
+        # Error messages
+        "expense_not_found": "No se encontró el gasto",
+        "transaction_error": "Error de transacción",
+        "get_expenses_error": "Error al obtener gastos",
+        "payroll_not_found": "Liquidación no encontrada",
+        "invalid_payroll_code_param": "Parámetro 'driver_payroll_code' debe ser un número entero",
+        "invalid_expense_data": "Datos del Gasto inválidos",
+        "connection_error": "problema de conexión",
+        "add_expense_error": "Error al agregar gasto",
+        "update_expense_error": "Error al actualizar gasto",
+        "delete_expense_error": "Error al eliminar gasto",
+        "invalid_payload": "Payload inválido",
+        "expenses_not_found_to_update": "No se encontraron los gastos para actualizar",
+        "update_expenses_error": "Error al actualizar cargas",
+        "empty_expense_list": "lista de gastos vacía",
+        "expenses_not_found": "gasto no encontrado",
+        # Success messages
+        "expense_added": "Gasto agregado exitosamente",
+        "expense_updated": "Gasto actualizado exitosamente",
+        "expense_deleted": "Gasto eliminado exitosamente",
+        "expenses_deleted": "Gastos eliminados exitosamente",
+        "expenses_updated": "Gastos actualizadas exitosamente",
+    },
+}
 
 
 @app.route("/api/shipment-expense/<int:expense_code>", methods=["GET"])
@@ -39,7 +92,7 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         shipment_expense: Optional[ShipmentExpense] = db_session.scalar(stmt)
         if shipment_expense is None:
             logger.error("fetch table ShipmentExpense, not found")
-            return jsonify({"message": "No se encontró el gasto"}), 404
+            return jsonify({"message": get_message(MESSAGES, "expense_not_found")}), 404
 
         logger.info(
             "fetch table ShipmentExpense, found: %s", shipment_expense.expense_code
@@ -50,7 +103,7 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/shipment-expenses", methods=["GET"])
@@ -76,15 +129,16 @@ def get_shipment_expense_list() -> Tuple[Response, int]:
                 logger.error(
                     "DriverPayroll with code %s not found", driver_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify({"message": get_message(MESSAGES, "payroll_not_found")}),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_payroll_code_param")}
                 ),
                 400,
             )
@@ -115,7 +169,7 @@ def get_shipment_expense_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch shipment_expenses table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error al obtener gastos"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_expenses_error")}), 500
 
 
 @app.route("/api/shipment-expense", methods=["POST"])
@@ -135,7 +189,7 @@ def post_shipment_expense() -> Tuple[Response, int]:
         existing_payroll: Optional[DriverPayroll] = db_session.scalar(stmt)
         if existing_payroll is None:
             logger.error("insert table ShipmentExpense, driver payroll not found")
-            return jsonify({"message": "Liquidación no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         # add to database
         logger.debug("insert table ShipmentExpense, payload: %s", payload)
@@ -144,14 +198,17 @@ def post_shipment_expense() -> Tuple[Response, int]:
         db_session.commit()
         logger.info("inserted table ShipmentExpense, expense: %s", payload.expense_code)
         return (
-            jsonify({**asdict(payload), "message": "Gasto agregado exitosamente"}),
+            jsonify(
+                {**asdict(payload), "message": get_message(MESSAGES, "expense_added")}
+            ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table ShipmentExpense, invalid expense error: %s", e)
+        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
         return (
-            jsonify({"message": f"Error, datos del Gasto inválidos ({e})"}),
+            jsonify({"message": error_msg}),
             500,
         )
 
@@ -160,14 +217,20 @@ def post_shipment_expense() -> Tuple[Response, int]:
         logger.error("insert table ShipmentExpense, connection error: %s", e)
 
         return (
-            jsonify({"message": "Error al agregar gasto: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_expense_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error al agregar gasto"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_expense_error")}), 500
 
 
 @app.route("/api/shipment-expense/<int:expense_code>", methods=["PUT"])
@@ -183,7 +246,7 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table ShipmentExpense, expense not found")
-            return jsonify({"message": "Gasto no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "expense_not_found")}), 404
 
         # json to db object
         payload = ShipmentExpense(
@@ -198,7 +261,7 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         existing_payroll: Optional[DriverPayroll] = db_session.scalar(stmt)
         if existing_payroll is None:
             logger.error("update table ShipmentExpense, driver payroll not found")
-            return jsonify({"message": "Liquidación no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         entry_to_update.expense_date = payload.expense_date
         entry_to_update.receipt = payload.receipt
@@ -216,7 +279,7 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": "Gasto actualizado exitosamente",
+                    "message": get_message(MESSAGES, "expense_updated"),
                 }
             ),
             200,
@@ -224,8 +287,9 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid expense: %s", e)
+        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
         return (
-            jsonify({"message": f"Error, datos del Gasto inválidos ({e})"}),
+            jsonify({"message": error_msg}),
             500,
         )
 
@@ -234,14 +298,20 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         logger.error("update table ShipmentExpense: connection error %s", e)
 
         return (
-            jsonify({"message": "Error al actualizar gasto: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_expense_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error al actualizar gasto"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_expense_error")}), 500
 
 
 @app.route("/api/shipment-expenses/change-driver-payroll", methods=["PATCH"])
@@ -267,15 +337,16 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
                 logger.error(
                     "DriverPayroll with code %s not found", driver_payroll_code
                 )
-                return jsonify({"message": "Planilla de carga no encontrada"}), 404
+                return (
+                    jsonify({"message": get_message(MESSAGES, "payroll_not_found")}),
+                    404,
+                )
 
         except ValueError:
             logger.error("Invalid 'driver_payroll_code' parameter: not an integer")
             return (
                 jsonify(
-                    {
-                        "message": "Parámetro 'driver_payroll_code' debe ser un número entero"
-                    }
+                    {"message": get_message(MESSAGES, "invalid_payroll_code_param")}
                 ),
                 400,
             )
@@ -286,7 +357,7 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
 
         # Validate payload
         if not shipment_expenses_codes or not isinstance(shipment_expenses_codes, list):
-            return jsonify({"message": "Payload inválido"}), 400
+            return jsonify({"message": get_message(MESSAGES, "invalid_payload")}), 400
 
         # Find all shipment expenses that belong to the current user
         stmt = select(ShipmentExpense).where(
@@ -298,7 +369,9 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
         if not shipment_expenses_to_update:
             logger.error("move shipment expenses, no expenses found")
             return (
-                jsonify({"message": "No se encontraron los gastos para actualizar"}),
+                jsonify(
+                    {"message": get_message(MESSAGES, "expenses_not_found_to_update")}
+                ),
                 404,
             )
 
@@ -322,7 +395,7 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
         return (
             jsonify(
                 {
-                    "message": "Gastos actualizadas exitosamente",
+                    "message": get_message(MESSAGES, "expenses_updated"),
                 }
             ),
             200,
@@ -330,20 +403,27 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("move shipment expenses, invalid data error: %s", e)
-        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
+        return jsonify({"message": error_msg}), 400
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("move shipment expenses, connection error: %s", e)
         return (
-            jsonify({"message": "Error al actualizar cargas: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_expenses_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("move shipment expenses, database error: %s", e)
-        return jsonify({"message": "Error al actualizar cargas"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_expenses_error")}), 500
 
 
 @app.route("/api/shipment-expense/<int:expense_code>", methods=["DELETE"])
@@ -358,26 +438,32 @@ def delete_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table ShipmentExpense, expense not found")
-            return jsonify({"message": "Gasto no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "expense_not_found")}), 404
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table ShipmentExpense: expense %s", expense_code)
-        return jsonify({"message": "Gasto eliminado exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "expense_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table ShipmentExpense, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar gasto: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_expense_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error al eliminar gasto"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_expense_error")}), 500
 
 
 @app.route("/api/shipment-expenses", methods=["DELETE"])
@@ -386,7 +472,13 @@ def delete_shipment_expenses() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
         logger.error("delete expenses table ShipmentExpense, expense list is empty")
         return (
-            jsonify({"message": "Error al eliminar gastos: lista de gastos vacía"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_expense_error")
+                    + ": "
+                    + get_message(MESSAGES, "empty_expense_list")
+                }
+            ),
             404,
         )
 
@@ -404,7 +496,11 @@ def delete_shipment_expenses() -> Tuple[Response, int]:
             if expense is None:
                 return (
                     jsonify(
-                        {"message": "Error al eliminar gastos: gasto no encontrado"}
+                        {
+                            "message": get_message(MESSAGES, "delete_expense_error")
+                            + ": "
+                            + get_message(MESSAGES, "expenses_not_found")
+                        }
                     ),
                     404,
                 )
@@ -414,17 +510,23 @@ def delete_shipment_expenses() -> Tuple[Response, int]:
             logger.info("delete table ShipmentExpense, expense: %s", expense_code)
 
         db_session.commit()
-        return jsonify({"message": "Gastos eliminados exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "expenses_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table ShipmentExpense: connection error %s", e)
         return (
-            jsonify({"message": "Error al eliminar gastos: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_expense_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table ShipmentExpense, error: %s", e)
-        return jsonify({"message": "Error al eliminar gastos"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_expense_error")}), 500

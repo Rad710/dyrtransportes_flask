@@ -30,8 +30,63 @@ from app_config import RequestWithUser
 from decorators.token_required import token_required
 
 from models.driver import Driver
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "driver_not_found": "Driver not found",
+        "transaction_error": "Transaction error",
+        "get_drivers_error": "Error getting drivers",
+        "invalid_driver_data": "Invalid driver data",
+        "connection_error": "Connection error",
+        "add_driver_error": "Error adding driver",
+        "update_driver_error": "Error updating driver",
+        "delete_driver_error": "Error deleting driver",
+        "restore_driver_error": "Error restoring driver",
+        "export_error": "Error sending Excel file",
+        # Success messages
+        "driver_added": "Driver added successfully",
+        "driver_updated": "Driver updated successfully",
+        "driver_deleted": "Driver deleted successfully",
+        "driver_restored": "Driver restored successfully",
+        # Excel headers and labels
+        "id_number": "ID Number",
+        "first_name": "First Name",
+        "last_name": "Last Name",
+        "truck_plate": "Truck Plate",
+        "trailer_plate": "Trailer Plate",
+        "driver_list": "driver_list",
+    },
+    "es": {
+        # Error messages
+        "driver_not_found": "No se encontró el chofer",
+        "transaction_error": "Error de transacción",
+        "get_drivers_error": "Error al obtener choferes",
+        "invalid_driver_data": "Datos del Chofer inválidos",
+        "connection_error": "problema de conexión",
+        "add_driver_error": "Error al agregar chofer",
+        "update_driver_error": "Error al actualizar chofer",
+        "delete_driver_error": "Error al eliminar chofer",
+        "restore_driver_error": "Error al restaurar chofer",
+        "export_error": "Error al enviar archivo Excel",
+        # Success messages
+        "driver_added": "Chofer agregado exitosamente",
+        "driver_updated": "Chofer actualizado exitosamente",
+        "driver_deleted": "Chofer eliminado exitosamente",
+        "driver_restored": "Chofer restaurado exitosamente",
+        # Excel headers and labels
+        "id_number": "C.I.",
+        "first_name": "Nombre",
+        "last_name": "Apellido",
+        "truck_plate": "Chapa Camión",
+        "trailer_plate": "Chapa Carreta",
+        "driver_list": "nomina_de_choferes",
+    },
+}
 
 
 @app.route("/api/driver/<int:driver_code>", methods=["GET"])
@@ -46,7 +101,7 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
         driver: Optional[Driver] = db_session.scalar(stmt)
         if driver is None:
             logger.error("fetch table Driver, not found")
-            return jsonify({"message": "No se encontró el chofer"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         logger.info("fetch table Driver, found: %s", driver.driver_code)
         logger.debug("fetch table Driver, found: %s", driver)
@@ -55,7 +110,7 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table Driver, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/drivers", methods=["GET"])
@@ -79,7 +134,7 @@ def get_driver_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch drivers table Driver, error: %s", e)
-        return jsonify({"message": "Error al obtener choferes"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_drivers_error")}), 500
 
 
 @app.route("/api/driver", methods=["POST"])
@@ -98,27 +153,36 @@ def post_driver() -> Tuple[Response, int]:
         db_session.commit()
         logger.info("inserted table Driver, driver: %s", payload.driver_code)
         return (
-            jsonify({**asdict(payload), "message": "Chofer agregado exitosamente"}),
+            jsonify(
+                {**asdict(payload), "message": get_message(MESSAGES, "driver_added")}
+            ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Driver, invalid driver error: %s", e)
-        return jsonify({"message": f"Error, datos del Chofer inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_driver_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table Driver, connection error: %s", e)
 
         return (
-            jsonify({"message": "Error al agregar chofer: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table Driver, error: %s", e)
-        return jsonify({"message": "Error al agregar chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_driver_error")}), 500
 
 
 @app.route("/api/driver/<int:driver_code>", methods=["PUT"])
@@ -134,7 +198,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table Driver, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         # json to db object
         payload = Driver(
@@ -156,7 +220,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": "Chofer actualizado exitosamente",
+                    "message": get_message(MESSAGES, "driver_updated"),
                 }
             ),
             200,
@@ -164,21 +228,28 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid driver: %s", e)
-        return jsonify({"message": f"Error, datos del Chofer inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_driver_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update table Driver: connection error %s", e)
 
         return (
-            jsonify({"message": "Error al actualizar chofer: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table Driver, error: %s", e)
-        return jsonify({"message": "Error al actualizar chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_driver_error")}), 500
 
 
 @app.route("/api/driver/<int:driver_code>", methods=["DELETE"])
@@ -193,26 +264,32 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table Driver, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table Driver: driver %s", driver_code)
-        return jsonify({"message": "Chofer eliminado exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "driver_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Driver, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar chofer: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Driver, error: %s", e)
-        return jsonify({"message": "Error al eliminar chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_driver_error")}), 500
 
 
 @app.route("/api/drivers", methods=["DELETE"])
@@ -221,7 +298,13 @@ def delete_drivers() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
         logger.error("delete drivers table Driver, driver list is empty")
         return (
-            jsonify({"message": "Error al eliminar chofer: chofer no encontrado"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "driver_not_found")
+                }
+            ),
             404,
         )
 
@@ -239,7 +322,11 @@ def delete_drivers() -> Tuple[Response, int]:
             if driver is None:
                 return (
                     jsonify(
-                        {"message": "Error al eliminar chofer: chofer no encontrado"}
+                        {
+                            "message": get_message(MESSAGES, "delete_driver_error")
+                            + ": "
+                            + get_message(MESSAGES, "driver_not_found")
+                        }
                     ),
                     404,
                 )
@@ -249,20 +336,26 @@ def delete_drivers() -> Tuple[Response, int]:
             logger.info("delete table Driver, driver: %s", driver_code)
 
         db_session.commit()
-        return jsonify({"message": "Chofer eliminado exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "driver_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table Driver: connection error %s", e)
         return (
-            jsonify({"message": "Error al eliminar chofer: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table Driver, error: %s", e)
-        return jsonify({"message": "Error al eliminar chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_driver_error")}), 500
 
 
 @app.route("/api/driver/<int:driver_code>/restore", methods=["PATCH"])
@@ -277,26 +370,32 @@ def restore_driver(driver_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("restore table Driver, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         existing_entry.deleted = False
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("restore table Driver: driver %s", driver_code)
-        return jsonify({"message": "Chofer restaurado exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "driver_restored")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("restore table Driver, connection error: %s", e)
         return (
-            jsonify({"message": "Error al restaurar chofer: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "restore_driver_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("restore table Driver, error: %s", e)
-        return jsonify({"message": "Error al restaurar chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "restore_driver_error")}), 500
 
 
 @app.route("/api/drivers/export-excel", methods=["GET"])
@@ -316,20 +415,27 @@ def drivers_export_excel() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("export Drivers, error: %s", e)
-        return jsonify({"message": "Error al enviar archivo Excel"}), 500
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
     # Create file
     output = io.BytesIO()
     workbook = Workbook(write_only=False, iso_dates=False)
     sheet = workbook.active
 
-    headers = ["C.I.", "Nombre", "Apellido", "Chapa Camión", "Chapa Carreta"]
+    # Get translated headers
+    headers = [
+        get_message(MESSAGES, "id_number"),
+        get_message(MESSAGES, "first_name"),
+        get_message(MESSAGES, "last_name"),
+        get_message(MESSAGES, "truck_plate"),
+        get_message(MESSAGES, "trailer_plate"),
+    ]
     sheet.append(headers)
 
     for col_idx in range(1, len(headers) + 1):
         sheet.column_dimensions[get_column_letter(col_idx)].width = 20
 
-    # Estilo de borde
+    # Border style
     border_style = Border(
         left=Side(style="thin"),
         right=Side(style="thin"),
@@ -337,11 +443,11 @@ def drivers_export_excel() -> Tuple[Response, int]:
         bottom=Side(style="thin"),
     )
 
-    # Aplicar el estilo de borde a cada celda en la fila
+    # Apply border style to each cell in the row
     for cell in sheet[sheet.max_row]:
         cell.border = border_style
 
-    # Agregar filas de datos
+    # Add data rows
     for driver in driver_list:
         row = [
             driver.driver_id,
@@ -353,22 +459,23 @@ def drivers_export_excel() -> Tuple[Response, int]:
 
         sheet.append(row)
 
-        # Aplicar el estilo de borde a cada celda en la fila
+        # Apply border style to each cell in the row
         for cell in sheet[sheet.max_row]:
             cell.border = border_style
 
-    # Guardar el archivo Excel en el flujo de salida
+    # Save Excel file to output stream
     workbook.save(output)
     output.seek(0)
 
-    # Crear la respuesta para el cliente con el archivo Excel
+    # Create response with Excel file - use translated filename
+    filename = f'{get_message(MESSAGES, "driver_list")}.xlsx'
+
+    # Create the client response with the Excel file
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response.headers["Content-Disposition"] = (
-        "attachment; filename=nomina_de_choferes.xlsx"
-    )
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
 
     logger.info("exported Drivers excel file")
 

@@ -20,6 +20,41 @@ from utils.security import verify_password
 from utils.security import validate_user_email
 from utils.security import validate_user_password
 
+from utils.locale import get_message
+
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        "missing_required_fields": "Missing required fields",
+        "name_empty": "Name must not be empty",
+        "email_registered": "Email already registered",
+        "registration_successful": "Registration successful",
+        "registration_failed": "Registration failed",
+        "missing_credentials": "Missing credentials",
+        "user_not_found": "User not found",
+        "invalid_password": "Invalid password",
+        "login_successful": "Login successful",
+        "login_failed": "Login failed",
+        "invalid_email": "Invalid email format",
+        "password_too_weak": "Password is too weak",
+    },
+    "es": {
+        "missing_required_fields": "Faltan campos obligatorios",
+        "name_empty": "El nombre no debe estar vacío",
+        "email_registered": "Correo electrónico ya registrado",
+        "registration_successful": "Registro exitoso",
+        "registration_failed": "Error en el registro",
+        "missing_credentials": "Faltan credenciales",
+        "user_not_found": "Usuario no encontrado",
+        "invalid_password": "Contraseña inválida",
+        "login_successful": "Inicio de sesión exitoso",
+        "login_failed": "Error en el inicio de sesión",
+        "invalid_email": "Formato de correo electrónico inválido",
+        "password_too_weak": "La contraseña es demasiado débil",
+    },
+}
+
 
 @app.route("/api/auth/sign-up", methods=["POST"])
 def register():
@@ -30,27 +65,30 @@ def register():
 
         # Check if all required fields are present
         if not name or not email or not password:
-            return jsonify({"message": "Missing required fields"}), 400
+            return (
+                jsonify({"message": get_message(MESSAGES, "missing_required_fields")}),
+                400,
+            )
 
         if len(name) <= 0:
-            return jsonify({"message": "Name must not be empty"}), 400
+            return jsonify({"message": get_message(MESSAGES, "name_empty")}), 400
 
         # Validate email format
         email_validation = validate_user_email(email)
         if email_validation:
-            return jsonify({"message": email_validation}), 400
+            return jsonify({"message": get_message(MESSAGES, "invalid_email")}), 400
 
-        # Validate password strength (example: minimum 8 characters)
+        # Validate password strength
         password_validation = validate_user_password(password)
         if password_validation:
-            return jsonify({"message": password_validation}), 400
+            return jsonify({"message": get_message(MESSAGES, "password_too_weak")}), 400
 
         # Check if user already exists
         stmt = select(User).where(User.email == email)
         existing_user = db_session.scalars(stmt).first()
 
         if existing_user:
-            return jsonify({"message": "Email already registered"}), 409
+            return jsonify({"message": get_message(MESSAGES, "email_registered")}), 409
 
         # Create new user
         new_user = User(
@@ -78,7 +116,7 @@ def register():
         return (
             jsonify(
                 {
-                    "message": "Registration successful",
+                    "message": get_message(MESSAGES, "registration_successful"),
                     "token": token,
                     "user": {
                         "email": new_user.email,
@@ -92,7 +130,7 @@ def register():
     except Exception as e:
         db_session.rollback()
         logger.error("Registration, error: %s", e)
-        return jsonify({"message": "Registration failed"}), 500
+        return jsonify({"message": get_message(MESSAGES, "registration_failed")}), 500
 
 
 @app.route("/api/auth/log-in", methods=["POST"])
@@ -102,7 +140,7 @@ def login():
     remember_me = request.form.get("remember_me") == "on"
 
     if not email or not password:
-        return jsonify({"message": "Missing credentials"}), 400
+        return jsonify({"message": get_message(MESSAGES, "missing_credentials")}), 400
 
     try:
         # Query the user by email
@@ -110,11 +148,11 @@ def login():
         user = db_session.scalars(stmt).first()
 
         if not user:
-            return jsonify({"message": "User not found"}), 401
+            return jsonify({"message": get_message(MESSAGES, "user_not_found")}), 401
 
         # Verify password
         if not verify_password(password, user.password_hash):
-            return jsonify({"message": "Invalid password"}), 401
+            return jsonify({"message": get_message(MESSAGES, "invalid_password")}), 401
 
         # Generate token
         exp = datetime.now(timezone.utc) + timedelta(days=1)
@@ -139,11 +177,11 @@ def login():
                     "remember_me": remember_me,
                     "admin": user.user_id == "dyrtransportes",
                 },
-                "message": "Login successful",
+                "message": get_message(MESSAGES, "login_successful"),
             }
         )
 
     except Exception as e:
         db_session.rollback()
         logger.error("Login, error: %s", e)
-        return jsonify({"message": "Login failed"}), 500
+        return jsonify({"message": get_message(MESSAGES, "login_failed")}), 500

@@ -1,5 +1,7 @@
 import io
 
+from decimal import Decimal
+
 from datetime import datetime
 from typing import Optional
 from typing import Sequence
@@ -30,7 +32,6 @@ from openpyxl.styles import Font
 from openpyxl.styles import numbers
 from openpyxl.utils import get_column_letter
 
-from decimal import Decimal
 
 from num2words import num2words
 
@@ -46,7 +47,138 @@ from models.driver import Driver
 from models.shipment import Shipment
 from models.shipment_expense import ShipmentExpense
 
+from utils.locale import get_locale
+from utils.locale import get_message
+
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "payroll_not_found": "Payroll not found",
+        "driver_not_found": "Driver not found",
+        "transaction_error": "Transaction error",
+        "driver_payrolls_error": "Error getting driver payrolls",
+        "paid_field_required": "Field 'paid' is required",
+        "invalid_data": "Invalid data",
+        "connection_error": "Connection error",
+        "paid_status_update_error": "Error updating payment status",
+        "invalid_payroll_data": "Invalid payroll data",
+        "add_payroll_error": "Error adding payroll",
+        "update_payroll_error": "Error updating payroll",
+        "delete_payroll_error": "Error deleting payroll",
+        "export_error": "Error generating export file",
+        "invalid_date_format": "Invalid date format",
+        "no_export_data": "No data to export in the selected date range",
+        # Success messages
+        "payroll_added": "Payroll added successfully",
+        "payroll_updated": "Payroll updated successfully",
+        "payroll_deleted": "Payroll deleted successfully",
+        "paid_status_updated_to_paid": "Payroll status updated to paid",
+        "paid_status_updated_to_unpaid": "Payroll status updated to unpaid",
+        # Excel headers and labels
+        "code": "Code",
+        "date": "Date",
+        "collected": "Collected",
+        "collection_date": "Collection Date",
+        "payroll_list": "payroll_list",
+        "yes": "Yes",
+        "no": "No",
+        # Settlement Excel specific translations
+        "settlement": "SETTLEMENT",
+        "driver": "Driver",
+        "plate": "Plate",
+        "shipments": "SHIPMENTS",
+        "expenses": "EXPENSES (ALLOWANCE/FUEL)",
+        "num": "No.",
+        "product": "Prod.",
+        "receipt_num": "Receipt No.",
+        "origin": "Origin",
+        "destination": "Destination",
+        "origin_kg": "Origin Kg.",
+        "destination_kg": "Destination Kg.",
+        "diff": "Diff.",
+        "price_per_kg": "$ per Kg",
+        "amount": "Amount $",
+        "reason": "Reason",
+        "subtotal": "Subtotal",
+        "total_shipments": "TOTAL SHIPMENTS:",
+        "total_expenses": "TOTAL EXPENSES:",
+        "total_to_collect": "TOTAL TO COLLECT:",
+        "total_to_invoice": "TOTAL TO INVOICE:",
+        "invoice_to": "Invoice to CARMELO MEDINA. Tax ID: 850,299-4",
+        "description": "Description",
+        "exempt": "Exempt",
+        "vat_5": "VAT 5%",
+        "vat_10": "VAT 10%",
+        "shipping_service": "Shipping Service",
+        "total": "Total",
+        "settlement_for": "Settlement for",
+    },
+    "es": {
+        # Error messages
+        "payroll_not_found": "No se encontró la liquidación",
+        "driver_not_found": "Chofer no encontrado",
+        "transaction_error": "Error de transacción",
+        "driver_payrolls_error": "Error al obtener liquidaciones del chofer",
+        "paid_field_required": "Campo 'paid' requerido",
+        "invalid_data": "Datos inválidos",
+        "connection_error": "Problema de conexión",
+        "paid_status_update_error": "Error al actualizar estado de pago",
+        "invalid_payroll_data": "Datos de la Liquidación inválidos",
+        "add_payroll_error": "Error al agregar liquidación",
+        "update_payroll_error": "Error al actualizar liquidación",
+        "delete_payroll_error": "Error al eliminar liquidación",
+        "export_error": "Error al generar el archivo de exportación",
+        "invalid_date_format": "Formato de fecha inválido",
+        "no_export_data": "No hay datos para exportar en el rango de fechas seleccionado",
+        # Success messages
+        "payroll_added": "Liquidación agregada exitosamente",
+        "payroll_updated": "Liquidación actualizada exitosamente",
+        "payroll_deleted": "Liquidación eliminada exitosamente",
+        "paid_status_updated_to_paid": "Estado de Liquidación a pagado",
+        "paid_status_updated_to_unpaid": "Estado de Liquidación a no pagado",
+        # Excel headers and labels
+        "code": "Código",
+        "date": "Fecha",
+        "collected": "Cobrado",
+        "collection_date": "Fecha de Cobro",
+        "payroll_list": "lista_de_planillas",
+        "yes": "Sí",
+        "no": "No",
+        # Settlement Excel specific translations
+        "settlement": "LIQUIDACION DE FLETES",
+        "driver": "Conductor",
+        "plate": "Chapa",
+        "shipments": "FLETES",
+        "expenses": "GASTOS (VIATICO/GASOIL)",
+        "num": "N°",
+        "product": "Prod.",
+        "receipt_num": "Recepcion N°",
+        "origin": "Origen",
+        "destination": "Destino",
+        "origin_kg": "Kg. Origen",
+        "destination_kg": "Kg. Llegada",
+        "diff": "Dif.",
+        "price_per_kg": "Gs. p/ Kg",
+        "amount": "Importe Gs.",
+        "reason": "Razón",
+        "subtotal": "Subtotal",
+        "total_shipments": "TOTAL FLETES:",
+        "total_expenses": "TOTAL GASTOS:",
+        "total_to_collect": "TOTAL A COBRAR:",
+        "total_to_invoice": "TOTAL A FACTURAR:",
+        "invoice_to": "Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4",
+        "description": "Descripcion",
+        "exempt": "Exenta",
+        "vat_5": "IVA 5%",
+        "vat_10": "IVA 10%",
+        "shipping_service": "Servicio de Flete",
+        "total": "Total",
+        "settlement_for": "Liquidacion",
+    },
+}
 
 
 @app.route("/api/driver-payroll/<int:payroll_code>", methods=["GET"])
@@ -62,7 +194,7 @@ def get_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         driver_payroll: Optional[DriverPayroll] = db_session.scalar(stmt)
         if driver_payroll is None:
             logger.error("fetch table DriverPayroll, not found")
-            return jsonify({"message": "No se encontró la liquidación"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
         logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
@@ -71,7 +203,7 @@ def get_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/driver/<int:driver_code>/payrolls", methods=["GET"])
@@ -86,7 +218,7 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
         existing_driver: Optional[Driver] = db_session.scalar(driver_stmt)
         if existing_driver is None:
             logger.error("get driver payrolls, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         # Get payrolls for this driver
         stmt = (
@@ -111,7 +243,7 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch driver payrolls, error: %s", e)
-        return jsonify({"message": "Error al obtener liquidaciones del chofer"}), 500
+        return jsonify({"message": get_message(MESSAGES, "driver_payrolls_error")}), 500
 
 
 @app.route("/api/driver-payroll/<int:payroll_code>/paid-status", methods=["PATCH"])
@@ -131,14 +263,17 @@ def update_driver_payroll_paid_status(
             logger.error(
                 "update payroll paid status, DriverPayroll not found: %s", payroll_code
             )
-            return jsonify({"message": "Liquidación no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         # Get the payload
         payload = request.get_json()
 
         if "paid" not in payload:
             logger.error("update paid status, missing paid field")
-            return jsonify({"message": "Campo 'paid' requerido"}), 400
+            return (
+                jsonify({"message": get_message(MESSAGES, "paid_field_required")}),
+                400,
+            )
 
         entry_to_update.paid = payload["paid"]
 
@@ -158,11 +293,20 @@ def update_driver_payroll_paid_status(
 
         db_session.commit()
 
+        status_message = get_message(
+            MESSAGES,
+            (
+                "paid_status_updated_to_paid"
+                if entry_to_update.paid
+                else "paid_status_updated_to_unpaid"
+            ),
+        )
+
         return (
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": f"Estado de Liquidación a {'pagado' if entry_to_update.paid else 'no pagado'}",
+                    "message": status_message,
                 }
             ),
             200,
@@ -170,14 +314,19 @@ def update_driver_payroll_paid_status(
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid paid status update: %s", e)
-        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+        error_msg = f"{get_message(MESSAGES, 'invalid_data')} ({e})"
+        return jsonify({"message": error_msg}), 400
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update paid status: connection error %s", e)
         return (
             jsonify(
-                {"message": "Error al actualizar estado de pago: problema de conexión"}
+                {
+                    "message": get_message(MESSAGES, "paid_status_update_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
             ),
             503,
         )
@@ -185,7 +334,10 @@ def update_driver_payroll_paid_status(
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update paid status, error: %s", e)
-        return jsonify({"message": "Error al actualizar estado de pago"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "paid_status_update_error")}),
+            500,
+        )
 
 
 @app.route("/api/driver-payroll", methods=["POST"])
@@ -205,7 +357,7 @@ def post_driver_payroll() -> Tuple[Response, int]:
         existing_driver: Optional[Driver] = db_session.scalar(stmt)
         if existing_driver is None:
             logger.error("insert table DriverPayroll, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         # add to database
         logger.debug("insert table DriverPayroll, payload: %s", payload)
@@ -215,15 +367,16 @@ def post_driver_payroll() -> Tuple[Response, int]:
         logger.info("inserted table DriverPayroll, payroll: %s", payload.payroll_code)
         return (
             jsonify(
-                {**asdict(payload), "message": "Liquidación agregada exitosamente"}
+                {**asdict(payload), "message": get_message(MESSAGES, "payroll_added")}
             ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table DriverPayroll, invalid payroll error: %s", e)
+        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
         return (
-            jsonify({"message": f"Error, datos de la Liquidación inválidos ({e})"}),
+            jsonify({"message": error_msg}),
             500,
         )
 
@@ -232,14 +385,20 @@ def post_driver_payroll() -> Tuple[Response, int]:
         logger.error("insert table DriverPayroll, connection error: %s", e)
 
         return (
-            jsonify({"message": "Error al agregar liquidación: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error al agregar liquidación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_payroll_error")}), 500
 
 
 @app.route("/api/driver-payroll/<int:payroll_code>", methods=["PUT"])
@@ -255,7 +414,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table DriverPayroll, payroll not found")
-            return jsonify({"message": "Liquidación no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         # json to db object
         payload = DriverPayroll(
@@ -270,7 +429,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         existing_driver: Optional[Driver] = db_session.scalar(stmt)
         if existing_driver is None:
             logger.error("update table DriverPayroll, driver not found")
-            return jsonify({"message": "Chofer no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         entry_to_update.driver_code = payload.driver_code
         entry_to_update.modification_user = payload.modification_user
@@ -283,7 +442,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": "Liquidación actualizada exitosamente",
+                    "message": get_message(MESSAGES, "payroll_updated"),
                 }
             ),
             200,
@@ -291,8 +450,9 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid payroll: %s", e)
+        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
         return (
-            jsonify({"message": f"Error, datos de la Liquidación inválidos ({e})"}),
+            jsonify({"message": error_msg}),
             500,
         )
 
@@ -302,7 +462,11 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         return (
             jsonify(
-                {"message": "Error al actualizar liquidación: problema de conexión"}
+                {
+                    "message": get_message(MESSAGES, "update_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
             ),
             503,
         )
@@ -310,7 +474,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error al actualizar liquidación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_payroll_error")}), 500
 
 
 @app.route("/api/driver-payroll/<int:payroll_code>", methods=["DELETE"])
@@ -325,26 +489,32 @@ def delete_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table DriverPayroll, payroll not found")
-            return jsonify({"message": "Liquidación no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table DriverPayroll: payroll %s", payroll_code)
-        return jsonify({"message": "Liquidación eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "payroll_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table DriverPayroll, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar liquidación: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error al eliminar liquidación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
 @app.route("/api/driver-payrolls", methods=["DELETE"])
@@ -354,7 +524,11 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
         logger.error("delete payrolls table DriverPayroll, payroll list is empty")
         return (
             jsonify(
-                {"message": "Error al eliminar liquidación: liquidación no encontrada"}
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "payroll_not_found")
+                }
             ),
             404,
         )
@@ -374,7 +548,9 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
                 return (
                     jsonify(
                         {
-                            "message": "Error al eliminar liquidación: liquidación no encontrada"
+                            "message": get_message(MESSAGES, "delete_payroll_error")
+                            + ": "
+                            + get_message(MESSAGES, "payroll_not_found")
                         }
                     ),
                     404,
@@ -385,20 +561,26 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
             logger.info("delete table DriverPayroll, payroll: %s", payroll_code)
 
         db_session.commit()
-        return jsonify({"message": "Liquidación eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "payroll_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table DriverPayroll: connection error %s", e)
         return (
-            jsonify({"message": "Error al eliminar liquidación: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error al eliminar liquidación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
 @app.route("/api/driver-payrolls/export-excel", methods=["GET"])
@@ -441,11 +623,7 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         if not payroll_list:
             logger.warning("export DriverPayroll, no data found in date range")
             return (
-                jsonify(
-                    {
-                        "message": "No hay datos para exportar en el rango de fechas seleccionado"
-                    }
-                ),
+                jsonify({"message": get_message(MESSAGES, "no_export_data")}),
                 404,
             )
 
@@ -454,7 +632,13 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         workbook = Workbook(write_only=False, iso_dates=False)
         sheet = workbook.active
 
-        headers = ["Código", "Fecha", "Cobrado", "Fecha de Cobro"]
+        # Get translated headers
+        headers = [
+            get_message(MESSAGES, "code"),
+            get_message(MESSAGES, "date"),
+            get_message(MESSAGES, "collected"),
+            get_message(MESSAGES, "collection_date"),
+        ]
         sheet.append(headers)
 
         for col_idx in range(1, 5):
@@ -486,10 +670,17 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
                 else ""
             )
 
+            # Use translated yes/no responses
+            paid_text = (
+                get_message(MESSAGES, "yes")
+                if payroll.paid
+                else get_message(MESSAGES, "no")
+            )
+
             row = [
                 payroll.payroll_code,
                 payroll_date,
-                "Sí" if payroll.paid else "No",
+                paid_text,
                 paid_date,
             ]
 
@@ -503,14 +694,14 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         workbook.save(output)
         output.seek(0)
 
-        # Create response with Excel file
+        # Create response with Excel file - use translated filename
+        filename = f'{get_message(MESSAGES, "payroll_list")}.xlsx'
+
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        response.headers["Content-Disposition"] = (
-            'attachment; filename="lista_de_planillas.xlsx"'
-        )
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
 
         logger.info("exported ShipmentPayrolls excel file")
 
@@ -518,15 +709,15 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
 
     except ValueError as e:
         logger.error("export ShipmentPayrolls, invalid date format: %s", e)
-        return jsonify({"message": "Formato de fecha inválido"}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_date_format")}), 400
 
     except SQLAlchemyError as e:
         logger.error("export ShipmentPayrolls, database error: %s", e)
-        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
     except Exception as e:
         logger.error("export ShipmentPayrolls, unexpected error: %s", e)
-        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
 
 @app.route(
@@ -543,7 +734,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
         if driver_payroll is None:
             logger.error("fetch table DriverPayroll, not found")
-            return jsonify({"message": "No se encontró la liquidación"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
         logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
@@ -556,7 +747,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         driver: Optional[Driver] = db_session.scalar(driver_stmt)
         if driver is None:
             logger.error("fetch table Driver, not found")
-            return jsonify({"message": "No se encontró al chofer"}), 404
+            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
 
         logger.debug("fetch table Driver, found: %s", driver)
 
@@ -589,7 +780,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
 
     except SQLAlchemyError as e:
         logger.error("fetch table DriverPayroll, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
     max_len = max(
         len(shipments),
@@ -597,17 +788,17 @@ def exportar_driver_payroll(driver_payroll_code: int):
         len(shipment_expenses_receipt),
     )
 
-    # Rellenar las listas para que tengan la misma longitud con None si es necesario
+    # Fill the lists to have the same length with None if necessary
     shipments += [None] * (max_len - len(shipments))
     shipment_expenses_no_receipt += [None] * (
         max_len - len(shipment_expenses_no_receipt)
     )
     shipment_expenses_receipt += [None] * (max_len - len(shipment_expenses_receipt))
 
-    # Combinar las tres listas en una lista de tuplas usando zip
+    # Combine the three lists into a list of tuples using zip
     results = zip(shipments, shipment_expenses_no_receipt, shipment_expenses_receipt)
 
-    # Crear un archivo Excel en memoria
+    # Create an Excel file in memory
     output = io.BytesIO()
     workbook = Workbook()
     sheet = workbook.active
@@ -666,10 +857,10 @@ def exportar_driver_payroll(driver_payroll_code: int):
         None,
         None,
         None,
-        "Subtotal",
+        get_message(MESSAGES, "subtotal"),
         None,
         subtotal_sin_boleta,
-        "Subtotal",
+        get_message(MESSAGES, "subtotal"),
         None,
         None,
         subtotal_con_boleta,
@@ -704,10 +895,10 @@ def exportar_driver_payroll(driver_payroll_code: int):
         None,
         None,
         None,
-        "TOTAL FLETES:",
+        get_message(MESSAGES, "total_shipments"),
         None,
         subtotal_viajes,
-        "TOTAL GASTOS:",
+        get_message(MESSAGES, "total_expenses"),
         None,
         None,
         None,
@@ -761,8 +952,10 @@ def exportar_driver_payroll(driver_payroll_code: int):
     name = (driver.driver_name or "") + " " + (driver.driver_surname or "")
     date = driver_payroll.payroll_timestamp.date().strftime("%d/%m/%Y")
 
+    # Use translated settlement term in filename
+    settlement_term = get_message(MESSAGES, "settlement_for")
     response.headers["Content-Disposition"] = (
-        f"attachment; filename={name.strip()}_Liquidacion_{date}.xlsx"
+        f"attachment; filename={name.strip()}_{settlement_term}_{date}.xlsx"
     )
     logger.info(
         "Liquidacion %s %s exportada", driver.driver_code, driver_payroll.payroll_code
@@ -798,7 +991,7 @@ def render_driver_payroll_headers(
 
     # Title
     sheet.append([])
-    sheet.append(["LIQUIDACION DE FLETES"])
+    sheet.append([get_message(MESSAGES, "settlement")])
 
     sheet.merge_cells(
         start_row=sheet.max_row,
@@ -816,10 +1009,14 @@ def render_driver_payroll_headers(
 
     sheet.row_dimensions[2].height = 21
 
-    # Driver Information
+    # Driver Information with translations
+    driver_text = get_message(MESSAGES, "driver")
+    plate_text = get_message(MESSAGES, "plate")
+    date_text = get_message(MESSAGES, "date")
+
     sheet.append(
         [
-            f'Conductor: {(driver.driver_name or "") + " " + (driver.driver_surname or "")}                Chapa: {driver.truck_plate}                Fecha: {datetime.now().strftime("%d/%m/%Y")}'
+            f'{driver_text}: {(driver.driver_name or "") + " " + (driver.driver_surname or "")}                {plate_text}: {driver.truck_plate}                {date_text}: {datetime.now().strftime("%d/%m/%Y")}'
         ]
     )
     sheet.merge_cells(
@@ -838,10 +1035,10 @@ def render_driver_payroll_headers(
 
     sheet.row_dimensions[3].height = 21
 
-    # Columns division
+    # Columns division with translations
     sheet.append(
         [
-            "FLETES",
+            get_message(MESSAGES, "shipments"),
             None,
             None,
             None,
@@ -852,7 +1049,7 @@ def render_driver_payroll_headers(
             None,
             None,
             None,
-            "GASTOS (VIATICO/GASOIL)",
+            get_message(MESSAGES, "expenses"),
             None,
             None,
             None,
@@ -892,26 +1089,26 @@ def render_driver_payroll_headers(
         cell.border = border
         cell.font = Font(bold=True)
 
-    # Table Header
+    # Table Header with translations
     headers = [
-        "N°",
-        "Fecha",
-        "Prod.",
-        "Recepcion N°",
-        "Origen",
-        "Destino",
-        "Kg. Origen",
-        "Kg. Llegada",
-        "Dif.",
-        "Gs. p/ Kg",
-        "Importe Gs.",
-        "Fecha",
-        "Razón",
-        "Importe Gs.",
-        "Fecha",
-        "Boleta N°",
-        "Razón",
-        "Importe Gs.",
+        get_message(MESSAGES, "num"),
+        get_message(MESSAGES, "date"),
+        get_message(MESSAGES, "product"),
+        get_message(MESSAGES, "receipt_num"),
+        get_message(MESSAGES, "origin"),
+        get_message(MESSAGES, "destination"),
+        get_message(MESSAGES, "origin_kg"),
+        get_message(MESSAGES, "destination_kg"),
+        get_message(MESSAGES, "diff"),
+        get_message(MESSAGES, "price_per_kg"),
+        get_message(MESSAGES, "amount"),
+        get_message(MESSAGES, "date"),
+        get_message(MESSAGES, "reason"),
+        get_message(MESSAGES, "amount"),
+        get_message(MESSAGES, "date"),
+        get_message(MESSAGES, "receipt_num"),
+        get_message(MESSAGES, "reason"),
+        get_message(MESSAGES, "amount"),
     ]
 
     sheet.append(headers)
@@ -1011,7 +1208,7 @@ def render_driver_payroll_totals(
     totals_end_column = 12
     title_end_column = 9
 
-    # PAYROLL TOTAL
+    # PAYROLL TOTAL with translation
     total_cobrar = [
         None,
         None,
@@ -1019,7 +1216,7 @@ def render_driver_payroll_totals(
         None,
         None,
         None,
-        "TOTAL A COBRAR:",
+        get_message(MESSAGES, "total_to_collect"),
         None,
         None,
         f"=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 2}",
@@ -1059,7 +1256,7 @@ def render_driver_payroll_totals(
         None,
         None,
         None,
-        "TOTAL A FACTURAR:",
+        get_message(MESSAGES, "total_to_invoice"),
         None,
         None,
         f"=+${shipment_amount_column}{last_row + 2}-${taxed_expense_amount_column}{last_row + 1}",
@@ -1100,7 +1297,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "Facturar a nombre de CARMELO MEDINA. Ruc: 850.299-4",
+            get_message(MESSAGES, "invoice_to"),
             None,
             None,
             None,
@@ -1128,12 +1325,12 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "Descripcion",
+            get_message(MESSAGES, "description"),
             None,
             None,
-            "Exenta",
-            "IVA 5%",
-            "IVA 10%",
+            get_message(MESSAGES, "exempt"),
+            get_message(MESSAGES, "vat_5"),
+            get_message(MESSAGES, "vat_10"),
             None,
         ]
     )
@@ -1157,7 +1354,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "Servicio de Flete",
+            get_message(MESSAGES, "shipping_service"),
             None,
             None,
             0,
@@ -1205,7 +1402,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "Subtotal",
+            get_message(MESSAGES, "subtotal"),
             None,
             None,
             f"=+J{last_row + 9}",
@@ -1237,7 +1434,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "Total",
+            get_message(MESSAGES, "total"),
             None,
             None,
             None,
@@ -1272,7 +1469,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            "IVA 10%",
+            get_message(MESSAGES, "vat_10"),
             None,
             f"=+L{last_row + 12}/11",
             None,
@@ -1310,9 +1507,16 @@ def render_driver_payroll_totals(
     )
     total_invoice = total_shipment_amount - total_shipment_expenses_receipt_amount
 
-    # Convert to Spanish words
-    total_in_words = num2words(total_invoice, lang="es").capitalize()
-    iva_in_words = num2words(total_invoice / Decimal("11"), lang="es").capitalize()
+    # Get locale for number to words conversion
+    locale = get_locale()
+    lang = "en" if locale == "en" else "es"
+
+    # Convert to words in the appropriate language
+    total_in_words = num2words(total_invoice, lang=lang).capitalize()
+    iva_in_words = num2words(total_invoice / Decimal("11"), lang=lang).capitalize()
+
+    # Use translated 'total' text
+    total_label = get_message(MESSAGES, "total")
     sheet.append(
         [
             None,
@@ -1321,7 +1525,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            f"Total: {total_in_words}",
+            f"{total_label}: {total_in_words}",
             None,
             None,
             None,
@@ -1330,6 +1534,7 @@ def render_driver_payroll_totals(
             None,
         ]
     )
+
     # Add two more empty rows to create height for wrapping
     sheet.append([None] * 13)
     sheet.append([None] * 13)
@@ -1352,6 +1557,9 @@ def render_driver_payroll_totals(
     merged_cell.font = Font(bold=True, italic=True)
     merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
 
+    # Get translated VAT label
+    vat_label = get_message(MESSAGES, "vat_10")
+
     # Add empty rows for the 3-row IVA locale string (first row will contain the text)
     sheet.append(
         [
@@ -1361,7 +1569,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
-            f"IVA: {iva_in_words}",
+            f"{vat_label}: {iva_in_words}",
             None,
             None,
             None,

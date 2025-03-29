@@ -20,10 +20,41 @@ from decorators.token_required import token_required
 from utils.security import hash_password
 from utils.security import validate_user_email
 from utils.security import validate_user_password
+from utils.locale import get_message
 
 from models.user import User
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "user_not_found": "User not found",
+        "missing_required_fields": "Missing required fields",
+        "name_empty": "Name must not be empty",
+        "invalid_user_data": "Invalid user data",
+        "connection_error": "Connection error",
+        "update_profile_error": "Error updating profile",
+        "data_integrity_error": "Data integrity error",
+        "email_in_use": "Email is already in use",
+        # Success messages
+        "profile_updated": "Profile updated successfully",
+    },
+    "es": {
+        # Error messages
+        "user_not_found": "Usuario no encontrado",
+        "missing_required_fields": "Faltan campos obligatorios",
+        "name_empty": "El nombre no debe estar vacío",
+        "invalid_user_data": "Datos del usuario inválidos",
+        "connection_error": "problema de conexión",
+        "update_profile_error": "Error al actualizar perfil",
+        "data_integrity_error": "Error de integridad de datos",
+        "email_in_use": "El correo electrónico ya está en uso",
+        # Success messages
+        "profile_updated": "Perfil actualizado exitosamente",
+    },
+}
 
 
 @app.route("/api/user/profile", methods=["PUT"])
@@ -38,7 +69,7 @@ def put_user_profile() -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table User, user not found")
-            return jsonify({"message": "Usuario no encontrado"}), 404
+            return jsonify({"message": get_message(MESSAGES, "user_not_found")}), 404
 
         name = request.form.get("name")
         email = request.form.get("email")
@@ -46,17 +77,20 @@ def put_user_profile() -> Tuple[Response, int]:
 
         # Check if all required fields are present
         if not name or not email:
-            return jsonify({"message": "Missing required fields"}), 400
+            return (
+                jsonify({"message": get_message(MESSAGES, "missing_required_fields")}),
+                400,
+            )
 
         if len(name) <= 0:
-            return jsonify({"message": "Name must not be empty"}), 400
+            return jsonify({"message": get_message(MESSAGES, "name_empty")}), 400
 
-        # Validate email format
+        # Validate email format - note this function returns error message directly from security utils
         email_error = validate_user_email(email)
         if email_error:
             return jsonify({"message": email_error}), 400
 
-        # Validate new_password strength (example: minimum 8 characters)
+        # Validate new_password strength - note this function returns error message directly from security utils
         new_password_error = (
             validate_user_password(new_password) if new_password else None
         )
@@ -82,7 +116,7 @@ def put_user_profile() -> Tuple[Response, int]:
                         "email": entry_to_update.email,
                         "name": entry_to_update.name,
                     },
-                    "message": "Perfil actualizado exitosamente",
+                    "message": get_message(MESSAGES, "profile_updated"),
                 }
             ),
             200,
@@ -90,13 +124,20 @@ def put_user_profile() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid user data: %s", e)
-        return jsonify({"message": f"Error, datos del usuario inválidos ({e})"}), 400
+        error_msg = f"{get_message(MESSAGES, 'invalid_user_data')} ({e})"
+        return jsonify({"message": error_msg}), 400
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update table User: connection error %s", e)
         return (
-            jsonify({"message": "Error al actualizar perfil: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_profile_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
@@ -107,11 +148,15 @@ def put_user_profile() -> Tuple[Response, int]:
 
         # Check for duplicate entry error
         if "Duplicate entry" in error_message and "unique_email_user" in error_message:
-            return jsonify({"message": "El correo electrónico ya está en uso"}), 400
+            return jsonify({"message": get_message(MESSAGES, "email_in_use")}), 400
 
         return (
             jsonify(
-                {"message": "Error al actualizar Perfil: error de integridad de datos"}
+                {
+                    "message": get_message(MESSAGES, "update_profile_error")
+                    + ": "
+                    + get_message(MESSAGES, "data_integrity_error")
+                }
             ),
             400,
         )
@@ -119,4 +164,4 @@ def put_user_profile() -> Tuple[Response, int]:
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table User, error: %s", e)
-        return jsonify({"message": "Error al actualizar perfil"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_profile_error")}), 500

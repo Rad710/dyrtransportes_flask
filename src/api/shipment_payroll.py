@@ -23,8 +23,79 @@ from openpyxl.utils import get_column_letter
 from app_config import logger, app, db_session, RequestWithUser
 from decorators.token_required import token_required
 from models.shipment_payroll import ShipmentPayroll
+from utils.locale import get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "payroll_not_found": "Payroll not found",
+        "transaction_error": "Transaction error",
+        "get_payrolls_error": "Error getting payrolls",
+        "invalid_parameters": "Invalid parameters",
+        "invalid_payroll_data": "Invalid payroll data",
+        "connection_error": "Connection error",
+        "add_payroll_error": "Error adding payroll",
+        "update_payroll_error": "Error updating payroll",
+        "collection_field_required": "Field 'collected' is required",
+        "invalid_data": "Invalid data",
+        "update_collection_status_error": "Error updating collection status",
+        "delete_payroll_error": "Error deleting payroll",
+        "empty_payroll_list": "Empty payroll list",
+        "export_error": "Error generating the export file",
+        "invalid_date_format": "Invalid date format",
+        "no_export_data": "No data to export in the selected date range",
+        # Success messages
+        "payroll_added": "Payroll added successfully",
+        "payroll_updated": "Payroll updated successfully",
+        "payroll_deleted": "Payroll deleted successfully",
+        "collection_status_updated_to_collected": "Collection status updated to collected",
+        "collection_status_updated_to_uncollected": "Collection status updated to uncollected",
+        # Excel headers and labels
+        "code": "Code",
+        "date": "Date",
+        "collected": "Collected",
+        "collection_date": "Collection Date",
+        "payroll_list": "payroll_list",
+        "yes": "Yes",
+        "no": "No",
+    },
+    "es": {
+        # Error messages
+        "payroll_not_found": "No se encontró la planilla",
+        "transaction_error": "Error de transacción",
+        "get_payrolls_error": "Error al obtener planillas",
+        "invalid_parameters": "Parámetros inválidos",
+        "invalid_payroll_data": "Datos de la Planilla inválidos",
+        "connection_error": "problema de conexión",
+        "add_payroll_error": "Error al agregar planilla",
+        "update_payroll_error": "Error al actualizar planilla",
+        "collection_field_required": "Campo 'collected' requerido",
+        "invalid_data": "Datos inválidos",
+        "update_collection_status_error": "Error al actualizar estado de cobranza",
+        "delete_payroll_error": "Error al eliminar planilla",
+        "empty_payroll_list": "planilla no encontrada",
+        "export_error": "Error al generar el archivo de exportación",
+        "invalid_date_format": "Formato de fecha inválido",
+        "no_export_data": "No hay datos para exportar en el rango de fechas seleccionado",
+        # Success messages
+        "payroll_added": "Planilla agregada exitosamente",
+        "payroll_updated": "Planilla actualizada exitosamente",
+        "payroll_deleted": "Planilla eliminada exitosamente",
+        "collection_status_updated_to_collected": "Estado de cobranza actualizado a cobrado",
+        "collection_status_updated_to_uncollected": "Estado de cobranza actualizado a no cobrado",
+        # Excel headers and labels
+        "code": "Código",
+        "date": "Fecha",
+        "collected": "Cobrado",
+        "collection_date": "Fecha de Cobro",
+        "payroll_list": "lista_de_planillas",
+        "yes": "Sí",
+        "no": "No",
+    },
+}
 
 
 @app.route("/api/shipment-payroll/<int:payroll_code>", methods=["GET"])
@@ -40,7 +111,7 @@ def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         shipment_payroll: Optional[ShipmentPayroll] = db_session.scalar(stmt)
         if shipment_payroll is None:
             logger.error("fetch table ShipmentPayroll, not found")
-            return jsonify({"message": "No se encontró la planilla"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         logger.info(
             "fetch table ShipmentPayroll, found: %s", shipment_payroll.payroll_code
@@ -51,7 +122,7 @@ def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/shipment-payrolls", methods=["GET"])
@@ -62,7 +133,7 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
         year: Optional[int] = int(year_param) if year_param else None
     except ValueError as e:
         logger.error("Invalid 'year' parameter %s", e)
-        return jsonify({"message": "Parámetros inválidos"}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_parameters")}), 400
 
     try:
         stmt = select(ShipmentPayroll).where(
@@ -92,7 +163,7 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch shipment payrolls table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error al obtener planillas"}), 500
+        return jsonify({"message": get_message(MESSAGES, "get_payrolls_error")}), 500
 
 
 @app.route("/api/shipment-payroll", methods=["POST"])
@@ -111,26 +182,35 @@ def post_shipment_payroll() -> Tuple[Response, int]:
         db_session.commit()
         logger.info("inserted table ShipmentPayroll, payroll: %s", payload.payroll_code)
         return (
-            jsonify({**asdict(payload), "message": "Planilla agregada exitosamente"}),
+            jsonify(
+                {**asdict(payload), "message": get_message(MESSAGES, "payroll_added")}
+            ),
             200,
         )
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table ShipmentPayroll, invalid payroll error: %s", e)
-        return jsonify({"message": f"Error, datos de la Planilla inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("insert table ShipmentPayroll, connection error: %s", e)
         return (
-            jsonify({"message": "Error al agregar planilla: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "add_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("insert table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error al agregar planilla"}), 500
+        return jsonify({"message": get_message(MESSAGES, "add_payroll_error")}), 500
 
 
 @app.route("/api/shipment-payroll/<int:payroll_code>", methods=["PUT"])
@@ -146,7 +226,7 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         if entry_to_update is None:
             logger.error("update table ShipmentPayroll, payroll not found")
-            return jsonify({"message": "Planilla no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         # json to db object
         payload = ShipmentPayroll(
@@ -167,7 +247,7 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": "Planilla actualizada exitosamente",
+                    "message": get_message(MESSAGES, "payroll_updated"),
                 }
             ),
             200,
@@ -175,20 +255,27 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid payroll: %s", e)
-        return jsonify({"message": f"Error, datos de la Planilla inválidos ({e})"}), 500
+        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
+        return jsonify({"message": error_msg}), 500
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("update table ShipmentPayroll: connection error %s", e)
         return (
-            jsonify({"message": "Error al actualizar planilla: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "update_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error al actualizar planilla"}), 500
+        return jsonify({"message": get_message(MESSAGES, "update_payroll_error")}), 500
 
 
 @app.route(
@@ -210,14 +297,19 @@ def update_shipment_payroll_collection_status(
             logger.error(
                 "update collection status, payroll not found: %s", payroll_code
             )
-            return jsonify({"message": "Planilla no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         # Get the payload
         payload = request.get_json()
 
         if "collected" not in payload:
             logger.error("update collection status, missing collected field")
-            return jsonify({"message": "Campo 'collected' requerido"}), 400
+            return (
+                jsonify(
+                    {"message": get_message(MESSAGES, "collection_field_required")}
+                ),
+                400,
+            )
 
         # Update only the collection-related fields
         entry_to_update.collected = payload["collected"]
@@ -237,11 +329,20 @@ def update_shipment_payroll_collection_status(
 
         db_session.commit()
 
+        status_message = get_message(
+            MESSAGES,
+            (
+                "collection_status_updated_to_collected"
+                if entry_to_update.collected
+                else "collection_status_updated_to_uncollected"
+            ),
+        )
+
         return (
             jsonify(
                 {
                     **asdict(entry_to_update),
-                    "message": f"Estado de cobranza actualizado a {'cobrado' if entry_to_update.collected else 'no cobrado'}",
+                    "message": status_message,
                 }
             ),
             200,
@@ -249,7 +350,8 @@ def update_shipment_payroll_collection_status(
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid collection status update: %s", e)
-        return jsonify({"message": f"Error, datos inválidos ({e})"}), 400
+        error_msg = f"{get_message(MESSAGES, 'invalid_data')} ({e})"
+        return jsonify({"message": error_msg}), 400
 
     except OperationalError as e:
         db_session.rollback()
@@ -257,7 +359,9 @@ def update_shipment_payroll_collection_status(
         return (
             jsonify(
                 {
-                    "message": "Error al actualizar estado de cobranza: problema de conexión"
+                    "message": get_message(MESSAGES, "update_collection_status_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
                 }
             ),
             503,
@@ -266,7 +370,12 @@ def update_shipment_payroll_collection_status(
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("update collection status, error: %s", e)
-        return jsonify({"message": "Error al actualizar estado de cobranza"}), 500
+        return (
+            jsonify(
+                {"message": get_message(MESSAGES, "update_collection_status_error")}
+            ),
+            500,
+        )
 
 
 @app.route("/api/shipment-payroll/<int:payroll_code>", methods=["DELETE"])
@@ -281,26 +390,32 @@ def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         if existing_entry is None:
             logger.error("delete table ShipmentPayroll, payroll not found")
-            return jsonify({"message": "Planilla no encontrada"}), 404
+            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
 
         existing_entry.deleted = True
         existing_entry.modification_user = request.current_user.user_id
         db_session.commit()
         logger.info("delete table ShipmentPayroll: payroll %s", payroll_code)
-        return jsonify({"message": "Planilla eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "payroll_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table ShipmentPayroll, connection error: %s", e)
         return (
-            jsonify({"message": "Error al eliminar planilla: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error al eliminar planilla"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
 @app.route("/api/shipment-payrolls", methods=["DELETE"])
@@ -309,7 +424,13 @@ def delete_shipment_payrolls() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
         logger.error("delete payrolls table ShipmentPayroll, payroll list is empty")
         return (
-            jsonify({"message": "Error al eliminar planilla: planilla no encontrada"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "empty_payroll_list")
+                }
+            ),
             404,
         )
 
@@ -328,7 +449,9 @@ def delete_shipment_payrolls() -> Tuple[Response, int]:
                 return (
                     jsonify(
                         {
-                            "message": "Error al eliminar planilla: planilla no encontrada"
+                            "message": get_message(MESSAGES, "delete_payroll_error")
+                            + ": "
+                            + get_message(MESSAGES, "empty_payroll_list")
                         }
                     ),
                     404,
@@ -339,20 +462,26 @@ def delete_shipment_payrolls() -> Tuple[Response, int]:
             logger.info("delete table ShipmentPayroll, payroll: %s", payroll_code)
 
         db_session.commit()
-        return jsonify({"message": "Planilla eliminada exitosamente"}), 200
+        return jsonify({"message": get_message(MESSAGES, "payroll_deleted")}), 200
 
     except OperationalError as e:
         db_session.rollback()
         logger.error("delete table ShipmentPayroll: connection error %s", e)
         return (
-            jsonify({"message": "Error al eliminar planilla: problema de conexión"}),
+            jsonify(
+                {
+                    "message": get_message(MESSAGES, "delete_payroll_error")
+                    + ": "
+                    + get_message(MESSAGES, "connection_error")
+                }
+            ),
             503,
         )
 
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error("delete table ShipmentPayroll, error: %s", e)
-        return jsonify({"message": "Error al eliminar planilla"}), 500
+        return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
 @app.route("/api/shipment-payrolls/export-excel", methods=["GET"])
@@ -391,11 +520,7 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
         if not payroll_list:
             logger.warning("export ShipmentPayrolls, no data found in date range")
             return (
-                jsonify(
-                    {
-                        "message": "No hay datos para exportar en el rango de fechas seleccionado"
-                    }
-                ),
+                jsonify({"message": get_message(MESSAGES, "no_export_data")}),
                 404,
             )
 
@@ -404,7 +529,13 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
         workbook = Workbook(write_only=False, iso_dates=False)
         sheet = workbook.active
 
-        headers = ["Código", "Fecha", "Cobrado", "Fecha de Cobro"]
+        # Get translated headers
+        headers = [
+            get_message(MESSAGES, "code"),
+            get_message(MESSAGES, "date"),
+            get_message(MESSAGES, "collected"),
+            get_message(MESSAGES, "collection_date"),
+        ]
         sheet.append(headers)
 
         for col_idx in range(1, 5):
@@ -436,10 +567,17 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
                 else ""
             )
 
+            # Get translated yes/no values
+            collected_text = (
+                get_message(MESSAGES, "yes")
+                if payroll.collected
+                else get_message(MESSAGES, "no")
+            )
+
             row = [
                 payroll.payroll_code,
                 payroll_date,
-                "Sí" if payroll.collected else "No",
+                collected_text,
                 collection_date,
             ]
 
@@ -453,14 +591,15 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
         workbook.save(output)
         output.seek(0)
 
+        # Get translated filename
+        filename = f'{get_message(MESSAGES, "payroll_list")}.xlsx'
+
         # Create response with Excel file
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        response.headers["Content-Disposition"] = (
-            'attachment; filename="lista_de_planillas.xlsx"'
-        )
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
 
         logger.info("exported ShipmentPayrolls excel file")
 
@@ -468,12 +607,12 @@ def export_shipment_payrolls() -> Tuple[Response, int]:
 
     except ValueError as e:
         logger.error("export ShipmentPayrolls, invalid date format: %s", e)
-        return jsonify({"message": "Formato de fecha inválido"}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_date_format")}), 400
 
     except SQLAlchemyError as e:
         logger.error("export ShipmentPayrolls, database error: %s", e)
-        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
     except Exception as e:
         logger.error("export ShipmentPayrolls, unexpected error: %s", e)
-        return jsonify({"message": "Error al generar el archivo de exportación"}), 500
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500

@@ -24,8 +24,57 @@ from app_config import db_session
 from app_config import RequestWithUser
 
 from decorators.token_required import token_required
+from utils.locale import get_locale, get_message
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        # Error messages
+        "missing_date_params": "The start_date and end_date parameters are required",
+        "transaction_error": "Transaction error",
+        "excel_generation_error": "Error generating Excel file",
+        # Excel headers
+        "driver_code": "Driver Code",
+        "driver_name": "Driver Name",
+        "shipment_count": "Shipment Count",
+        "total_origin_kg": "Total Origin Kg.",
+        "total_destination_kg": "Total Destination Kg.",
+        "difference": "Difference",
+        "shipment_fees": "Shipment Fees (Gs.)",
+        "settlements": "Settlements (Gs.)",
+        "expenses_with_receipt": "Expenses with Receipt (Gs.)",
+        "expenses_without_receipt": "Expenses without Receipt (Gs.)",
+        "total_expenses": "Total Expenses (Gs.)",
+        # Excel sheet name
+        "statistics": "Statistics",
+        # Excel filename
+        "statistics_data": "statistics",
+    },
+    "es": {
+        # Error messages
+        "missing_date_params": "Se requieren los parámetros start_date y end_date",
+        "transaction_error": "Error de transacción",
+        "excel_generation_error": "Error al generar archivo Excel",
+        # Excel headers
+        "driver_code": "Código de Conductor",
+        "driver_name": "Nombre de Conductor",
+        "shipment_count": "Cantidad de Cargas",
+        "total_origin_kg": "Total Kg. Origen",
+        "total_destination_kg": "Total Kg. Destino",
+        "difference": "Diferencia",
+        "shipment_fees": "Fletes (Gs.)",
+        "settlements": "Liquidaciones (Gs.)",
+        "expenses_with_receipt": "Gastos con Recibo (Gs.)",
+        "expenses_without_receipt": "Gastos sin Recibo (Gs.)",
+        "total_expenses": "Total Gastos (Gs.)",
+        # Excel sheet name
+        "statistics": "Estadísticas",
+        # Excel filename
+        "statistics_data": "estadisticas",
+    },
+}
 
 
 @app.route("/api/statistics", methods=["GET"])
@@ -40,7 +89,7 @@ def get_statistics_data() -> Tuple[Response, int]:
 
         if not start_date or not end_date:
             return (
-                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
                 400,
             )
 
@@ -160,11 +209,11 @@ def get_statistics_data() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("fetch statistics, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
     except Exception as e:
         logger.error("fetch statistics, error: %s", e)
-        return jsonify({"message": "Error de transacción"}), 500
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
 @app.route("/api/statistics/export-excel", methods=["GET"])
@@ -179,7 +228,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
 
         if not start_date or not end_date:
             return (
-                jsonify({"error": "Se requieren los parámetros start_date y end_date"}),
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
                 400,
             )
 
@@ -279,21 +328,23 @@ def export_statistics_excel() -> Tuple[Response, int]:
         output = io.BytesIO()
         workbook = Workbook(write_only=False, iso_dates=False)
         sheet = workbook.active
-        sheet.title = "Estadísticas"
 
-        # Define headers
+        # Get translated sheet name
+        sheet.title = get_message(MESSAGES, "statistics")
+
+        # Define headers with translations
         headers = [
-            "Código de Conductor",
-            "Nombre de Conductor",
-            "Cantidad de Cargas",
-            "Total Kg. Origen",
-            "Total Kg. Destino",
-            "Diferencia",
-            "Fletes (Gs.)",
-            "Liquidaciones (Gs.)",
-            "Gastos con Recibo (Gs.)",
-            "Gastos sin Recibo (Gs.)",
-            "Total Gastos (Gs.)",
+            get_message(MESSAGES, "driver_code"),
+            get_message(MESSAGES, "driver_name"),
+            get_message(MESSAGES, "shipment_count"),
+            get_message(MESSAGES, "total_origin_kg"),
+            get_message(MESSAGES, "total_destination_kg"),
+            get_message(MESSAGES, "difference"),
+            get_message(MESSAGES, "shipment_fees"),
+            get_message(MESSAGES, "settlements"),
+            get_message(MESSAGES, "expenses_with_receipt"),
+            get_message(MESSAGES, "expenses_without_receipt"),
+            get_message(MESSAGES, "total_expenses"),
         ]
         sheet.append(headers)
 
@@ -367,13 +418,16 @@ def export_statistics_excel() -> Tuple[Response, int]:
         workbook.save(output)
         output.seek(0)
 
+        # Get translated filename component
+        filename_base = get_message(MESSAGES, "statistics_data")
+
         # Create response with Excel file
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = (
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         response.headers["Content-Disposition"] = (
-            f"attachment; filename=estadisticas_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
+            f"attachment; filename={filename_base}_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
         )
 
         logger.info("exported statistics data to Excel file")
@@ -382,8 +436,14 @@ def export_statistics_excel() -> Tuple[Response, int]:
 
     except SQLAlchemyError as e:
         logger.error("export statistics Excel, error: %s", e)
-        return jsonify({"message": "Error al generar archivo Excel"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )
 
     except Exception as e:
         logger.error("export statistics Excel, error: %s", e)
-        return jsonify({"message": "Error al generar archivo Excel"}), 500
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )
