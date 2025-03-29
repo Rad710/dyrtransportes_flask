@@ -1,4 +1,5 @@
 import io
+
 from datetime import datetime
 from typing import Optional
 from typing import Sequence
@@ -28,6 +29,10 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Font
 from openpyxl.styles import numbers
 from openpyxl.utils import get_column_letter
+
+from decimal import Decimal
+
+from num2words import num2words
 
 from app_config import logger
 from app_config import app
@@ -621,7 +626,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         "price_weight": {"letter": "J", "number": 10},
         "shipment_amount": {"letter": "K", "number": 11},
         "untaxed_expense_date": {"letter": "L", "number": 12},
-        "untaxed_espense_reason": {"letter": "M", "number": 13},
+        "untaxed_expense_reason": {"letter": "M", "number": 13},
         "untaxed_expense_amount": {"letter": "N", "number": 14},
         "taxed_expense_date": {"letter": "O", "number": 15},
         "taxed_expense_receipt": {"letter": "P", "number": 16},
@@ -676,7 +681,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         cell.border = border
         cell.font = Font(bold=True)
 
-    for col in [columns["untaxed_expense_date"]["number"], columns_length]:
+    for col in range(columns["untaxed_expense_date"]["number"], columns_length + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
         cell.number_format = "#,##0"
         cell.border = border
@@ -711,8 +716,20 @@ def exportar_driver_payroll(driver_payroll_code: int):
         total_gastos,
     ]
     sheet.append(total)
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=columns["difference"]["number"],
+        end_row=sheet.max_row,
+        end_column=columns["price_weight"]["number"],
+    )
+    sheet.merge_cells(
+        start_row=sheet.max_row,
+        start_column=columns["untaxed_expense_date"]["number"],
+        end_row=sheet.max_row,
+        end_column=columns["untaxed_expense_reason"]["number"],
+    )
 
-    for col in [columns["shipment_amount"]["number"], len(columns)]:
+    for col in range(columns["shipment_amount"]["number"], len(columns) + 1):
         cell = sheet.cell(row=sheet.max_row, column=col)
         cell.number_format = "#,##0"
         cell.border = border
@@ -722,9 +739,16 @@ def exportar_driver_payroll(driver_payroll_code: int):
         cell.border = border
         cell.font = Font(bold=True)
 
-    sheet.append([None])
+    sheet.append([])
 
-    render_driver_payroll_totals(sheet, columns, border, last_row)
+    render_driver_payroll_totals(
+        sheet,
+        columns,
+        border,
+        last_row,
+        shipments,
+        shipment_expenses_receipt,
+    )
 
     # Save and send Excel file
     workbook.save(output)
@@ -765,7 +789,7 @@ def render_driver_payroll_headers(
     sheet.column_dimensions[columns["price_weight"]["letter"]].width = 7.60
     sheet.column_dimensions[columns["shipment_amount"]["letter"]].width = 10.27
     sheet.column_dimensions[columns["untaxed_expense_date"]["letter"]].width = 10.82
-    sheet.column_dimensions[columns["untaxed_espense_reason"]["letter"]].width = 7.0
+    sheet.column_dimensions[columns["untaxed_expense_reason"]["letter"]].width = 7.0
     sheet.column_dimensions[columns["untaxed_expense_amount"]["letter"]].width = 10.27
     sheet.column_dimensions[columns["taxed_expense_date"]["letter"]].width = 10.82
     sheet.column_dimensions[columns["taxed_expense_receipt"]["letter"]].width = 8.5
@@ -971,7 +995,14 @@ def render_driver_payroll_shipment_expense(
         contador += 1
 
 
-def render_driver_payroll_totals(sheet, columns, border, last_row):
+def render_driver_payroll_totals(
+    sheet: Worksheet,
+    columns: dict[str, dict[str, str | int]],
+    border: Border,
+    last_row: int,
+    shipments: Sequence[Shipment],
+    shipment_expenses_receipt: Sequence[ShipmentExpense],
+):
     price_weight_column = columns["price_weight"]["letter"]
     shipment_amount_column = columns["shipment_amount"]["letter"]
     taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
@@ -1009,13 +1040,16 @@ def render_driver_payroll_totals(sheet, columns, border, last_row):
     )
 
     for col in range(
-        columns["origin_weight"]["number"], columns["shipment_amount"]["number"]
+        columns["origin_weight"]["number"], columns["shipment_amount"]["number"] + 1
     ):
         cell = sheet.cell(row=sheet.max_row, column=col)
         cell.border = border
         cell.font = Font(bold=True)
 
-        if col == columns["shipment_amount"]["number"]:
+        if col in [
+            columns["shipment_amount"]["number"] - 1,
+            columns["shipment_amount"]["number"],
+        ]:
             cell.number_format = "#,##0"
 
     total_facturar = [
@@ -1046,13 +1080,16 @@ def render_driver_payroll_totals(sheet, columns, border, last_row):
     )
 
     for col in range(
-        columns["origin_weight"]["number"], columns["shipment_amount"]["number"]
+        columns["origin_weight"]["number"], columns["shipment_amount"]["number"] + 1
     ):
         cell = sheet.cell(row=sheet.max_row, column=col)
         cell.border = border
         cell.font = Font(bold=True)
 
-        if col == columns["shipment_amount"]["number"]:
+        if col in [
+            columns["shipment_amount"]["number"] - 1,
+            columns["shipment_amount"]["number"],
+        ]:
             cell.number_format = "#,##0"
 
     sheet.append(
@@ -1256,3 +1293,101 @@ def render_driver_payroll_totals(sheet, columns, border, last_row):
 
         if col >= title_end_column:
             cell.number_format = "#,##0"
+
+    sheet.append([])
+
+    # For shipments calculation, skip if destination_weight or payroll_price is None
+    total_shipment_amount = sum(
+        (shipment.destination_weight * shipment.payroll_price)
+        for shipment in shipments
+        if shipment is not None
+    )
+    # For shipment expenses calculation, skip if amount is None
+    total_shipment_expenses_receipt_amount = sum(
+        shipment_expense.amount
+        for shipment_expense in shipment_expenses_receipt
+        if shipment_expense is not None
+    )
+    total_invoice = total_shipment_amount - total_shipment_expenses_receipt_amount
+
+    # Convert to Spanish words
+    total_in_words = num2words(total_invoice, lang="es").capitalize()
+    iva_in_words = num2words(total_invoice / Decimal("11"), lang="es").capitalize()
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            f"Total: {total_in_words}",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ]
+    )
+    # Add two more empty rows to create height for wrapping
+    sheet.append([None] * 13)
+    sheet.append([None] * 13)
+
+    # Get the row numbers
+    total_text_start_row = sheet.max_row - 2
+    total_text_end_row = sheet.max_row
+
+    # Merge cells vertically and horizontally for Total locale string
+    sheet.merge_cells(
+        start_row=total_text_start_row,
+        start_column=totals_start_column,
+        end_row=total_text_end_row,
+        end_column=totals_end_column,
+    )
+
+    # Format the merged cell with borders, font, and text wrapping
+    merged_cell = sheet.cell(row=total_text_start_row, column=totals_start_column)
+    merged_cell.border = border
+    merged_cell.font = Font(bold=True, italic=True)
+    merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
+
+    # Add empty rows for the 3-row IVA locale string (first row will contain the text)
+    sheet.append(
+        [
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            f"IVA: {iva_in_words}",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ]
+    )
+    # Add two more empty rows to create height for wrapping
+    sheet.append([None] * 13)
+    sheet.append([None] * 13)
+
+    # Get the row numbers
+    iva_text_start_row = sheet.max_row - 2
+    iva_text_end_row = sheet.max_row
+
+    # Merge cells vertically and horizontally for IVA locale string
+    sheet.merge_cells(
+        start_row=iva_text_start_row,
+        start_column=totals_start_column,
+        end_row=iva_text_end_row,
+        end_column=totals_end_column,
+    )
+
+    # Format the merged cell with borders, font, and text wrapping
+    merged_cell = sheet.cell(row=iva_text_start_row, column=totals_start_column)
+    merged_cell.border = border
+    merged_cell.font = Font(bold=True, italic=True)
+    merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
