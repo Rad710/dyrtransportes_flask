@@ -1554,7 +1554,7 @@ def render_driver_payroll_totals(
     # Format the merged cell with borders, font, and text wrapping
     merged_cell = sheet.cell(row=total_text_start_row, column=totals_start_column)
     merged_cell.border = border
-    merged_cell.font = Font(bold=True, italic=True)
+    merged_cell.font = Font(bold=True)
     merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
 
     # Get translated VAT label
@@ -1597,5 +1597,5 @@ def render_driver_payroll_totals(
     # Format the merged cell with borders, font, and text wrapping
     merged_cell = sheet.cell(row=iva_text_start_row, column=totals_start_column)
     merged_cell.border = border
-    merged_cell.font = Font(bold=True, italic=True)
+    merged_cell.font = Font(bold=True)
     merged_cell.alignment = Alignment(wrap_text=True, vertical="center")

@@ -12,10 +12,29 @@ from jwt import InvalidTokenError
 from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
+from utils.locale import get_message
 
 from models.user import User
 
 request: RequestWithUser
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        "token_missing": "Token is missing",
+        "token_expired": "Token has expired",
+        "invalid_token": "Invalid token",
+        "user_not_found": "User not found",
+        "generic_error": "Error: {}",
+    },
+    "es": {
+        "token_missing": "Falta el token",
+        "token_expired": "El token ha expirado",
+        "invalid_token": "Token inválido",
+        "user_not_found": "Usuario no encontrado",
+        "generic_error": "Error: {}",
+    },
+}
 
 
 def token_required(f):
@@ -24,7 +43,7 @@ def token_required(f):
         token = request.headers.get("Authorization")
 
         if not token:
-            return jsonify({"message": "Token is missing"}), 401
+            return jsonify({"message": get_message(MESSAGES, "token_missing")}), 401
 
         try:
             if token.startswith("Bearer "):
@@ -38,17 +57,21 @@ def token_required(f):
             current_user = db_session.scalars(stmt).first()
 
             if not current_user:
-                return jsonify({"message": "User not found"}), 401
+                return (
+                    jsonify({"message": get_message(MESSAGES, "user_not_found")}),
+                    401,
+                )
 
             # Add user to request context
             request.current_user = current_user
 
         except ExpiredSignatureError:
-            return jsonify({"message": "Token has expired"}), 401
+            return jsonify({"message": get_message(MESSAGES, "token_expired")}), 401
         except InvalidTokenError:
-            return jsonify({"message": "Invalid token"}), 401
+            return jsonify({"message": get_message(MESSAGES, "invalid_token")}), 401
         except Exception as e:
-            return jsonify({"message": f"Error: {str(e)}"}), 500
+            error_msg = get_message(MESSAGES, "generic_error").format(str(e))
+            return jsonify({"message": error_msg}), 500
 
         return f(*args, **kwargs)
 

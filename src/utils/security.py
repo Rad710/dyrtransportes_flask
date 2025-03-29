@@ -3,6 +3,19 @@ import re
 import hashlib
 
 from app_config import logger
+from utils.locale import get_message
+
+# Translation dictionaries
+MESSAGES = {
+    "en": {
+        "invalid_email_format": "Invalid email format",
+        "password_requirements": "Password must be at least 8 characters and include at least one number, one lowercase letter, and one uppercase letter",
+    },
+    "es": {
+        "invalid_email_format": "Formato de correo electrónico inválido",
+        "password_requirements": "La contraseña debe tener al menos 8 caracteres e incluir al menos un número, una letra minúscula y una letra mayúscula",
+    },
+}
 
 
 def hash_password(password: str) -> str:
@@ -36,7 +49,7 @@ def validate_user_email(email: str) -> str | None:
     # Validate email format
     email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
     if not re.match(email_pattern, email):
-        return "Invalid email format"
+        return get_message(MESSAGES, "invalid_email_format")
 
     return None
 
@@ -47,6 +60,6 @@ def validate_user_password(password: str) -> str | None:
     password_regex = r"^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$"
 
     if not re.match(password_regex, password):
-        return "Password must be at least 8 characters and include at least one number, one lowercase letter, and one uppercase letter"
+        return get_message(MESSAGES, "password_requirements")
 
     return None
