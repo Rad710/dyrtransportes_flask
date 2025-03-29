@@ -44,7 +44,11 @@ def get_statistics_data() -> Tuple[Response, int]:
                 400,
             )
 
-        params = {"start_date": start_date.date(), "end_date": end_date.date()}
+        params = {
+            "start_date": start_date.date(),
+            "end_date": end_date.date(),
+            "user_id": request.current_user.user_id,
+        }
         t = text(
             """
             SELECT
@@ -85,6 +89,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                         shipment s
                     WHERE
                         CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                        AND s.modification_user = :user_id
                     GROUP BY
                         s.driver_code
                 ) s
@@ -99,6 +104,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                     WHERE
                         se.receipt IS NOT NULL
                         AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
                 ) ser ON
@@ -114,6 +120,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                     WHERE
                         se.receipt IS NULL
                         AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
                 ) senr ON
@@ -176,7 +183,11 @@ def export_statistics_excel() -> Tuple[Response, int]:
                 400,
             )
 
-        params = {"start_date": start_date.date(), "end_date": end_date.date()}
+        params = {
+            "start_date": start_date.date(),
+            "end_date": end_date.date(),
+            "user_id": request.current_user.user_id,
+        }
         t = text(
             """
             SELECT
@@ -217,6 +228,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                         shipment s
                     WHERE
                         CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                        AND s.modification_user = :user_id
                     GROUP BY
                         s.driver_code
                 ) s
@@ -231,6 +243,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                     WHERE
                         se.receipt IS NOT NULL
                         AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
                 ) ser ON
@@ -246,6 +259,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                     WHERE
                         se.receipt IS NULL
                         AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
                 ) senr ON

@@ -2,8 +2,6 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-import re
-
 from flask import request
 from flask import jsonify
 

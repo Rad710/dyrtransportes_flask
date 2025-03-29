@@ -66,8 +66,11 @@ def get_dinatran_data() -> Tuple[Response, int]:
                     "total_driver_payroll"
                 ),
             )
-            .where(cast(Shipment.shipment_date, Date) >= start_date.date())
-            .where(cast(Shipment.shipment_date, Date) <= end_date.date())
+            .where(
+                cast(Shipment.shipment_date, Date) >= start_date.date(),
+                cast(Shipment.shipment_date, Date) <= end_date.date(),
+                Shipment.modification_user == request.current_user.user_id,
+            )
             .group_by(Shipment.truck_plate)
             .order_by(Shipment.truck_plate)
         )
@@ -133,8 +136,11 @@ def export_dinatran_excel() -> Tuple[Response, int]:
                     "total_driver_payroll"
                 ),
             )
-            .where(cast(Shipment.shipment_date, Date) >= start_date.date())
-            .where(cast(Shipment.shipment_date, Date) <= end_date.date())
+            .where(
+                cast(Shipment.shipment_date, Date) >= start_date.date(),
+                cast(Shipment.shipment_date, Date) <= end_date.date(),
+                Shipment.modification_user == request.current_user.user_id,
+            )
             .group_by(Shipment.truck_plate)
             .order_by(Shipment.truck_plate)
         )
