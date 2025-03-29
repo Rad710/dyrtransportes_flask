@@ -139,6 +139,7 @@ def login():
                     "email": user.email,
                     "name": user.name,
                     "remember_me": remember_me,
+                    "admin": user.user_id == "dyrtransportes",
                 },
                 "message": "Login successful",
             }

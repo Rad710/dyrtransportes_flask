@@ -6,6 +6,7 @@ from datetime import datetime
 
 from flask import send_from_directory
 from flask import send_file
+from flask import request
 
 from app_config import app
 from app_config import DEBUG
@@ -13,10 +14,14 @@ from app_config import DB_USERNAME
 from app_config import DB_HOST
 from app_config import DB_NAME
 from app_config import DB_PASSWORD
+from app_config import RequestWithUser
 
 from decorators.token_required import token_required
 
 from api import *
+
+
+request: RequestWithUser
 
 
 @app.route("/api/hello-world", methods=["GET"])
@@ -31,7 +36,12 @@ def protected_hello_world():
 
 
 @app.route("/api/protected/database-backup", methods=["GET"])
+@token_required
 def database_backup():
+    if request.current_user.user_id != "dyrtransportes":
+        logger.error("Backup invalid user: %s")
+        return jsonify({"message": "Error al crear backup: usuario no autorizado"}), 500
+
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"database_backup_{timestamp}.sql"
