@@ -107,7 +107,7 @@ def register():
         token = jwt.encode(
             {
                 "user_id": new_user.user_id,
-                "exp": datetime.now(timezone.utc) + timedelta(days=7),
+                "exp": datetime.now(timezone.utc) + timedelta(days=1),
             },
             app.config["SECRET_KEY"],
             algorithm="HS256",
