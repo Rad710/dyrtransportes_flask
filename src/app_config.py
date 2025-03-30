@@ -116,7 +116,13 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = connection_string
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_recycle": 280}
 
-    engine = create_engine(flask_app.config["SQLALCHEMY_DATABASE_URI"])
+    engine = create_engine(
+        flask_app.config["SQLALCHEMY_DATABASE_URI"],
+        pool_size=10,  # Maximum number of connections to keep
+        pool_recycle=3600,  # Recycle connections after 1 hour (in seconds)
+        pool_pre_ping=True,  # Verify connections before using them
+        max_overflow=20,  # Allow up to 20 connections beyond pool_size when needed
+    )
 
     flask_logger.info("init database...")
     Base.metadata.create_all(bind=engine)
