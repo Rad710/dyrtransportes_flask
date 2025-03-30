@@ -111,7 +111,6 @@ class Shipment(Base):
             "shipment_date",
             "route_code",
             "product_code",
-            "deleted",
             name="unique_driver_ticket_date",
         ),
     )
