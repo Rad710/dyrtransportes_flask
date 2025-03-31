@@ -314,8 +314,7 @@ def update_driver_payroll_paid_status(
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid paid status update: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_data')} ({e})"
-        return jsonify({"message": error_msg}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_data")}), 400
 
     except OperationalError as e:
         db_session.rollback()
@@ -374,9 +373,8 @@ def post_driver_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table DriverPayroll, invalid payroll error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
         return (
-            jsonify({"message": error_msg}),
+            jsonify({"message": get_message(MESSAGES, "invalid_payroll_data")}),
             500,
         )
 
@@ -450,9 +448,8 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid payroll: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
         return (
-            jsonify({"message": error_msg}),
+            jsonify({"message": get_message(MESSAGES, "invalid_payroll_data")}),
             500,
         )
 

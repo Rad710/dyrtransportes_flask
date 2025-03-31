@@ -190,8 +190,7 @@ def post_shipment_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table ShipmentPayroll, invalid payroll error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_payroll_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -255,8 +254,7 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid payroll: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_payroll_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_payroll_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -350,8 +348,7 @@ def update_shipment_payroll_collection_status(
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid collection status update: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_data')} ({e})"
-        return jsonify({"message": error_msg}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_data")}), 400
 
     except OperationalError as e:
         db_session.rollback()

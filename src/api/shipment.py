@@ -400,8 +400,7 @@ def post_shipment() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Shipment, invalid shipment error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_shipment_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -533,8 +532,7 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("update table Shipment, invalid shipment error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_shipment_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -689,8 +687,7 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("move shipments, invalid data error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_shipment_data')} ({e})"
-        return jsonify({"message": error_msg}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_shipment_data")}), 400
 
     except OperationalError as e:
         db_session.rollback()

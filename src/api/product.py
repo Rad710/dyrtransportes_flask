@@ -149,8 +149,7 @@ def post_product() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Product, invalid product error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_product_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_product_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -212,8 +211,7 @@ def put_product(product_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid product: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_product_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_product_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()

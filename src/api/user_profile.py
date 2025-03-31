@@ -124,8 +124,7 @@ def put_user_profile() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid user data: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_user_data')} ({e})"
-        return jsonify({"message": error_msg}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_user_data")}), 400
 
     except OperationalError as e:
         db_session.rollback()

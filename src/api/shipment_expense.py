@@ -206,9 +206,8 @@ def post_shipment_expense() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table ShipmentExpense, invalid expense error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
         return (
-            jsonify({"message": error_msg}),
+            jsonify({"message": get_message(MESSAGES, "invalid_expense_data")}),
             500,
         )
 
@@ -287,9 +286,8 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid expense: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
         return (
-            jsonify({"message": error_msg}),
+            jsonify({"message": get_message(MESSAGES, "invalid_expense_data")}),
             500,
         )
 
@@ -403,8 +401,7 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("move shipment expenses, invalid data error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_expense_data')} ({e})"
-        return jsonify({"message": error_msg}), 400
+        return jsonify({"message": get_message(MESSAGES, "invalid_expense_data")}), 400
 
     except OperationalError as e:
         db_session.rollback()

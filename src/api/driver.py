@@ -161,8 +161,7 @@ def post_driver() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Driver, invalid driver error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_driver_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_driver_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -228,8 +227,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid driver: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_driver_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_driver_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()

@@ -11,6 +11,8 @@ from jwt import InvalidTokenError
 
 from app_config import app
 from app_config import db_session
+from app_config import logger
+
 from app_config import RequestWithUser
 from utils.locale import get_message
 
@@ -25,14 +27,14 @@ MESSAGES = {
         "token_expired": "Token has expired",
         "invalid_token": "Invalid token",
         "user_not_found": "User not found",
-        "generic_error": "Error: {}",
+        "generic_error": "Error",
     },
     "es": {
         "token_missing": "Falta el token",
         "token_expired": "El token ha expirado",
         "invalid_token": "Token inválido",
         "user_not_found": "Usuario no encontrado",
-        "generic_error": "Error: {}",
+        "generic_error": "Error",
     },
 }
 
@@ -65,13 +67,15 @@ def token_required(f):
             # Add user to request context
             request.current_user = current_user
 
-        except ExpiredSignatureError:
+        except ExpiredSignatureError as e:
+            logger.error("Error, expired token: %s", e)
             return jsonify({"message": get_message(MESSAGES, "token_expired")}), 401
-        except InvalidTokenError:
+        except InvalidTokenError as e:
+            logger.error("Error, invalid token: %s", e)
             return jsonify({"message": get_message(MESSAGES, "invalid_token")}), 401
         except Exception as e:
-            error_msg = get_message(MESSAGES, "generic_error").format(str(e))
-            return jsonify({"message": error_msg}), 500
+            logger.error("Error: %s", e)
+            return jsonify({"message": get_message(MESSAGES, "generic_error")}), 500
 
         return f(*args, **kwargs)
 

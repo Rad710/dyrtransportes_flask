@@ -91,12 +91,12 @@ def database_backup():
         # Check if the process executed successfully
         if result is None or result.returncode != 0:
             logger.error("mysqldump failed: %s", result.stderr)
-            return jsonify({"message": f"Error al crear backup: {result.stderr}"}), 500
+            return jsonify({"message": f"Error creating backup: {result.stderr}"}), 500
 
         # Check if file exists before sending
         if not os.path.exists(dump_file):
             logger.error("Dump file was not created")
-            return jsonify({"message": "El archivo de respaldo no fue creado"}), 500
+            return jsonify({"message": "Backup file was not created"}), 500
 
         # Send the file with the timestamped filename
         return send_file(
@@ -108,7 +108,7 @@ def database_backup():
 
     except Exception as e:
         logger.error("Backup error: %s", e)
-        return jsonify({"message": f"Error al crear backup: {str(e)}"}), 500
+        return jsonify({"message": "Error creating backup"}), 500
 
 
 # Serve static assets directly
@@ -128,8 +128,6 @@ def serve_react(path: str):
     # Otherwise serve the index.html file for client-side routing
     return send_from_directory("static", "index.html")
 
-
-## TODO: translate endpoints
 
 ## TODO: import endpoint
 

@@ -154,8 +154,7 @@ def post_route() -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("insert table Route, invalid route error: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_route_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_route_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
@@ -220,8 +219,7 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
     except (TypeError, ValueError, KeyError) as e:
         logger.error("invalid route: %s", e)
-        error_msg = f"{get_message(MESSAGES, 'invalid_route_data')} ({e})"
-        return jsonify({"message": error_msg}), 500
+        return jsonify({"message": get_message(MESSAGES, "invalid_route_data")}), 500
 
     except OperationalError as e:
         db_session.rollback()
