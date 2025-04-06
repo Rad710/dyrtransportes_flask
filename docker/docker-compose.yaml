@@ -1,0 +1,78 @@
+services:
+  dyrtransportes-flask:
+    image: dyrtransportes-flask:1.10.0
+    
+    restart: always
+
+    # ports:
+    #   - 8080:8080
+
+    environment:
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - DB_HOST=dyrtransportes-mysql
+      - DB_PORT=3306
+      - DB_NAME=dyrtransportes
+      - API_KEY=API-KEY
+
+    container_name: dyrtransportes-flask
+
+    depends_on:
+      dyrtransportes-mysql:
+        condition: service_healthy
+
+    networks:
+      - dyrtransportes-backend
+      - dyrtransportes
+
+
+  # docker run -d --restart=always -v /home/rolando/Desktop/dyrtransportes-mysql:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_PASSWORD=root -e MYSQL_DATABASE=dyrtransportes --name=dyrtransportes-mysql -p 3306:3306 mysql:9.2.0
+  dyrtransportes-mysql:
+    image: mysql:9.2.0
+
+    restart: always
+
+    volumes:
+      - /home/rolando/Desktop/dyrtransportes-mysql:/var/lib/mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: dyrtransportes
+
+    container_name: dyrtransportes-mysql
+
+    networks:
+      - dyrtransportes-backend
+      - dyrtransportes
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    # ports:
+    #   - 3306:3306
+
+
+  dyrtransportes-adminer:
+    image: adminer:5.1.0
+
+    restart: always
+
+    # ports:
+    #   - 8000:8080
+
+    container_name: dyrtransportes-adminer
+
+    networks:
+      - dyrtransportes
+      - dyrtransportes-backend
+
+networks:
+  dyrtransportes-backend:
+  dyrtransportes:
+    name: dyrtransportes
+    external: true

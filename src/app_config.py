@@ -64,28 +64,42 @@ def create_flask_app():
 
 
 def create_flask_logger(flask_app: Flask):
-    """Initializes logger"""
+    """Initializes logger with separate files for info and error logs"""
     formatter = logging.Formatter(
         "[%(asctime)s] - %(levelname)s - %(request_info)s - %(message)s"
     )
 
-    file_handler = logging.FileHandler("log.log")
-    file_handler.setFormatter(formatter)
-    file_handler.addFilter(RequestFilter())
+    # Create info log handler
+    info_file_handler = logging.FileHandler("info.log")
+    info_file_handler.setFormatter(formatter)
+    info_file_handler.addFilter(RequestFilter())
+    info_file_handler.setLevel(logging.INFO)
 
+    # Create error log handler
+    error_file_handler = logging.FileHandler("error.log")
+    error_file_handler.setFormatter(formatter)
+    error_file_handler.addFilter(RequestFilter())
+    error_file_handler.setLevel(logging.ERROR)
+
+    # Console handler for all logs
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     console_handler.addFilter(RequestFilter())
 
     flask_logger = logging.getLogger("werkzeug")
     flask_logger.handlers.clear()
-    flask_logger.addHandler(file_handler)
+    flask_logger.addHandler(info_file_handler)
+    flask_logger.addHandler(error_file_handler)
     flask_logger.addHandler(console_handler)
 
     if DEBUG:
         flask_logger.setLevel(logging.DEBUG)
-        logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-        logging.getLogger("sqlalchemy.engine").addHandler(logging.StreamHandler())
+        # For SQLAlchemy, we'll add both handlers to capture all levels
+        sqlalchemy_logger = logging.getLogger("sqlalchemy.engine")
+        sqlalchemy_logger.setLevel(logging.INFO)
+        sqlalchemy_logger.addHandler(info_file_handler)
+        sqlalchemy_logger.addHandler(error_file_handler)
+        sqlalchemy_logger.addHandler(logging.StreamHandler())
 
     @flask_app.before_request
     def start_timer():

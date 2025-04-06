@@ -1,26 +1,29 @@
-FROM python:3.10.13
+## docker build -t dyrtransportes-flask:1.10.0 -f docker/Dockerfile .
 
-COPY requirements.txt .
+# or ${REGISTRY}/dyrtransportes/dyrtransportes-flask:1.10.0
 
-RUN pip install -r requirements.txt
+FROM python:3.13.2-slim-bookworm
 
-EXPOSE 8081
-
-# RUN apt-get -y update && apt-get -y upgrade
-# RUN apt-get -y install pkg-config \
-#     && apt-get -y install gcc python3-dev
-
-# RUN apt-get install libmysqlclient-dev
+EXPOSE 8080
 
 WORKDIR /app
 
-COPY docker/wait-for-it.sh wait-for-it.sh
-COPY docker/entrypoint.sh entrypoint.sh
+RUN adduser --disabled-password --gecos '' uwsgiuser && chown -R uwsgiuser:uwsgiuser /app
 
-COPY flask .
+COPY requirements-common.txt .
+COPY requirements-prod.txt .
 
-RUN pip install -r requirements.txt --upgrade
+RUN apt-get -y update && apt-get -y upgrade && \
+    apt-get -y install pkg-config && \
+    apt-get -y install gcc python3-dev && \
+    apt-get -y install default-libmysqlclient-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install -r requirements-common.txt --no-cache-dir && \
+    pip install -r requirements-prod.txt --no-cache-dir
 
-ENV FLASK_APP=flask_app.py
+COPY wsgi.py .
+COPY src src/
 
-CMD ["./wait-for-it.sh", "-t", "0", "dyrtransportes-mysql-dev:3306", "--", "./entrypoint.sh"]
+USER uwsgiuser
+
+CMD ["uwsgi", "--http", "0.0.0.0:8080", "--wsgi-file", "wsgi.py"]

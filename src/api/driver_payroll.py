@@ -618,7 +618,7 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         payroll_list: Sequence[DriverPayroll] = db_session.scalars(stmt).all()
 
         if not payroll_list:
-            logger.warning("export DriverPayroll, no data found in date range")
+            logger.info("export DriverPayroll, no data found in date range")
             return (
                 jsonify({"message": get_message(MESSAGES, "no_export_data")}),
                 404,
