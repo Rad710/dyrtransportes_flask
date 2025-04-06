@@ -5,6 +5,7 @@ Works as an API that allows requests to the database
 
 Configuration:
 ```.env
+# dev
 DB_USERNAME=root
 DB_PASSWORD=root
 DB_HOST=127.0.0.1
