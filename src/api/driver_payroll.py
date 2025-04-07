@@ -1510,7 +1510,6 @@ def render_driver_payroll_totals(
 
     # Convert to words in the appropriate language
     total_in_words = num2words(total_invoice, lang=lang).capitalize()
-    iva_in_words = num2words(total_invoice / Decimal("11"), lang=lang).capitalize()
 
     # Use translated 'total' text
     total_label = get_message(MESSAGES, "total")
@@ -1550,49 +1549,6 @@ def render_driver_payroll_totals(
 
     # Format the merged cell with borders, font, and text wrapping
     merged_cell = sheet.cell(row=total_text_start_row, column=totals_start_column)
-    merged_cell.border = border
-    merged_cell.font = Font(bold=True)
-    merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
-
-    # Get translated VAT label
-    vat_label = get_message(MESSAGES, "vat_10")
-
-    # Add empty rows for the 3-row IVA locale string (first row will contain the text)
-    sheet.append(
-        [
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            f"{vat_label}: {iva_in_words}",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ]
-    )
-    # Add two more empty rows to create height for wrapping
-    sheet.append([None] * 13)
-    sheet.append([None] * 13)
-
-    # Get the row numbers
-    iva_text_start_row = sheet.max_row - 2
-    iva_text_end_row = sheet.max_row
-
-    # Merge cells vertically and horizontally for IVA locale string
-    sheet.merge_cells(
-        start_row=iva_text_start_row,
-        start_column=totals_start_column,
-        end_row=iva_text_end_row,
-        end_column=totals_end_column,
-    )
-
-    # Format the merged cell with borders, font, and text wrapping
-    merged_cell = sheet.cell(row=iva_text_start_row, column=totals_start_column)
     merged_cell.border = border
     merged_cell.font = Font(bold=True)
     merged_cell.alignment = Alignment(wrap_text=True, vertical="center")
