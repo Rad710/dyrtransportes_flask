@@ -19,6 +19,8 @@ from flask import make_response
 from sqlalchemy import select
 from sqlalchemy import desc
 from sqlalchemy import cast
+from sqlalchemy import or_
+from sqlalchemy import and_
 from sqlalchemy import Date
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
@@ -758,7 +760,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         shipment_expenses_no_receipt_stmt = select(ShipmentExpense).where(
             ShipmentExpense.driver_payroll_code == driver_payroll_code,
             ShipmentExpense.deleted == False,
-            ShipmentExpense.receipt == None,
+            or_(ShipmentExpense.receipt == None, ShipmentExpense.receipt == ""),
             ShipmentExpense.modification_user == request.current_user.user_id,
         )
         shipment_expenses_no_receipt: Sequence[ShipmentExpense] = db_session.scalars(
@@ -768,7 +770,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         shipment_expenses_receipt_stmt = select(ShipmentExpense).where(
             ShipmentExpense.driver_payroll_code == driver_payroll_code,
             ShipmentExpense.deleted == False,
-            ShipmentExpense.receipt != None,
+            and_(ShipmentExpense.receipt != None, ShipmentExpense.receipt != ""),
             ShipmentExpense.modification_user == request.current_user.user_id,
         )
         shipment_expenses_receipt: Sequence[ShipmentExpense] = db_session.scalars(
