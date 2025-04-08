@@ -111,6 +111,7 @@ def database_backup():
         return jsonify({"message": "Error creating backup"}), 500
 
 
+## TODO: remove these two endpoints when using nginx
 # Serve static assets directly
 @app.route("/assets/<path:path>")
 def serve_assets(path: str):
