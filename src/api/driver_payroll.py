@@ -1,7 +1,5 @@
 import io
 
-from decimal import Decimal
-
 from datetime import datetime
 from typing import Optional
 from typing import Sequence

@@ -130,6 +130,12 @@ def serve_react(path: str):
     return send_from_directory("static", "index.html")
 
 
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Closes database session"""
+    db_session.remove()
+
+
 ## TODO: import endpoint
 
 ## TODO: create driver payroll when creating new driver

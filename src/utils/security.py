@@ -2,8 +2,7 @@ import os
 import re
 import hashlib
 
-from app_config import logger
-from utils.locale import get_message
+from .locale import get_message
 
 # Translation dictionaries
 MESSAGES = {
@@ -40,8 +39,7 @@ def verify_password(password: str, stored_password: str) -> bool:
         hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
 
         return hashed.hex() == hash_str
-    except Exception as e:
-        logger.error("Verify password error, %s", e)
+    except Exception:
         return False
 
 

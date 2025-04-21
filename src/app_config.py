@@ -1,7 +1,7 @@
+import os
 import logging
 import time
 
-import os
 from pathlib import Path
 from subprocess import run
 from subprocess import CalledProcessError
@@ -115,30 +115,27 @@ def create_flask_logger(flask_app: Flask):
     return flask_logger
 
 
-def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
+def init_database_and_migrate():
     """Initializes Database and db_session"""
 
     if None in [DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]:
-        flask_logger.error(".env file is missing")
+        print(".env file is missing")
 
     connection_string = (
         f"mysql+mysqldb://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
     if DEBUG:
-        flask_logger.debug("using connection_string: %s", connection_string)
-
-    flask_app.config["SQLALCHEMY_DATABASE_URI"] = connection_string
-    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_recycle": 280}
+        print("using connection_string: %s", connection_string)
 
     engine = create_engine(
-        flask_app.config["SQLALCHEMY_DATABASE_URI"],
+        url=connection_string,
         pool_size=10,  # Maximum number of connections to keep
         pool_recycle=3600,  # Recycle connections after 1 hour (in seconds)
         pool_pre_ping=True,  # Verify connections before using them
         max_overflow=20,  # Allow up to 20 connections beyond pool_size when needed
     )
 
-    flask_logger.info("init database...")
+    print("init database...")
     Base.metadata.create_all(bind=engine)
 
     # Get the absolute path to the alembic.ini file
@@ -146,37 +143,24 @@ def init_database_and_migrate(flask_app: Flask, flask_logger: logging.Logger):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     alembic_ini_path = os.path.join(script_dir, "migrations", "alembic.ini")
 
-    flask_logger.info(f"Using alembic.ini at: {alembic_ini_path}")
+    print(f"Using alembic.ini at: {alembic_ini_path}")
 
-    flask_logger.info("running migration scripts...")
+    print("running migration scripts...")
     alembic_command = ["alembic", "-c", alembic_ini_path, "upgrade", "head"]
     try:
         run(alembic_command, check=True)
-        flask_logger.info("Alembic migration applied successfully!")
+        print("Alembic migration applied successfully!")
     except CalledProcessError as e:
-        flask_logger.error("Error while applying Alembic migration: %s", e)
+        print("Error while applying Alembic migration: %s", e)
         # Print more detailed error information
-        flask_logger.error(f"Command attempted: {' '.join(alembic_command)}")
-        flask_logger.error(f"Working directory: {os.getcwd()}")
+        print(f"Command attempted: {' '.join(alembic_command)}")
+        print(f"Working directory: {os.getcwd()}")
     except Exception as e:
-        flask_logger.error("Error while applying Alembic migration: %s", e)
+        print("Error while applying Alembic migration: %s", e)
 
-    flask_db_session = scoped_session(
-        sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    )
-
-    return flask_db_session
-
-
-def set_up_shutdown_session(flask_app: Flask):
-    @flask_app.teardown_appcontext
-    def shutdown_session(exception=None):
-        """Closes database session"""
-        db_session.remove()
+    return scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 
 app = create_flask_app()
 logger = create_flask_logger(app)
-
-db_session = init_database_and_migrate(app, logger)
-set_up_shutdown_session(app)
+db_session = init_database_and_migrate()

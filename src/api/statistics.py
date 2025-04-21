@@ -24,7 +24,7 @@ from app_config import db_session
 from app_config import RequestWithUser
 
 from decorators.token_required import token_required
-from utils.locale import get_locale, get_message
+from utils.locale import get_message
 
 request: RequestWithUser
 
