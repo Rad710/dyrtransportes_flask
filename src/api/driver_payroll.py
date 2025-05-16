@@ -748,28 +748,40 @@ def exportar_driver_payroll(driver_payroll_code: int):
 
         logger.debug("fetch table Driver, found: %s", driver)
 
-        shipments_stmt = select(Shipment).where(
-            Shipment.driver_payroll_code == driver_payroll_code,
-            Shipment.deleted == False,
-            Shipment.modification_user == request.current_user.user_id,
+        shipments_stmt = (
+            select(Shipment)
+            .where(
+                Shipment.driver_payroll_code == driver_payroll_code,
+                Shipment.deleted == False,
+                Shipment.modification_user == request.current_user.user_id,
+            )
+            .order_by(Shipment.shipment_date, Shipment.shipment_code)
         )
         shipments: Sequence[Shipment] = db_session.scalars(shipments_stmt).all()
 
-        shipment_expenses_no_receipt_stmt = select(ShipmentExpense).where(
-            ShipmentExpense.driver_payroll_code == driver_payroll_code,
-            ShipmentExpense.deleted == False,
-            or_(ShipmentExpense.receipt == None, ShipmentExpense.receipt == ""),
-            ShipmentExpense.modification_user == request.current_user.user_id,
+        shipment_expenses_no_receipt_stmt = (
+            select(ShipmentExpense)
+            .where(
+                ShipmentExpense.driver_payroll_code == driver_payroll_code,
+                ShipmentExpense.deleted == False,
+                or_(ShipmentExpense.receipt == None, ShipmentExpense.receipt == ""),
+                ShipmentExpense.modification_user == request.current_user.user_id,
+            )
+            .order_by(ShipmentExpense.expense_date, ShipmentExpense.expense_code)
         )
         shipment_expenses_no_receipt: Sequence[ShipmentExpense] = db_session.scalars(
             shipment_expenses_no_receipt_stmt
         ).all()
 
-        shipment_expenses_receipt_stmt = select(ShipmentExpense).where(
-            ShipmentExpense.driver_payroll_code == driver_payroll_code,
-            ShipmentExpense.deleted == False,
-            and_(ShipmentExpense.receipt != None, ShipmentExpense.receipt != ""),
-            ShipmentExpense.modification_user == request.current_user.user_id,
+        shipment_expenses_receipt_stmt = (
+            select(ShipmentExpense)
+            .where(
+                ShipmentExpense.driver_payroll_code == driver_payroll_code,
+                ShipmentExpense.deleted == False,
+                and_(ShipmentExpense.receipt != None, ShipmentExpense.receipt != ""),
+                ShipmentExpense.modification_user == request.current_user.user_id,
+            )
+            .order_by(ShipmentExpense.expense_date, ShipmentExpense.expense_code)
         )
         shipment_expenses_receipt: Sequence[ShipmentExpense] = db_session.scalars(
             shipment_expenses_receipt_stmt

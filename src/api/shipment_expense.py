@@ -144,9 +144,15 @@ def get_shipment_expense_list() -> Tuple[Response, int]:
             )
 
     try:
-        shipment_expenses_stmt = select(ShipmentExpense).where(
-            ShipmentExpense.deleted == False,
-            ShipmentExpense.modification_user == request.current_user.user_id,
+        shipment_expenses_stmt = (
+            select(ShipmentExpense)
+            .where(
+                ShipmentExpense.deleted == False,
+                ShipmentExpense.modification_user == request.current_user.user_id,
+            )
+            .order_by(
+                ShipmentExpense.expense_date,
+            )
         )
 
         if driver_payroll_code:

@@ -254,9 +254,13 @@ def get_shipment_list() -> Tuple[Response, int]:
             )
 
     try:
-        stmt = select(Shipment).where(
-            Shipment.deleted == False,
-            Shipment.modification_user == request.current_user.user_id,
+        stmt = (
+            select(Shipment)
+            .where(
+                Shipment.deleted == False,
+                Shipment.modification_user == request.current_user.user_id,
+            )
+            .order_by(Shipment.shipment_date, Shipment.shipment_code)
         )
 
         if shipment_payroll_code:
