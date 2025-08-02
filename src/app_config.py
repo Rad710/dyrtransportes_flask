@@ -56,6 +56,7 @@ def create_flask_app():
     flask_app.config["SECRET_KEY"] = API_KEY
 
     if DEBUG:
+
         @flask_app.after_request
         def after_request(response):
             response.headers.add("Access-Control-Allow-Origin", "*")
@@ -63,7 +64,7 @@ def create_flask_app():
                 "Access-Control-Allow-Headers", "Content-Type,Authorization"
             )
             response.headers.add(
-                "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+                "Access-Control-Allow-Methods", "GET,PUT,PATCH,POST,DELETE,OPTIONS"
             )
             response.headers.add("Access-Control-Expose-Headers", "Content-Disposition")
             return response
@@ -77,7 +78,7 @@ def create_flask_app():
                 "Access-Control-Allow-Headers", "Content-Type,Authorization"
             )
             response.headers.add(
-                "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+                "Access-Control-Allow-Methods", "GET,PUT,PATCH,POST,DELETE,OPTIONS"
             )
             return response
 
