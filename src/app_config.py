@@ -13,8 +13,6 @@ from flask import request
 from flask import Request
 from flask import has_request_context
 
-from flask_cors import CORS
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
@@ -58,7 +56,30 @@ def create_flask_app():
     flask_app.config["SECRET_KEY"] = API_KEY
 
     if DEBUG:
-        CORS(flask_app, expose_headers=["Content-Disposition"])
+        @flask_app.after_request
+        def after_request(response):
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add(
+                "Access-Control-Allow-Headers", "Content-Type,Authorization"
+            )
+            response.headers.add(
+                "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+            )
+            response.headers.add("Access-Control-Expose-Headers", "Content-Disposition")
+            return response
+
+        @flask_app.route("/", defaults={"path": ""}, methods=["OPTIONS"])
+        @flask_app.route("/<path:path>", methods=["OPTIONS"])
+        def handle_options(path):
+            response = flask_app.make_default_options_response()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add(
+                "Access-Control-Allow-Headers", "Content-Type,Authorization"
+            )
+            response.headers.add(
+                "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+            )
+            return response
 
     return flask_app
 
