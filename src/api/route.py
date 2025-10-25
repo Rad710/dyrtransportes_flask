@@ -136,7 +136,7 @@ def post_route() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = Route(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # add to database
@@ -194,7 +194,7 @@ def put_route(route_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = Route(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         entry_to_update.origin = payload.origin

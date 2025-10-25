@@ -184,7 +184,7 @@ def post_shipment_expense() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = ShipmentExpense(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # Verify driver payroll exists
@@ -255,7 +255,7 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = ShipmentExpense(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # Verify driver payroll exists

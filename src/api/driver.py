@@ -143,7 +143,7 @@ def post_driver() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = Driver(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # add to database
@@ -201,7 +201,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = Driver(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         entry_to_update.driver_id = payload.driver_id

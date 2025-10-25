@@ -385,8 +385,7 @@ def post_shipment() -> Tuple[Response, int]:
 
         # json to db object
         payload = Shipment(
-            **shipment_dict,
-            modification_user=request.current_user.user_id,
+            **{**shipment_dict, "modification_user": request.current_user.user_id}
         )
 
         # add to database
@@ -492,7 +491,7 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = Shipment(
-            **shipment_dict, modification_user=request.current_user.user_id
+            **{**shipment_dict, "modification_user": request.current_user.user_id}
         )
 
         entry_to_update.shipment_date = payload.shipment_date

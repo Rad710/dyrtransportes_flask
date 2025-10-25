@@ -131,7 +131,7 @@ def post_product() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = Product(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # add to database
@@ -189,7 +189,7 @@ def put_product(product_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = Product(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         entry_to_update.product_name = payload.product_name

@@ -345,7 +345,7 @@ def post_driver_payroll() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = DriverPayroll(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # Verify driver exists
@@ -416,7 +416,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = DriverPayroll(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # Verify driver exists

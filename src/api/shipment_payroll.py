@@ -172,7 +172,7 @@ def post_shipment_payroll() -> Tuple[Response, int]:
     try:
         # json to db object
         payload = ShipmentPayroll(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         # add to database
@@ -229,7 +229,7 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
 
         # json to db object
         payload = ShipmentPayroll(
-            **request.get_json(), modification_user=request.current_user.user_id
+            **{**request.get_json(), "modification_user": request.current_user.user_id}
         )
 
         entry_to_update.payroll_timestamp = payload.payroll_timestamp
