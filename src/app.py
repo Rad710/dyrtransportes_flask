@@ -142,6 +142,8 @@ def shutdown_session(exception=None):
 
 ## TODO: create driver payroll when changing status to paid
 
+## TODO: add blueprint for apis
+
 
 if __name__ == "__main__":
     # flask --app app/app.py run --host 0.0.0.0 --port 8081 --debug
