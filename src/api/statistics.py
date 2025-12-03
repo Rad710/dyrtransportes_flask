@@ -35,7 +35,7 @@ MESSAGES = {
         "missing_date_params": "The start_date and end_date parameters are required",
         "transaction_error": "Transaction error",
         "excel_generation_error": "Error generating Excel file",
-        # Excel headers
+        # Excel headers - Driver
         "driver_code": "Driver Code",
         "driver_name": "Driver Name",
         "shipment_count": "Shipment Count",
@@ -47,17 +47,22 @@ MESSAGES = {
         "expenses_with_receipt": "Expenses with Receipt (Gs.)",
         "expenses_without_receipt": "Expenses without Receipt (Gs.)",
         "total_expenses": "Total Expenses (Gs.)",
+        # Excel headers - Product
+        "product_code": "Product Code",
+        "product_name": "Product Name",
         # Excel sheet name
         "statistics": "Statistics",
         # Excel filename
         "statistics_data": "statistics",
+        "driver_statistics": "driver_statistics",
+        "product_statistics": "product_statistics",
     },
     "es": {
         # Error messages
         "missing_date_params": "Se requieren los parámetros start_date y end_date",
         "transaction_error": "Error de transacción",
         "excel_generation_error": "Error al generar archivo Excel",
-        # Excel headers
+        # Excel headers - Driver
         "driver_code": "Código de Conductor",
         "driver_name": "Nombre de Conductor",
         "shipment_count": "Cantidad de Cargas",
@@ -69,17 +74,22 @@ MESSAGES = {
         "expenses_with_receipt": "Gastos con Recibo (Gs.)",
         "expenses_without_receipt": "Gastos sin Recibo (Gs.)",
         "total_expenses": "Total Gastos (Gs.)",
+        # Excel headers - Product
+        "product_code": "Código de Producto",
+        "product_name": "Nombre de Producto",
         # Excel sheet name
         "statistics": "Estadísticas",
         # Excel filename
         "statistics_data": "estadisticas",
+        "driver_statistics": "estadisticas_conductor",
+        "product_statistics": "estadisticas_producto",
     },
 }
 
 
-@app.route("/api/statistics", methods=["GET"])
+@app.route("/api/statistics/driver", methods=["GET"])
 @token_required
-def get_statistics_data() -> Tuple[Response, int]:
+def get_statistics_driver_data() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")
         end_date_str = request.args.get("end_date")
@@ -137,7 +147,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                     FROM
                         shipment s
                     WHERE
-                        CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                        CAST(s.shipment_date AS DATE) >= :start_date AND CAST(s.shipment_date AS DATE) <= :end_date
                         AND s.modification_user = :user_id
                     GROUP BY
                         s.driver_code
@@ -152,7 +162,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                         dp.payroll_code = se.driver_payroll_code
                     WHERE
                         se.receipt IS NOT NULL
-                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND CAST(se.expense_date AS DATE) >= :start_date AND CAST(se.expense_date AS DATE) <= :end_date
                         AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
@@ -168,7 +178,7 @@ def get_statistics_data() -> Tuple[Response, int]:
                         dp.payroll_code = se.driver_payroll_code
                     WHERE
                         se.receipt IS NULL
-                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND CAST(se.expense_date AS DATE) >= :start_date AND CAST(se.expense_date AS DATE) <= :end_date
                         AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
@@ -183,7 +193,7 @@ def get_statistics_data() -> Tuple[Response, int]:
         # Execute the query
         statistics = db_session.execute(t, params).all()
 
-        logger.debug("fetch statistics, found: %s", statistics)
+        logger.debug("fetch statistics driver, found: %s", statistics)
 
         return (
             jsonify(
@@ -208,17 +218,17 @@ def get_statistics_data() -> Tuple[Response, int]:
         )
 
     except SQLAlchemyError as e:
-        logger.error("fetch statistics, error: %s", e)
+        logger.error("fetch statistics driver, error: %s", e)
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
     except Exception as e:
-        logger.error("fetch statistics, error: %s", e)
+        logger.error("fetch statistics driver, error: %s", e)
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/statistics/export-excel", methods=["GET"])
+@app.route("/api/statistics/driver/export-excel", methods=["GET"])
 @token_required
-def export_statistics_excel() -> Tuple[Response, int]:
+def export_statistics_driver_excel() -> Tuple[Response, int]:
     try:
         start_date_str = request.args.get("start_date")
         end_date_str = request.args.get("end_date")
@@ -276,7 +286,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                     FROM
                         shipment s
                     WHERE
-                        CAST(s.shipment_date AS DATE) >= :start_date and CAST(s.shipment_date AS DATE) <= :end_date
+                        CAST(s.shipment_date AS DATE) >= :start_date AND CAST(s.shipment_date AS DATE) <= :end_date
                         AND s.modification_user = :user_id
                     GROUP BY
                         s.driver_code
@@ -291,7 +301,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                         dp.payroll_code = se.driver_payroll_code
                     WHERE
                         se.receipt IS NOT NULL
-                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND CAST(se.expense_date AS DATE) >= :start_date AND CAST(se.expense_date AS DATE) <= :end_date
                         AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
@@ -307,7 +317,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
                         dp.payroll_code = se.driver_payroll_code
                     WHERE
                         se.receipt IS NULL
-                        AND CAST(se.expense_date AS DATE) >= :start_date and CAST(se.expense_date AS DATE) <= :end_date
+                        AND CAST(se.expense_date AS DATE) >= :start_date AND CAST(se.expense_date AS DATE) <= :end_date
                         AND se.modification_user = :user_id
                     GROUP BY
                         dp.driver_code
@@ -419,7 +429,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
         output.seek(0)
 
         # Get translated filename component
-        filename_base = get_message(MESSAGES, "statistics_data")
+        filename_base = get_message(MESSAGES, "driver_statistics")
 
         # Create response with Excel file
         response = make_response(output.getvalue())
@@ -430,7 +440,7 @@ def export_statistics_excel() -> Tuple[Response, int]:
             f"attachment; filename={filename_base}_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
         )
 
-        logger.info("exported statistics data to Excel file")
+        logger.info("exported driver statistics data to Excel file")
 
         return response, 200
 
@@ -443,6 +453,217 @@ def export_statistics_excel() -> Tuple[Response, int]:
 
     except Exception as e:
         logger.error("export statistics Excel, error: %s", e)
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )
+
+
+@app.route("/api/statistics/product", methods=["GET"])
+@token_required
+def get_statistics_product_data() -> Tuple[Response, int]:
+    try:
+        start_date_str = request.args.get("start_date")
+        end_date_str = request.args.get("end_date")
+
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+
+        if not start_date or not end_date:
+            return (
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
+                400,
+            )
+
+        params = {
+            "start_date": start_date.date(),
+            "end_date": end_date.date(),
+            "user_id": request.current_user.user_id,
+        }
+        t = text(
+            """
+            SELECT
+                s.product_code,
+                s.product_name,
+                COUNT(s.shipment_code) AS shipments,
+                SUM(s.origin_weight) AS total_origin_weight,
+                SUM(s.destination_weight) AS total_destination_weight,
+                SUM(s.destination_weight) - SUM(s.origin_weight) AS total_diff
+            FROM
+                shipment s
+            WHERE
+                CAST(s.shipment_date AS DATE) >= :start_date AND CAST(s.shipment_date AS DATE) <= :end_date
+                AND s.modification_user = :user_id
+            GROUP BY
+                s.product_code, s.product_name
+            """
+        )
+
+        # Execute the query
+        statistics = db_session.execute(t, params).all()
+
+        logger.debug("fetch statistics product, found: %s", statistics)
+
+        return (
+            jsonify(
+                [
+                    {
+                        "product_code": row.product_code,
+                        "product_name": row.product_name,
+                        "shipments": row.shipments,
+                        "total_origin_weight": row.total_origin_weight,
+                        "total_destination_weight": row.total_destination_weight,
+                        "total_diff": row.total_diff,
+                    }
+                    for row in statistics
+                ]
+            ),
+            200,
+        )
+
+    except SQLAlchemyError as e:
+        logger.error("fetch statistics product, error: %s", e)
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
+
+    except Exception as e:
+        logger.error("fetch statistics product, error: %s", e)
+        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
+
+
+@app.route("/api/statistics/product/export-excel", methods=["GET"])
+@token_required
+def export_statistics_product_excel() -> Tuple[Response, int]:
+    try:
+        start_date_str = request.args.get("start_date")
+        end_date_str = request.args.get("end_date")
+
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+
+        if not start_date or not end_date:
+            return (
+                jsonify({"error": get_message(MESSAGES, "missing_date_params")}),
+                400,
+            )
+
+        params = {
+            "start_date": start_date.date(),
+            "end_date": end_date.date(),
+            "user_id": request.current_user.user_id,
+        }
+        t = text(
+            """
+            SELECT
+                s.product_code,
+                s.product_name,
+                COUNT(s.shipment_code) AS shipments,
+                SUM(s.origin_weight) AS total_origin_weight,
+                SUM(s.destination_weight) AS total_destination_weight,
+                SUM(s.destination_weight) - SUM(s.origin_weight) AS total_diff
+            FROM
+                shipment s
+            WHERE
+                CAST(s.shipment_date AS DATE) >= :start_date AND CAST(s.shipment_date AS DATE) <= :end_date
+                AND s.modification_user = :user_id
+            GROUP BY
+                s.product_code, s.product_name
+            """
+        )
+
+        # Execute the query
+        statistics = db_session.execute(t, params).all()
+
+        logger.debug("fetch product statistics for Excel export, found: %s", statistics)
+
+        # Create Excel file
+        output = io.BytesIO()
+        workbook = Workbook(write_only=False, iso_dates=False)
+        sheet = workbook.active
+
+        # Get translated sheet name
+        sheet.title = get_message(MESSAGES, "statistics")
+
+        # Define headers with translations
+        headers = [
+            get_message(MESSAGES, "product_code"),
+            get_message(MESSAGES, "product_name"),
+            get_message(MESSAGES, "shipment_count"),
+            get_message(MESSAGES, "total_origin_kg"),
+            get_message(MESSAGES, "total_destination_kg"),
+            get_message(MESSAGES, "difference"),
+        ]
+        sheet.append(headers)
+
+        # Set column width
+        for col_idx in range(1, len(headers) + 1):
+            sheet.column_dimensions[get_column_letter(col_idx)].width = 25
+
+        # Border style
+        border_style = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+
+        # Apply border to header cells
+        for cell in sheet[sheet.max_row]:
+            cell.border = border_style
+
+        # Add data rows
+        for row in statistics:
+            data_row = [
+                row.product_code,
+                row.product_name,
+                row.shipments,
+                (
+                    float(row.total_origin_weight)
+                    if row.total_origin_weight is not None
+                    else 0
+                ),
+                (
+                    float(row.total_destination_weight)
+                    if row.total_destination_weight is not None
+                    else 0
+                ),
+                (float(row.total_diff) if row.total_diff is not None else 0),
+            ]
+
+            sheet.append(data_row)
+
+            # Apply border to each cell in the row
+            for cell in sheet[sheet.max_row]:
+                cell.border = border_style
+
+        # Save Excel file to output stream
+        workbook.save(output)
+        output.seek(0)
+
+        # Get translated filename component
+        filename_base = get_message(MESSAGES, "product_statistics")
+
+        # Create response with Excel file
+        response = make_response(output.getvalue())
+        response.headers["Content-Type"] = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response.headers["Content-Disposition"] = (
+            f"attachment; filename={filename_base}_{start_date.strftime('%Y%m%d')}_a_{end_date.strftime('%Y%m%d')}.xlsx"
+        )
+
+        logger.info("exported product statistics data to Excel file")
+
+        return response, 200
+
+    except SQLAlchemyError as e:
+        logger.error("export product statistics Excel, error: %s", e)
+        return (
+            jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
+            500,
+        )
+
+    except Exception as e:
+        logger.error("export product statistics Excel, error: %s", e)
         return (
             jsonify({"message": get_message(MESSAGES, "excel_generation_error")}),
             500,
