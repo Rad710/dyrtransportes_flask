@@ -18,6 +18,7 @@ from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -31,7 +32,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -42,6 +42,8 @@ from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
 from models.shipment_payroll import ShipmentPayroll
 from utils.locale import get_message
+
+shipment_bp = Blueprint("shipment", __name__)
 
 request: RequestWithUser
 
@@ -150,7 +152,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/shipment/<int:shipment_code>", methods=["GET"])
+@shipment_bp.route("/api/shipment/<int:shipment_code>", methods=["GET"])
 @token_required
 def get_shipment(shipment_code: int) -> Tuple[Response, int]:
     try:
@@ -178,7 +180,7 @@ def get_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/shipments", methods=["GET"])
+@shipment_bp.route("/api/shipments", methods=["GET"])
 @token_required
 def get_shipment_list() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
@@ -279,7 +281,7 @@ def get_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_shipments_error")}), 500
 
 
-@app.route("/api/shipment/grouped-shipments", methods=["GET"])
+@shipment_bp.route("/api/shipment/grouped-shipments", methods=["GET"])
 @token_required
 def get_grouped_shipments_list() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
@@ -354,7 +356,7 @@ def get_grouped_shipments_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_shipments_error")}), 500
 
 
-@app.route("/api/shipment", methods=["POST"])
+@shipment_bp.route("/api/shipment", methods=["POST"])
 @token_required
 def post_shipment() -> Tuple[Response, int]:
     try:
@@ -445,7 +447,7 @@ def post_shipment() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_shipment_error")}), 500
 
 
-@app.route("/api/shipment/<int:shipment_code>", methods=["PUT"])
+@shipment_bp.route("/api/shipment/<int:shipment_code>", methods=["PUT"])
 @token_required
 def put_shipment(shipment_code: int) -> Tuple[Response, int]:
     try:
@@ -558,7 +560,7 @@ def put_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_shipment_error")}), 500
 
 
-@app.route("/api/shipments/change-payroll", methods=["PATCH"])
+@shipment_bp.route("/api/shipments/change-payroll", methods=["PATCH"])
 @token_required
 def shipments_change_shipment_payroll() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
@@ -715,7 +717,7 @@ def shipments_change_shipment_payroll() -> Tuple[Response, int]:
         )
 
 
-@app.route("/api/shipment/<int:shipment_code>", methods=["DELETE"])
+@shipment_bp.route("/api/shipment/<int:shipment_code>", methods=["DELETE"])
 @token_required
 def delete_shipment(shipment_code: int) -> Tuple[Response, int]:
     try:
@@ -758,7 +760,7 @@ def delete_shipment(shipment_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
-@app.route("/api/shipments", methods=["DELETE"])
+@shipment_bp.route("/api/shipments", methods=["DELETE"])
 @token_required
 def delete_shipment_list() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -820,7 +822,7 @@ def delete_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
-@app.route("/api/shipments/export-excel", methods=["GET"])
+@shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
 @token_required
 def export_shipments_excel() -> Tuple[Response, int]:
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")

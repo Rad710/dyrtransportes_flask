@@ -5,6 +5,7 @@ from typing import List
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -14,7 +15,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import OperationalError
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -23,6 +23,8 @@ from decorators.token_required import token_required
 from models.driver_payroll import DriverPayroll
 from models.shipment_expense import ShipmentExpense
 from utils.locale import get_message
+
+shipment_expense_bp = Blueprint("shipment_expense", __name__)
 
 request: RequestWithUser
 
@@ -79,7 +81,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/shipment-expense/<int:expense_code>", methods=["GET"])
+@shipment_expense_bp.route("/api/shipment-expense/<int:expense_code>", methods=["GET"])
 @token_required
 def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
     try:
@@ -106,7 +108,7 @@ def get_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/shipment-expenses", methods=["GET"])
+@shipment_expense_bp.route("/api/shipment-expenses", methods=["GET"])
 @token_required
 def get_shipment_expense_list() -> Tuple[Response, int]:
     driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
@@ -178,7 +180,7 @@ def get_shipment_expense_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_expenses_error")}), 500
 
 
-@app.route("/api/shipment-expense", methods=["POST"])
+@shipment_expense_bp.route("/api/shipment-expense", methods=["POST"])
 @token_required
 def post_shipment_expense() -> Tuple[Response, int]:
     try:
@@ -238,7 +240,7 @@ def post_shipment_expense() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_expense_error")}), 500
 
 
-@app.route("/api/shipment-expense/<int:expense_code>", methods=["PUT"])
+@shipment_expense_bp.route("/api/shipment-expense/<int:expense_code>", methods=["PUT"])
 @token_required
 def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
     try:
@@ -318,7 +320,7 @@ def put_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_expense_error")}), 500
 
 
-@app.route("/api/shipment-expenses/change-driver-payroll", methods=["PATCH"])
+@shipment_expense_bp.route("/api/shipment-expenses/change-driver-payroll", methods=["PATCH"])
 @token_required
 def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
     driver_payroll_code_param: str | None = request.args.get("driver_payroll_code")
@@ -429,7 +431,7 @@ def shipment_expenses_change_driver_payroll() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_expenses_error")}), 500
 
 
-@app.route("/api/shipment-expense/<int:expense_code>", methods=["DELETE"])
+@shipment_expense_bp.route("/api/shipment-expense/<int:expense_code>", methods=["DELETE"])
 @token_required
 def delete_shipment_expense(expense_code: int) -> Tuple[Response, int]:
     try:
@@ -469,7 +471,7 @@ def delete_shipment_expense(expense_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_expense_error")}), 500
 
 
-@app.route("/api/shipment-expenses", methods=["DELETE"])
+@shipment_expense_bp.route("/api/shipment-expenses", methods=["DELETE"])
 @token_required
 def delete_shipment_expenses() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):

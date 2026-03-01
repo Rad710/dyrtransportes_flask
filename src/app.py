@@ -7,8 +7,11 @@ from datetime import datetime
 from flask import send_from_directory
 from flask import send_file
 from flask import request
+from flask import jsonify
 
 from app_config import app
+from app_config import logger
+from app_config import db_session
 from app_config import DEBUG
 from app_config import DB_USERNAME
 from app_config import DB_HOST
@@ -18,7 +21,32 @@ from app_config import RequestWithUser
 
 from decorators.token_required import token_required
 
-from api import *
+from api import (
+    auth_bp,
+    route_bp,
+    product_bp,
+    driver_bp,
+    shipment_bp,
+    shipment_payroll_bp,
+    shipment_expense_bp,
+    driver_payroll_bp,
+    dinatran_bp,
+    statistics_bp,
+    user_profile_bp,
+)
+
+# Register blueprints
+app.register_blueprint(auth_bp)
+app.register_blueprint(route_bp)
+app.register_blueprint(product_bp)
+app.register_blueprint(driver_bp)
+app.register_blueprint(shipment_bp)
+app.register_blueprint(shipment_payroll_bp)
+app.register_blueprint(shipment_expense_bp)
+app.register_blueprint(driver_payroll_bp)
+app.register_blueprint(dinatran_bp)
+app.register_blueprint(statistics_bp)
+app.register_blueprint(user_profile_bp)
 
 
 request: RequestWithUser
@@ -141,8 +169,6 @@ def shutdown_session(exception=None):
 ## TODO: create driver payroll when creating new driver
 
 ## TODO: create driver payroll when changing status to paid
-
-## TODO: add blueprint for apis
 
 
 if __name__ == "__main__":

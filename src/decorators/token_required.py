@@ -2,6 +2,7 @@ from functools import wraps
 
 from flask import request
 from flask import jsonify
+from flask import current_app
 
 from sqlalchemy import select
 
@@ -9,7 +10,6 @@ from jwt import decode
 from jwt import ExpiredSignatureError
 from jwt import InvalidTokenError
 
-from app_config import app
 from app_config import db_session
 from app_config import logger
 
@@ -52,7 +52,7 @@ def token_required(f):
                 token = token[7:]
 
             # Decode token
-            data = decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+            data = decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])
 
             # Get user from database
             stmt = select(User).where(User.user_id == data["user_id"])

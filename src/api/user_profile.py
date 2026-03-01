@@ -1,6 +1,7 @@
 from typing import Optional
 from typing import Tuple
 
+from flask import Blueprint
 from flask import jsonify
 from flask import request
 from flask import Response
@@ -11,7 +12,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -23,6 +23,8 @@ from utils.security import validate_user_password
 from utils.locale import get_message
 
 from models.user import User
+
+user_profile_bp = Blueprint("user_profile", __name__)
 
 request: RequestWithUser
 
@@ -57,7 +59,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/user/profile", methods=["PUT"])
+@user_profile_bp.route("/api/user/profile", methods=["PUT"])
 @token_required
 def put_user_profile() -> Tuple[Response, int]:
     try:

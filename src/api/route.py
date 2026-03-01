@@ -7,6 +7,7 @@ from typing import List
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -22,7 +23,6 @@ from openpyxl.styles import numbers, Border, Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -30,6 +30,8 @@ from decorators.token_required import token_required
 
 from models.route import Route
 from utils.locale import get_message
+
+route_bp = Blueprint("route", __name__)
 
 request: RequestWithUser
 
@@ -82,7 +84,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/route/<int:route_code>", methods=["GET"])
+@route_bp.route("/api/route/<int:route_code>", methods=["GET"])
 @token_required
 def get_route(route_code: int) -> Tuple[Response, int]:
     try:
@@ -107,7 +109,7 @@ def get_route(route_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/routes", methods=["GET"])
+@route_bp.route("/api/routes", methods=["GET"])
 @token_required
 def get_route_list() -> Tuple[Response, int]:
     try:
@@ -130,7 +132,7 @@ def get_route_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_routes_error")}), 500
 
 
-@app.route("/api/route", methods=["POST"])
+@route_bp.route("/api/route", methods=["POST"])
 @token_required
 def post_route() -> Tuple[Response, int]:
     try:
@@ -177,7 +179,7 @@ def post_route() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_route_error")}), 500
 
 
-@app.route("/api/route/<int:route_code>", methods=["PUT"])
+@route_bp.route("/api/route/<int:route_code>", methods=["PUT"])
 @token_required
 def put_route(route_code: int) -> Tuple[Response, int]:
     try:
@@ -242,7 +244,7 @@ def put_route(route_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_route_error")}), 500
 
 
-@app.route("/api/route/<int:route_code>", methods=["DELETE"])
+@route_bp.route("/api/route/<int:route_code>", methods=["DELETE"])
 @token_required
 def delete_route(route_code: int) -> Tuple[Response, int]:
     try:
@@ -282,7 +284,7 @@ def delete_route(route_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_route_error")}), 500
 
 
-@app.route("/api/routes", methods=["DELETE"])
+@route_bp.route("/api/routes", methods=["DELETE"])
 @token_required
 def delete_routes() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -348,7 +350,7 @@ def delete_routes() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_route_error")}), 500
 
 
-@app.route("/api/routes/export-excel", methods=["GET"])
+@route_bp.route("/api/routes/export-excel", methods=["GET"])
 @token_required
 def routes_export_excel() -> Tuple[Response, int]:
     try:

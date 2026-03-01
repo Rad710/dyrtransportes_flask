@@ -7,11 +7,11 @@ from typing import List
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
 from flask import make_response
-
 
 from sqlalchemy import select
 from sqlalchemy import asc
@@ -23,7 +23,6 @@ from openpyxl.styles import Border, Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -31,6 +30,8 @@ from decorators.token_required import token_required
 
 from models.product import Product
 from utils.locale import get_message
+
+product_bp = Blueprint("product", __name__)
 
 request: RequestWithUser
 
@@ -77,7 +78,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/product/<int:product_code>", methods=["GET"])
+@product_bp.route("/api/product/<int:product_code>", methods=["GET"])
 @token_required
 def get_product(product_code: int) -> Tuple[Response, int]:
     try:
@@ -102,7 +103,7 @@ def get_product(product_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/products", methods=["GET"])
+@product_bp.route("/api/products", methods=["GET"])
 @token_required
 def get_product_list() -> Tuple[Response, int]:
     try:
@@ -125,7 +126,7 @@ def get_product_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_products_error")}), 500
 
 
-@app.route("/api/product", methods=["POST"])
+@product_bp.route("/api/product", methods=["POST"])
 @token_required
 def post_product() -> Tuple[Response, int]:
     try:
@@ -172,7 +173,7 @@ def post_product() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_product_error")}), 500
 
 
-@app.route("/api/product/<int:product_code>", methods=["PUT"])
+@product_bp.route("/api/product/<int:product_code>", methods=["PUT"])
 @token_required
 def put_product(product_code: int) -> Tuple[Response, int]:
     try:
@@ -234,7 +235,7 @@ def put_product(product_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_product_error")}), 500
 
 
-@app.route("/api/product/<int:product_code>", methods=["DELETE"])
+@product_bp.route("/api/product/<int:product_code>", methods=["DELETE"])
 @token_required
 def delete_product(product_code: int) -> Tuple[Response, int]:
     try:
@@ -274,7 +275,7 @@ def delete_product(product_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_product_error")}), 500
 
 
-@app.route("/api/products", methods=["DELETE"])
+@product_bp.route("/api/products", methods=["DELETE"])
 @token_required
 def delete_products() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -340,7 +341,7 @@ def delete_products() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_product_error")}), 500
 
 
-@app.route("/api/products/export-excel", methods=["GET"])
+@product_bp.route("/api/products/export-excel", methods=["GET"])
 @token_required
 def products_export_excel() -> Tuple[Response, int]:
     try:
