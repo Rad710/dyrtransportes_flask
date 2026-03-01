@@ -109,6 +109,9 @@ pip install -r requirements-dev.txt
 # Type checking
 mypy src/
 
+# Linting
+pylint src/
+
 # Run migrations
 alembic -c src/migrations/alembic.ini upgrade head
 
@@ -246,13 +249,71 @@ mypy src/
 pylint src/
 ```
 
-## Important Notes for AI Assistants
+---
 
-- The `src/` directory is the Python source root. Imports use module names relative to `src/` (e.g., `from app_config import app`, `from models.user import User`).
-- Do not add Blueprints without explicit instruction - there is a TODO for this but it's a significant refactor.
-- All monetary values must use `Decimal` (never `float`).
-- Always include both `"en"` and `"es"` translations when adding new user-facing messages.
-- When adding new models, follow the existing pattern: `@dataclass`, `Mapped`/`mapped_column`, `*Audit` companion table, `deleted`/`modification_user`/`modification_timestamp` fields.
-- When adding new API endpoints, follow the existing pattern: define `MESSAGES` dict, use `@token_required`, handle errors with try/except + rollback, return localized messages.
-- The `db_session` is a `scoped_session` and is cleaned up in `app.teardown_appcontext`.
-- Static files in `src/static/` serve the React frontend build. The catch-all route in `app.py` serves `index.html` for client-side routing.
+## Workflow Orchestration
+
+### 1. Plan Mode Default
+
+Before making any non-trivial change, enter plan mode first. Read the relevant files, understand the existing patterns (CRUD structure, audit trail, i18n messages), then outline the approach before writing code.
+
+### 2. Subagent Strategy
+
+Use subagents for parallelizable research tasks:
+- Exploring multiple API modules simultaneously
+- Searching for usage patterns across the codebase (e.g., how `db_session` is used, how audit entries are created)
+- Investigating model relationships and foreign key dependencies
+
+Avoid subagents for simple, single-file edits.
+
+### 3. Self-Improvement Loop
+
+After completing a change:
+1. Run `mypy src/` to verify type correctness
+2. Run `pylint src/` to check code quality
+3. If errors are found, fix them before considering the task done
+4. Re-run checks until clean
+
+### 4. Verification Before Done
+
+Never mark a task as complete without verifying:
+- `mypy src/` passes without new errors
+- New API endpoints follow the existing CRUD pattern (MESSAGES dict, `@token_required`, try/except with rollback)
+- New models include `*Audit` companion table, `deleted`/`modification_user`/`modification_timestamp` fields
+- Both `"en"` and `"es"` translations are provided for all new user-facing messages
+- New API modules are re-exported in `src/api/__init__.py`
+- New models are re-exported in `src/models/__init__.py`
+
+### 5. Demand Elegance (Balanced)
+
+Write code that matches the existing style:
+- Follow the established patterns exactly (don't introduce new frameworks, abstractions, or paradigms)
+- Keep endpoint handlers self-contained within their API module
+- Use `Decimal` for all monetary values, never `float`
+- Use `@validates` decorators on model fields where appropriate
+- Keep Excel export logic within the same API module as the CRUD endpoints
+
+Avoid over-engineering: don't add Blueprints, abstract base classes, or service layers unless explicitly requested.
+
+### 6. Autonomous Bug Fixing
+
+When encountering errors during development:
+- Read the full traceback and identify the root cause
+- Check if the issue is a pattern mismatch (e.g., missing import in `__init__.py`, wrong column type)
+- Fix the issue and re-run verification (`mypy src/`)
+- Do not ask the user unless the fix requires a design decision
+
+## Task Management
+
+1. **Plan First** - Read all relevant files before making changes. Understand the existing endpoint patterns in the target API module and related model definitions.
+2. **Verify Plan** - Confirm the approach matches existing conventions (route naming, error handling, audit trail creation, i18n).
+3. **Track Progress** - Use the todo list for multi-step tasks. Mark each step complete as it finishes.
+4. **Explain Changes** - Briefly describe what was changed and why when presenting results.
+5. **Document Results** - After completing a task, summarize: files modified, endpoints added/changed, migrations created.
+6. **Capture Lessons** - If a new pattern or convention is discovered during work, suggest updating this CLAUDE.md.
+
+## Core Principles
+
+- **Simplicity First** - Match the existing codebase style. This project uses straightforward Flask patterns without complex abstractions. Don't introduce unnecessary complexity.
+- **No Laziness** - Never use placeholder code, `# TODO: implement later`, or skip audit table creation. Every model gets an audit table. Every endpoint gets both language translations. Every DB operation gets proper error handling with rollback.
+- **Minimal Impact** - Make the smallest change that achieves the goal. Don't refactor surrounding code, rename existing variables, add type hints to untouched code, or reorganize imports in files you didn't modify.
