@@ -42,8 +42,8 @@ dyrtransportes_flask/
 └── src/
     ├── app.py                       # Main Flask app: routes, teardown, static serving
     ├── app_config.py                # App factory, logger, DB init, session creation
-    ├── api/                         # API route modules (registered via wildcard imports)
-    │   ├── __init__.py              # Re-exports all API modules
+    ├── api/                         # API route modules (Flask Blueprints)
+    │   ├── __init__.py              # Exports all Blueprint instances
     │   ├── auth.py                  # Sign-up, log-in endpoints
     │   ├── route.py                 # CRUD + Excel for routes (Precios)
     │   ├── product.py               # CRUD + Excel for products
@@ -135,11 +135,11 @@ The app initializes in this order:
 2. `create_flask_logger()` - Configures separate info.log and error.log file handlers with request context
 3. `init_database_and_migrate()` - Creates SQLAlchemy engine with connection pooling, runs `Base.metadata.create_all()`, then runs Alembic migrations, returns a `scoped_session`
 
-The three globals exported from `app_config` and used everywhere: `app`, `logger`, `db_session`.
+The globals exported from `app_config`: `app`, `logger`, `db_session`. API modules only import `logger` and `db_session`; they no longer depend on `app` directly.
 
 ### Route Registration
 
-Routes are registered directly on the `app` object (no Blueprints yet - this is a known TODO). All API modules in `src/api/` use `@app.route()` decorators and are imported via wildcard in `src/api/__init__.py`, which is then imported from `src/app.py`.
+Each API module defines a Flask `Blueprint` (e.g., `shipment_bp = Blueprint("shipment", __name__)`). Routes use `@blueprint.route()` decorators. All blueprints are exported from `src/api/__init__.py` and registered on `app` in `src/app.py` via `app.register_blueprint()`.
 
 ### API URL Pattern
 
@@ -217,8 +217,8 @@ A common pattern across API files is the `request: RequestWithUser` type re-anno
 
 ## Code Conventions
 
-- **No Blueprints** - Routes are registered directly on `app`. A TODO exists to add Blueprint organization.
-- **Wildcard imports** - `src/api/__init__.py` and `src/models/__init__.py` use `from .module import *`
+- **Blueprints** - Each API module defines a Blueprint; routes use `@blueprint.route()`. Blueprints are registered in `app.py`. API modules import `logger` and `db_session` from `app_config` but never `app` directly. Use `current_app` when accessing app config (e.g., `current_app.config["SECRET_KEY"]`).
+- **Explicit imports** - `src/api/__init__.py` exports named Blueprint instances; `src/models/__init__.py` exports model classes
 - **Form data** - POST/PUT endpoints read `request.form` (not JSON body) for most data
 - **Audit trail** - Before any update, the current state is copied to the `*_audit` table
 - **Soft deletes** - Use `deleted` boolean field; never use SQL DELETE

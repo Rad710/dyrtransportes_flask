@@ -9,6 +9,7 @@ from typing import Iterator
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -36,7 +37,6 @@ from openpyxl.utils import get_column_letter
 from num2words import num2words
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -49,6 +49,8 @@ from models.shipment_expense import ShipmentExpense
 
 from utils.locale import get_locale
 from utils.locale import get_message
+
+driver_payroll_bp = Blueprint("driver_payroll", __name__)
 
 request: RequestWithUser
 
@@ -181,7 +183,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/driver-payroll/<int:payroll_code>", methods=["GET"])
+@driver_payroll_bp.route("/api/driver-payroll/<int:payroll_code>", methods=["GET"])
 @token_required
 def get_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -206,7 +208,7 @@ def get_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/driver/<int:driver_code>/payrolls", methods=["GET"])
+@driver_payroll_bp.route("/api/driver/<int:driver_code>/payrolls", methods=["GET"])
 @token_required
 def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -246,7 +248,7 @@ def get_driver_payrolls_by_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "driver_payrolls_error")}), 500
 
 
-@app.route("/api/driver-payroll/<int:payroll_code>/paid-status", methods=["PATCH"])
+@driver_payroll_bp.route("/api/driver-payroll/<int:payroll_code>/paid-status", methods=["PATCH"])
 @token_required
 def update_driver_payroll_paid_status(
     payroll_code: int,
@@ -339,7 +341,7 @@ def update_driver_payroll_paid_status(
         )
 
 
-@app.route("/api/driver-payroll", methods=["POST"])
+@driver_payroll_bp.route("/api/driver-payroll", methods=["POST"])
 @token_required
 def post_driver_payroll() -> Tuple[Response, int]:
     try:
@@ -399,7 +401,7 @@ def post_driver_payroll() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_payroll_error")}), 500
 
 
-@app.route("/api/driver-payroll/<int:payroll_code>", methods=["PUT"])
+@driver_payroll_bp.route("/api/driver-payroll/<int:payroll_code>", methods=["PUT"])
 @token_required
 def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -474,7 +476,7 @@ def put_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_payroll_error")}), 500
 
 
-@app.route("/api/driver-payroll/<int:payroll_code>", methods=["DELETE"])
+@driver_payroll_bp.route("/api/driver-payroll/<int:payroll_code>", methods=["DELETE"])
 @token_required
 def delete_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -514,7 +516,7 @@ def delete_driver_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
-@app.route("/api/driver-payrolls", methods=["DELETE"])
+@driver_payroll_bp.route("/api/driver-payrolls", methods=["DELETE"])
 @token_required
 def delete_driver_payrolls() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -580,7 +582,7 @@ def delete_driver_payrolls() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
-@app.route("/api/driver-payrolls/export-excel", methods=["GET"])
+@driver_payroll_bp.route("/api/driver-payrolls/export-excel", methods=["GET"])
 @token_required
 def export_driver_payroll_list() -> Tuple[Response, int]:
     # Get date range parameters
@@ -717,7 +719,7 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
 
-@app.route(
+@driver_payroll_bp.route(
     "/api/driver-payroll/export-excel/<int:driver_payroll_code>", methods=["GET"]
 )
 @token_required

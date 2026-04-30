@@ -7,6 +7,7 @@ from typing import List
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request, jsonify, Response, make_response
 from sqlalchemy import select
 from sqlalchemy import desc
@@ -20,10 +21,12 @@ from openpyxl.styles import Border
 from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
-from app_config import logger, app, db_session, RequestWithUser
+from app_config import logger, db_session, RequestWithUser
 from decorators.token_required import token_required
 from models.shipment_payroll import ShipmentPayroll
 from utils.locale import get_message
+
+shipment_payroll_bp = Blueprint("shipment_payroll", __name__)
 
 request: RequestWithUser
 
@@ -98,7 +101,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["GET"])
+@shipment_payroll_bp.route("/api/shipment-payroll/<int:payroll_code>", methods=["GET"])
 @token_required
 def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -125,7 +128,7 @@ def get_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/shipment-payrolls", methods=["GET"])
+@shipment_payroll_bp.route("/api/shipment-payrolls", methods=["GET"])
 @token_required
 def get_shipment_payroll_list() -> Tuple[Response, int]:
     year_param: str | None = request.args.get("year")
@@ -166,7 +169,7 @@ def get_shipment_payroll_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_payrolls_error")}), 500
 
 
-@app.route("/api/shipment-payroll", methods=["POST"])
+@shipment_payroll_bp.route("/api/shipment-payroll", methods=["POST"])
 @token_required
 def post_shipment_payroll() -> Tuple[Response, int]:
     try:
@@ -212,7 +215,7 @@ def post_shipment_payroll() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_payroll_error")}), 500
 
 
-@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["PUT"])
+@shipment_payroll_bp.route("/api/shipment-payroll/<int:payroll_code>", methods=["PUT"])
 @token_required
 def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -276,7 +279,7 @@ def put_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_payroll_error")}), 500
 
 
-@app.route(
+@shipment_payroll_bp.route(
     "/api/shipment-payroll/<int:payroll_code>/collection-status", methods=["PATCH"]
 )
 @token_required
@@ -375,7 +378,7 @@ def update_shipment_payroll_collection_status(
         )
 
 
-@app.route("/api/shipment-payroll/<int:payroll_code>", methods=["DELETE"])
+@shipment_payroll_bp.route("/api/shipment-payroll/<int:payroll_code>", methods=["DELETE"])
 @token_required
 def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
     try:
@@ -415,7 +418,7 @@ def delete_shipment_payroll(payroll_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
-@app.route("/api/shipment-payrolls", methods=["DELETE"])
+@shipment_payroll_bp.route("/api/shipment-payrolls", methods=["DELETE"])
 @token_required
 def delete_shipment_payrolls() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -481,7 +484,7 @@ def delete_shipment_payrolls() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_payroll_error")}), 500
 
 
-@app.route("/api/shipment-payrolls/export-excel", methods=["GET"])
+@shipment_payroll_bp.route("/api/shipment-payrolls/export-excel", methods=["GET"])
 @token_required
 def export_shipment_payrolls() -> Tuple[Response, int]:
     # Get date range parameters

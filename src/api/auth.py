@@ -2,14 +2,15 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
+from flask import current_app
 
 from sqlalchemy import select
 
 import jwt
 
-from app_config import app
 from app_config import logger
 from app_config import db_session
 
@@ -21,6 +22,8 @@ from utils.security import validate_user_email
 from utils.security import validate_user_password
 
 from utils.locale import get_message
+
+auth_bp = Blueprint("auth", __name__)
 
 
 # Translation dictionaries
@@ -56,7 +59,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/auth/sign-up", methods=["POST"])
+@auth_bp.route("/api/auth/sign-up", methods=["POST"])
 def register():
     try:
         name = request.form.get("name")
@@ -109,7 +112,7 @@ def register():
                 "user_id": new_user.user_id,
                 "exp": datetime.now(timezone.utc) + timedelta(days=1),
             },
-            app.config["SECRET_KEY"],
+            current_app.config["SECRET_KEY"],
             algorithm="HS256",
         )
 
@@ -133,7 +136,7 @@ def register():
         return jsonify({"message": get_message(MESSAGES, "registration_failed")}), 500
 
 
-@app.route("/api/auth/log-in", methods=["POST"])
+@auth_bp.route("/api/auth/log-in", methods=["POST"])
 def login():
     email = request.form.get("email")
     password = request.form.get("password")
@@ -164,7 +167,7 @@ def login():
                 "user_id": user.user_id,
                 "exp": exp,
             },
-            app.config["SECRET_KEY"],
+            current_app.config["SECRET_KEY"],
             algorithm="HS256",
         )
 

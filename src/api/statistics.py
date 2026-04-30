@@ -4,6 +4,7 @@ from typing import Tuple
 
 from datetime import datetime
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -12,19 +13,19 @@ from flask import make_response
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-
 from openpyxl import Workbook
 from openpyxl.styles import Border
 from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
 from decorators.token_required import token_required
 from utils.locale import get_message
+
+statistics_bp = Blueprint("statistics", __name__)
 
 request: RequestWithUser
 
@@ -87,7 +88,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/statistics/driver", methods=["GET"])
+@statistics_bp.route("/api/statistics/driver", methods=["GET"])
 @token_required
 def get_statistics_driver_data() -> Tuple[Response, int]:
     try:
@@ -226,7 +227,7 @@ def get_statistics_driver_data() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/statistics/driver/export-excel", methods=["GET"])
+@statistics_bp.route("/api/statistics/driver/export-excel", methods=["GET"])
 @token_required
 def export_statistics_driver_excel() -> Tuple[Response, int]:
     try:
@@ -459,7 +460,7 @@ def export_statistics_driver_excel() -> Tuple[Response, int]:
         )
 
 
-@app.route("/api/statistics/product", methods=["GET"])
+@statistics_bp.route("/api/statistics/product", methods=["GET"])
 @token_required
 def get_statistics_product_data() -> Tuple[Response, int]:
     try:
@@ -530,7 +531,7 @@ def get_statistics_product_data() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/statistics/product/export-excel", methods=["GET"])
+@statistics_bp.route("/api/statistics/product/export-excel", methods=["GET"])
 @token_required
 def export_statistics_product_excel() -> Tuple[Response, int]:
     try:

@@ -4,6 +4,7 @@ from typing import Tuple
 
 from datetime import datetime
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -15,14 +16,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import cast
 from sqlalchemy import Date
 
-
 from openpyxl import Workbook
 from openpyxl.styles import Border
 from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -30,6 +29,8 @@ from models.shipment import Shipment
 
 from decorators.token_required import token_required
 from utils.locale import get_message
+
+dinatran_bp = Blueprint("dinatran", __name__)
 
 request: RequestWithUser
 
@@ -66,7 +67,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/dinatran", methods=["GET"])
+@dinatran_bp.route("/api/dinatran", methods=["GET"])
 @token_required
 def get_dinatran_data() -> Tuple[Response, int]:
     try:
@@ -140,7 +141,7 @@ def get_dinatran_data() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/dinatran/export-excel", methods=["GET"])
+@dinatran_bp.route("/api/dinatran/export-excel", methods=["GET"])
 @token_required
 def export_dinatran_excel() -> Tuple[Response, int]:
     try:

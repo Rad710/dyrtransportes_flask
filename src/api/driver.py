@@ -7,6 +7,7 @@ from typing import List
 
 from dataclasses import asdict
 
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import Response
@@ -23,7 +24,6 @@ from openpyxl.styles import Side
 from openpyxl.utils import get_column_letter
 
 from app_config import logger
-from app_config import app
 from app_config import db_session
 from app_config import RequestWithUser
 
@@ -31,6 +31,8 @@ from decorators.token_required import token_required
 
 from models.driver import Driver
 from utils.locale import get_message
+
+driver_bp = Blueprint("driver", __name__)
 
 request: RequestWithUser
 
@@ -89,7 +91,7 @@ MESSAGES = {
 }
 
 
-@app.route("/api/driver/<int:driver_code>", methods=["GET"])
+@driver_bp.route("/api/driver/<int:driver_code>", methods=["GET"])
 @token_required
 def get_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -113,7 +115,7 @@ def get_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
 
 
-@app.route("/api/drivers", methods=["GET"])
+@driver_bp.route("/api/drivers", methods=["GET"])
 @token_required
 def get_driver_list() -> Tuple[Response, int]:
     try:
@@ -137,7 +139,7 @@ def get_driver_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "get_drivers_error")}), 500
 
 
-@app.route("/api/driver", methods=["POST"])
+@driver_bp.route("/api/driver", methods=["POST"])
 @token_required
 def post_driver() -> Tuple[Response, int]:
     try:
@@ -184,7 +186,7 @@ def post_driver() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "add_driver_error")}), 500
 
 
-@app.route("/api/driver/<int:driver_code>", methods=["PUT"])
+@driver_bp.route("/api/driver/<int:driver_code>", methods=["PUT"])
 @token_required
 def put_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -250,7 +252,7 @@ def put_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "update_driver_error")}), 500
 
 
-@app.route("/api/driver/<int:driver_code>", methods=["DELETE"])
+@driver_bp.route("/api/driver/<int:driver_code>", methods=["DELETE"])
 @token_required
 def delete_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -290,7 +292,7 @@ def delete_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_driver_error")}), 500
 
 
-@app.route("/api/drivers", methods=["DELETE"])
+@driver_bp.route("/api/drivers", methods=["DELETE"])
 @token_required
 def delete_drivers() -> Tuple[Response, int]:
     if (request.data is None) or (not request.is_json):
@@ -356,7 +358,7 @@ def delete_drivers() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_driver_error")}), 500
 
 
-@app.route("/api/driver/<int:driver_code>/restore", methods=["PATCH"])
+@driver_bp.route("/api/driver/<int:driver_code>/restore", methods=["PATCH"])
 @token_required
 def restore_driver(driver_code: int) -> Tuple[Response, int]:
     try:
@@ -396,7 +398,7 @@ def restore_driver(driver_code: int) -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "restore_driver_error")}), 500
 
 
-@app.route("/api/drivers/export-excel", methods=["GET"])
+@driver_bp.route("/api/drivers/export-excel", methods=["GET"])
 @token_required
 def drivers_export_excel() -> Tuple[Response, int]:
     try:
