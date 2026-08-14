@@ -30,8 +30,12 @@ dyrtransportes_flask/
 ├── requirements-prod.txt            # Prod-only deps (uWSGI)
 ├── .env                             # Environment variables (gitignored)
 ├── docker/
-│   ├── Dockerfile                   # Production image (python:3.13-slim-bookworm)
-│   └── docker-compose.yaml          # Flask + MySQL + Adminer stack
+│   └── Dockerfile                   # Production image (python:3.13-slim-bookworm)
+├── deploy/
+│   ├── docker-compose.prod.yml      # Prod: Flask + MySQL + Adminer stack
+│   ├── docker-compose.demo.yml      # Public demo: shared MySQL + Cloudflare Tunnel
+│   ├── docker-compose.mysql.yml     # Shared MySQL (one DB server for the VM)
+│   └── DEPLOY.md                    # Deploy runbook
 ├── jenkins/
 │   ├── Dockerfile.agent             # Jenkins build agent
 │   ├── Jenkinsfile.cd               # Continuous Deployment pipeline
@@ -232,7 +236,7 @@ A common pattern across API files is the `request: RequestWithUser` type re-anno
 docker build -t dyrtransportes-flask:1.10.0 -f docker/Dockerfile .
 
 # Run with docker-compose (includes MySQL + Adminer)
-docker-compose -f docker/docker-compose.yaml up -d
+docker-compose -f deploy/docker-compose.prod.yml up -d
 ```
 
 The production container runs uWSGI on port 8080. The compose stack includes:

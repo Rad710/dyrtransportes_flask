@@ -1,0 +1,43 @@
+# Shared MySQL for the whole VM — one database server, many app databases.
+# Replaces the per-app MySQL containers. Other stacks join the external `shared-db`
+# network and connect to host `mysql-shared`.
+#
+#   docker compose --env-file .env -f docker-compose.yml up -d
+name: platform
+
+services:
+  mysql-shared:
+    image: mysql:8.4
+    # Lean footprint for a 4 GB box; trust function/trigger creators so app users
+    # (not just root) can create the audit triggers.
+    command:
+      - "--innodb-buffer-pool-size=128M"
+      - "--performance-schema=OFF"
+      - "--log-bin-trust-function-creators=1"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      # consumed by init/01-init-databases.sh
+      QUERY_DB_PASSWORD: ${QUERY_DB_PASSWORD:?set QUERY_DB_PASSWORD in .env}
+      DYR_DB_PASSWORD: ${DYR_DB_PASSWORD:?set DYR_DB_PASSWORD in .env}
+    volumes:
+      - mysql-shared-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD-SHELL", 'mysqladmin ping -h 127.0.0.1 -u root -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - shared-db
+
+volumes:
+  mysql-shared-data:
+
+networks:
+  # Created here with a fixed name; app stacks reference it as external.
+  shared-db:
+    name: shared-db
