@@ -13,7 +13,7 @@ DYR Transportes is a transportation management system backend built with Flask a
 - **Migrations:** Alembic 1.17
 - **Auth:** PyJWT (HS256 JWT tokens)
 - **Excel Export:** openpyxl
-- **PDF Export:** reportlab
+- **PDF Export:** LibreOffice headless (`soffice`), converts the Excel exports
 - **Localization:** num2words (Spanish number-to-word conversion)
 - **Production Server:** uWSGI
 - **Type Checking:** mypy
@@ -84,7 +84,7 @@ dyrtransportes_flask/
     │   └── planilla_formato.xlsx    # Excel template for payroll reports
     └── utils/
         ├── locale.py                # i18n: Accept-Language header parsing, message lookup
-        ├── pdf.py                   # Shared reportlab helpers for the PDF exports
+        ├── pdf.py                   # Excel to PDF conversion via LibreOffice
         └── security.py              # Password hashing (PBKDF2), email/password validation
 ```
 
@@ -203,14 +203,20 @@ Most CRUD modules include an Excel export endpoint. The pattern is:
 
 ### PDF Export Pattern
 
-Documents that also ship as PDF (`/api/.../export-pdf`) reuse the Excel query
-via a shared fetch helper, then render with reportlab `Table`/`TableStyle`:
-1. Fetch the same records the Excel export uses
-2. Calculate in Python every value the Excel export writes as a formula
-3. Build the table with `utils/pdf.py` helpers (`cell`, `format_number`,
-   `round_amount`, `scale_widths`, `build_pdf`), mirroring the Excel layout
+PDF exports (`/api/.../export-pdf`) are the Excel export converted, the same as
+choosing "print as PDF" in Excel. There is no second layout to maintain:
+1. The workbook building lives in a `build_*_workbook()` function returning the
+   `Workbook`, shared by the Excel and the PDF endpoint
+2. The builder ends with `set_print_page_setup()` (landscape, fit to width,
+   repeated header rows), the page setup a user would set before printing
+3. The PDF endpoint calls `excel_to_pdf(workbook, get_locale())` from
+   `utils/pdf.py`, which runs LibreOffice headless; LibreOffice calculates the
+   formulas left in the cells and formats numbers with the client's locale
 4. Return via `make_response()` with `Content-Disposition: attachment` and MIME
    type `application/pdf`
+
+LibreOffice (`libreoffice-calc-nogui`) must be installed in the image; the
+binary can be overridden with the `SOFFICE_PATH` environment variable.
 
 ### CRUD Endpoint Pattern
 

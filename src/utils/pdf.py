@@ -1,150 +1,109 @@
-"""Helpers shared by the PDF exports, rendered with reportlab."""
+"""Convert the Excel exports to PDF, the same way 'print as PDF' does in Excel."""
 
-import io
+import os
+import shutil
+import subprocess
+import tempfile
 
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
+from openpyxl import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
-from typing import Any
-from typing import List
-from typing import Optional
-from typing import Sequence
+# LibreOffice binary used for the conversion, overridable per environment
+SOFFICE_PATH = os.getenv("SOFFICE_PATH", "soffice")
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.enums import TA_LEFT
-from reportlab.lib.enums import TA_RIGHT
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.pagesizes import landscape
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.platypus import Flowable
-from reportlab.platypus import Paragraph
-from reportlab.platypus import SimpleDocTemplate
+# A conversion of a big payroll takes a few seconds, kill it if it hangs
+CONVERSION_TIMEOUT_SECONDS = 120
 
-# Landscape A4 with narrow margins, the exports are wide tables
-PAGE_SIZE = landscape(A4)
-PAGE_MARGIN = 8 * mm
-CONTENT_WIDTH = PAGE_SIZE[0] - (2 * PAGE_MARGIN)
-
-# Excel column widths are expressed in characters, PDF widths in points
-EXCEL_WIDTH_TO_POINTS = 5.5
-
-GRID_COLOR = colors.black
-# Same colors the Excel exports use for headers and subtotal rows
-HEADER_BACKGROUND = colors.HexColor("#FFC000")
-SUBTOTAL_BACKGROUND = colors.HexColor("#969696")
-
-TITLE_STYLE = ParagraphStyle(
-    name="pdf_title",
-    fontName="Helvetica-Bold",
-    fontSize=13,
-    leading=16,
-    alignment=TA_CENTER,
-)
-
-SUBTITLE_STYLE = ParagraphStyle(
-    name="pdf_subtitle",
-    fontName="Helvetica-Bold",
-    fontSize=9,
-    leading=12,
-    alignment=TA_CENTER,
-)
-
-ACCENT_TITLE_STYLE = ParagraphStyle(
-    name="pdf_accent_title",
-    parent=TITLE_STYLE,
-    fontSize=18,
-    leading=22,
-    textColor=colors.HexColor("#800080"),
-)
-
-CELL_STYLE = ParagraphStyle(
-    name="pdf_cell",
-    fontName="Helvetica",
-    fontSize=6,
-    leading=7,
-)
+# LibreOffice formats the numbers of the printout with the locale it runs in
+CONVERSION_LOCALES = {"es": "es_PY.UTF-8", "en": "en_US.UTF-8"}
 
 
-def round_amount(value: Decimal) -> Decimal:
-    """Round a monetary value to the unit, matching Excel's ROUND(value, 0)."""
-    return Decimal(value).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+class PdfConversionError(Exception):
+    """Raised when the Excel file could not be converted to PDF."""
 
 
-def format_number(
-    value: Optional[Decimal | int | float], locale: str = "es", decimals: int = 0
-) -> str:
-    """Format a number the same way the Excel exports do ('#,##0' / '#,##0.00').
+def set_print_page_setup(sheet: Worksheet, repeat_rows: str = "") -> None:
+    """Set the page setup so the printout fits the page, as done before printing.
 
-    Spanish uses '.' as thousands separator and ',' as decimal separator,
-    English keeps the default ',' and '.'.
+    The exports are wide tables, so they are printed in landscape scaled down to
+    the page width. 'repeat_rows' repeats the header rows on every page, for
+    example '1:5'.
     """
-    if value is None:
-        return ""
+    sheet.page_setup.orientation = "landscape"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
 
-    formatted = f"{Decimal(value):,.{decimals}f}"
+    sheet.page_margins.left = 0.25
+    sheet.page_margins.right = 0.25
+    sheet.page_margins.top = 0.35
+    sheet.page_margins.bottom = 0.35
 
-    if locale == "es":
-        # Swap separators using a placeholder to avoid clobbering the result
-        formatted = (
-            formatted.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-        )
-
-    return formatted
-
-
-def scale_widths(excel_widths: Sequence[float]) -> List[float]:
-    """Convert Excel character widths into point widths that fill the page."""
-    points = [width * EXCEL_WIDTH_TO_POINTS for width in excel_widths]
-    total = sum(points)
-
-    if total <= 0:
-        return points
-
-    factor = CONTENT_WIDTH / total
-    return [width * factor for width in points]
+    if repeat_rows:
+        sheet.print_title_rows = repeat_rows
 
 
-CELL_STYLES = {
-    "left": ParagraphStyle(name="pdf_cell_left", parent=CELL_STYLE, alignment=TA_LEFT),
-    "center": ParagraphStyle(
-        name="pdf_cell_center", parent=CELL_STYLE, alignment=TA_CENTER
-    ),
-    "right": ParagraphStyle(
-        name="pdf_cell_right", parent=CELL_STYLE, alignment=TA_RIGHT
-    ),
-}
+def excel_to_pdf(workbook: Workbook, locale: str = "es") -> bytes:
+    """Convert an openpyxl workbook to PDF with LibreOffice.
 
-BOLD_CELL_STYLES = {
-    align: ParagraphStyle(
-        name=f"pdf_cell_{align}_bold", parent=style, fontName="Helvetica-Bold"
-    )
-    for align, style in CELL_STYLES.items()
-}
+    The workbook is printed as is, so the PDF keeps the Excel layout,
+    LibreOffice calculates the formulas the export leaves in the cells and
+    formats the numbers with the client's locale.
+    """
+    with tempfile.TemporaryDirectory() as work_dir:
+        excel_path = os.path.join(work_dir, "export.xlsx")
+        pdf_path = os.path.join(work_dir, "export.pdf")
+
+        workbook.save(excel_path)
+
+        # Each conversion gets its own profile so concurrent requests do not
+        # fight over a shared LibreOffice user directory
+        profile_dir = os.path.join(work_dir, "profile")
+
+        command = [
+            SOFFICE_PATH,
+            "--headless",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file://{profile_dir}",
+            "--convert-to",
+            "pdf:calc_pdf_Export",
+            "--outdir",
+            work_dir,
+            excel_path,
+        ]
+
+        conversion_locale = CONVERSION_LOCALES.get(locale, CONVERSION_LOCALES["en"])
+        environment = {
+            **os.environ,
+            "LANG": conversion_locale,
+            "LC_ALL": conversion_locale,
+            "HOME": work_dir,
+        }
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                check=False,
+                env=environment,
+                timeout=CONVERSION_TIMEOUT_SECONDS,
+            )
+        except FileNotFoundError as e:
+            raise PdfConversionError(f"{SOFFICE_PATH} not found") from e
+        except subprocess.TimeoutExpired as e:
+            raise PdfConversionError("PDF conversion timed out") from e
+
+        if result.returncode != 0 or not os.path.exists(pdf_path):
+            raise PdfConversionError(
+                f"PDF conversion failed: {result.stderr.decode(errors='replace')}"
+            )
+
+        with open(pdf_path, "rb") as pdf_file:
+            return pdf_file.read()
 
 
-def cell(text: Any, bold: bool = False, align: str = "left") -> Paragraph:
-    """Wrap a cell value in a Paragraph so long values wrap instead of overflowing."""
-    style = BOLD_CELL_STYLES[align] if bold else CELL_STYLES[align]
-
-    return Paragraph("" if text is None else str(text), style)
-
-
-def build_pdf(flowables: List[Flowable], title: str) -> bytes:
-    """Render the given flowables into a landscape PDF document."""
-    output = io.BytesIO()
-
-    document = SimpleDocTemplate(
-        output,
-        pagesize=PAGE_SIZE,
-        leftMargin=PAGE_MARGIN,
-        rightMargin=PAGE_MARGIN,
-        topMargin=PAGE_MARGIN,
-        bottomMargin=PAGE_MARGIN,
-        title=title,
-    )
-    document.build(flowables)
-
-    output.seek(0)
-    return output.getvalue()
+def is_pdf_conversion_available() -> bool:
+    """Check whether LibreOffice is installed and can be used for conversions."""
+    return shutil.which(SOFFICE_PATH) is not None
