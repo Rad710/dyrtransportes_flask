@@ -740,11 +740,10 @@ class DriverPayrollExportData(NamedTuple):
 
 def fetch_driver_payroll_export_data(
     driver_payroll_code: int,
-) -> Tuple[Optional[DriverPayrollExportData], str, int]:
+) -> Tuple[Optional[DriverPayrollExportData], Optional[Tuple[Response, int]]]:
     """Fetch the settlement records shared by the Excel and PDF exports.
 
-    Returns the data with an empty message key and 200, or None with the
-    message key and HTTP status of the failure.
+    Returns the data, or None and the response to send back.
     """
     try:
         driver_payroll_stmt = select(DriverPayroll).where(
@@ -755,7 +754,10 @@ def fetch_driver_payroll_export_data(
         driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
         if driver_payroll is None:
             logger.error("fetch table DriverPayroll, not found")
-            return None, "payroll_not_found", 404
+            return None, (
+                jsonify({"message": get_message(MESSAGES, "payroll_not_found")}),
+                404,
+            )
 
         logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
         logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
@@ -768,7 +770,10 @@ def fetch_driver_payroll_export_data(
         driver: Optional[Driver] = db_session.scalar(driver_stmt)
         if driver is None:
             logger.error("fetch table Driver, not found")
-            return None, "driver_not_found", 404
+            return None, (
+                jsonify({"message": get_message(MESSAGES, "driver_not_found")}),
+                404,
+            )
 
         logger.debug("fetch table Driver, found: %s", driver)
 
@@ -813,7 +818,10 @@ def fetch_driver_payroll_export_data(
 
     except SQLAlchemyError as e:
         logger.error("fetch table DriverPayroll, error: %s", e)
-        return None, "transaction_error", 500
+        return None, (
+            jsonify({"message": get_message(MESSAGES, "transaction_error")}),
+            500,
+        )
 
     return (
         DriverPayrollExportData(
@@ -823,8 +831,7 @@ def fetch_driver_payroll_export_data(
             shipment_expenses_no_receipt,
             shipment_expenses_receipt,
         ),
-        "",
-        200,
+        None,
     )
 
 
@@ -1024,11 +1031,9 @@ def build_driver_payroll_workbook(export_data: DriverPayrollExportData) -> Workb
 )
 @token_required
 def exportar_driver_payroll(driver_payroll_code: int):
-    export_data, error_key, status = fetch_driver_payroll_export_data(
-        driver_payroll_code
-    )
+    export_data, error_response = fetch_driver_payroll_export_data(driver_payroll_code)
     if export_data is None:
-        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+        return error_response
 
     driver_payroll = export_data.driver_payroll
     driver = export_data.driver
@@ -1055,11 +1060,9 @@ def exportar_driver_payroll(driver_payroll_code: int):
 )
 @token_required
 def exportar_driver_payroll_pdf(driver_payroll_code: int):
-    export_data, error_key, status = fetch_driver_payroll_export_data(
-        driver_payroll_code
-    )
+    export_data, error_response = fetch_driver_payroll_export_data(driver_payroll_code)
     if export_data is None:
-        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+        return error_response
 
     driver_payroll = export_data.driver_payroll
     driver = export_data.driver

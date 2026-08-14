@@ -831,13 +831,12 @@ def delete_shipment_list() -> Tuple[Response, int]:
 
 
 def fetch_shipments_export_data() -> (
-    Tuple[Optional[List[Shipment]], Optional[int], str, int]
+    Tuple[List[Shipment], Optional[int], Optional[Tuple[Response, int]]]
 ):
     """Fetch the shipments to export, shared by the Excel and PDF exports.
 
     Reads the optional 'shipment_payroll_code' query param. Returns the
-    shipments, the payroll code, an empty message key and 200, or None with
-    the message key and HTTP status of the failure.
+    shipments and the payroll code, or None and the response to send back.
     """
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
     shipment_payroll_code = None
@@ -859,11 +858,37 @@ def fetch_shipments_export_data() -> (
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return None, None, "shipment_payroll_not_found", 404
+                return (
+                    [],
+                    None,
+                    (
+                        jsonify(
+                            {
+                                "message": get_message(
+                                    MESSAGES, "shipment_payroll_not_found"
+                                )
+                            }
+                        ),
+                        404,
+                    ),
+                )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
-            return None, None, "invalid_shipment_payroll_param", 400
+            return (
+                [],
+                None,
+                (
+                    jsonify(
+                        {
+                            "message": get_message(
+                                MESSAGES, "invalid_shipment_payroll_param"
+                            )
+                        }
+                    ),
+                    400,
+                ),
+            )
 
     try:
         stmt_shipment = (
@@ -889,13 +914,21 @@ def fetch_shipments_export_data() -> (
 
         if len(shipments) <= 0:
             logger.error("export Shipments, fetch Shipments returned empty list")
-            return None, None, "excel_no_data", 500
+            return (
+                [],
+                None,
+                (jsonify({"message": get_message(MESSAGES, "excel_no_data")}), 500),
+            )
 
     except SQLAlchemyError as e:
         logger.error("export Shipments, fetch Shipments error: %s", e)
-        return None, None, "excel_creation_error", 500
+        return (
+            [],
+            None,
+            (jsonify({"message": get_message(MESSAGES, "excel_creation_error")}), 500),
+        )
 
-    return shipments, shipment_payroll_code, "", 200
+    return shipments, shipment_payroll_code, None
 
 
 def build_shipments_workbook(shipments: List[Shipment]) -> Workbook:
@@ -1292,9 +1325,9 @@ def build_shipments_workbook(shipments: List[Shipment]) -> Workbook:
 @shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
 @token_required
 def export_shipments_excel() -> Tuple[Response, int]:
-    shipments, shipment_payroll_code, error_key, status = fetch_shipments_export_data()
-    if shipments is None:
-        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+    shipments, shipment_payroll_code, error_response = fetch_shipments_export_data()
+    if error_response is not None:
+        return error_response
 
     # Save Excel file to output stream
     output = io.BytesIO()
@@ -1320,9 +1353,9 @@ def export_shipments_excel() -> Tuple[Response, int]:
 @shipment_bp.route("/api/shipments/export-pdf", methods=["GET"])
 @token_required
 def export_shipments_pdf() -> Tuple[Response, int]:
-    shipments, shipment_payroll_code, error_key, status = fetch_shipments_export_data()
-    if shipments is None:
-        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+    shipments, shipment_payroll_code, error_response = fetch_shipments_export_data()
+    if error_response is not None:
+        return error_response
 
     # Same Excel file as the Excel export, converted to PDF
     try:
