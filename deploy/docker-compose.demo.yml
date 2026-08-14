@@ -75,8 +75,12 @@ services:
     depends_on:
       dyrtransportes-flask:
         condition: service_healthy
+      web:
+        condition: service_started
     environment:
-      API_BASE: http://dyrtransportes-flask:8080
+      # Go through nginx (same path the browser uses) — more stable than hitting
+      # uWSGI's bare --http listener directly.
+      API_BASE: http://web
       DEMO_EMAIL: ${DEMO_EMAIL:-demo@rad710.com}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-demo}
     volumes:

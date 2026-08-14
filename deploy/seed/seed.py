@@ -20,6 +20,9 @@ EMAIL = os.environ.get("DEMO_EMAIL", "demo@rad710.com")
 PASSWORD = os.environ.get("DEMO_PASSWORD", "DemoPass123")
 
 s = requests.Session()
+# uWSGI's --http mode closes idle keep-alive connections; requests won't retry a
+# POST on a stale one, so force a fresh connection per request.
+s.headers.update({"Connection": "close"})
 
 
 def rows(resp):
@@ -99,7 +102,14 @@ ROUTES = [
 for origin, dest, price, payroll_price in ROUTES:
     create(
         "/api/route",
-        {"origin": origin, "destination": dest, "price": price, "payroll_price": payroll_price},
+        # price fields must be strings — the model validator converts str→Decimal
+        # but rejects int/float.
+        {
+            "origin": origin,
+            "destination": dest,
+            "price": str(price),
+            "payroll_price": str(payroll_price),
+        },
         f"route {origin}->{dest}",
     )
 route_rows = rows(s.get(f"{BASE}/api/routes"))
@@ -133,7 +143,9 @@ now = datetime(2026, 8, 1, 8, 0, 0)  # fixed base date for reproducibility
 
 
 def ts(dt):
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+    # RFC 1123 — the format every *_timestamp / shipment_date validator expects
+    # (strptime "%a, %d %b %Y %H:%M:%S %Z"), i.e. JS Date.toUTCString().
+    return dt.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 
 create("/api/shipment-payroll", {"payroll_timestamp": ts(now)}, "shipment payroll")
@@ -178,12 +190,12 @@ for i in range(28):
             "route_code": route["route_code"],
             "origin": origin,
             "destination": dest,
-            "price": price,
-            "payroll_price": payroll_price,
+            "price": str(price),
+            "payroll_price": str(payroll_price),
             "dispatch_code": f"D-{1000 + i}",
             "receipt_code": f"R-{2000 + i}",
-            "origin_weight": origin_w,
-            "destination_weight": dest_w,
+            "origin_weight": str(origin_w),
+            "destination_weight": str(dest_w),
             "shipment_payroll_code": shipment_payroll_code,
             "driver_payroll_code": driver_payroll_code[d["driver_code"]],
         },
