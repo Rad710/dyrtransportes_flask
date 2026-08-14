@@ -12,6 +12,9 @@ services:
     image: ghcr.io/rad710/dyrtransportes-react:${IMAGE_TAG:-latest}
     environment:
       VITE_API_URL: "" # same-origin; nginx proxies /api/ to the api
+    # Override the baked nginx.conf (which proxies /adminer/ to a host not in this stack).
+    volumes:
+      - ./nginx.demo.conf:/etc/nginx/conf.d/default.conf:ro
     expose:
       - "80"
     depends_on:
