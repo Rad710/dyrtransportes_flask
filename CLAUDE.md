@@ -13,6 +13,7 @@ DYR Transportes is a transportation management system backend built with Flask a
 - **Migrations:** Alembic 1.17
 - **Auth:** PyJWT (HS256 JWT tokens)
 - **Excel Export:** openpyxl
+- **PDF Export:** reportlab
 - **Localization:** num2words (Spanish number-to-word conversion)
 - **Production Server:** uWSGI
 - **Type Checking:** mypy
@@ -83,6 +84,7 @@ dyrtransportes_flask/
     │   └── planilla_formato.xlsx    # Excel template for payroll reports
     └── utils/
         ├── locale.py                # i18n: Accept-Language header parsing, message lookup
+        ├── pdf.py                   # Shared reportlab helpers for the PDF exports
         └── security.py              # Password hashing (PBKDF2), email/password validation
 ```
 
@@ -198,6 +200,17 @@ Most CRUD modules include an Excel export endpoint. The pattern is:
 2. Create `openpyxl.Workbook`
 3. Write headers and data rows with styling (borders, number formats)
 4. Return via `make_response()` with `Content-Disposition: attachment` and MIME type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+### PDF Export Pattern
+
+Documents that also ship as PDF (`/api/.../export-pdf`) reuse the Excel query
+via a shared fetch helper, then render with reportlab `Table`/`TableStyle`:
+1. Fetch the same records the Excel export uses
+2. Calculate in Python every value the Excel export writes as a formula
+3. Build the table with `utils/pdf.py` helpers (`cell`, `format_number`,
+   `round_amount`, `scale_widths`, `build_pdf`), mirroring the Excel layout
+4. Return via `make_response()` with `Content-Disposition: attachment` and MIME
+   type `application/pdf`
 
 ### CRUD Endpoint Pattern
 

@@ -1,11 +1,13 @@
 import io
 
+from typing import Any
 from typing import Sequence
 from typing import Tuple
 from typing import Optional
 from typing import List
 
 from datetime import datetime
+from decimal import Decimal
 
 from dataclasses import asdict
 
@@ -17,6 +19,12 @@ from openpyxl.styles import Side
 from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
+
+from reportlab.platypus import Paragraph
+from reportlab.platypus import Spacer
+from reportlab.platypus import Table
+from reportlab.platypus import TableStyle
+from reportlab.platypus.doctemplate import LayoutError
 
 from flask import Blueprint
 from flask import request
@@ -41,7 +49,20 @@ from models.shipment import Shipment
 from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
 from models.shipment_payroll import ShipmentPayroll
+
+from utils.locale import get_locale
 from utils.locale import get_message
+
+from utils.pdf import build_pdf
+from utils.pdf import cell as pdf_cell
+from utils.pdf import format_number
+from utils.pdf import round_amount
+from utils.pdf import scale_widths
+from utils.pdf import ACCENT_TITLE_STYLE
+from utils.pdf import GRID_COLOR
+from utils.pdf import HEADER_BACKGROUND
+from utils.pdf import SUBTITLE_STYLE
+from utils.pdf import SUBTOTAL_BACKGROUND
 
 shipment_bp = Blueprint("shipment", __name__)
 
@@ -72,6 +93,7 @@ MESSAGES = {
         "shipment_not_found_for_delete": "Error deleting shipment: shipment not found",
         "excel_creation_error": "Error creating Excel file",
         "excel_no_data": "Error creating Excel file, no data",
+        "pdf_creation_error": "Error creating PDF file",
         # Success messages
         "shipment_added": "Shipment added successfully",
         "shipment_updated": "Shipment updated successfully",
@@ -122,6 +144,7 @@ MESSAGES = {
         "shipment_not_found_for_delete": "Error al eliminar Carga: Carga no encontrada",
         "excel_creation_error": "Error al crear archivo Excel",
         "excel_no_data": "Error al crear archivo Excel, sin datos",
+        "pdf_creation_error": "Error al crear archivo PDF",
         # Success messages
         "shipment_added": "Carga agregada exitosamente",
         "shipment_updated": "Carga actualizada exitosamente",
@@ -822,9 +845,15 @@ def delete_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
-@shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
-@token_required
-def export_shipments_excel() -> Tuple[Response, int]:
+def fetch_shipments_export_data() -> (
+    Tuple[Optional[List[Shipment]], Optional[int], str, int]
+):
+    """Fetch the shipments to export, shared by the Excel and PDF exports.
+
+    Reads the optional 'shipment_payroll_code' query param. Returns the
+    shipments, the payroll code, an empty message key and 200, or None with
+    the message key and HTTP status of the failure.
+    """
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
     shipment_payroll_code = None
 
@@ -845,21 +874,11 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 logger.error(
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
-                return (
-                    jsonify(
-                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
-                    ),
-                    404,
-                )
+                return None, None, "shipment_payroll_not_found", 404
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
-            return (
-                jsonify(
-                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
-                ),
-                400,
-            )
+            return None, None, "invalid_shipment_payroll_param", 400
 
     try:
         stmt_shipment = (
@@ -881,15 +900,25 @@ def export_shipments_excel() -> Tuple[Response, int]:
             stmt_shipment = stmt_shipment.where(
                 Shipment.shipment_payroll_code == shipment_payroll_code
             )
-        shipments: Sequence[Shipment] = db_session.scalars(stmt_shipment).all()
+        shipments: List[Shipment] = list(db_session.scalars(stmt_shipment).all())
 
-        if shipments is None or len(shipments) <= 0:
+        if len(shipments) <= 0:
             logger.error("export Shipments, fetch Shipments returned empty list")
-            return jsonify({"message": get_message(MESSAGES, "excel_no_data")}), 500
+            return None, None, "excel_no_data", 500
 
     except SQLAlchemyError as e:
         logger.error("export Shipments, fetch Shipments error: %s", e)
-        return jsonify({"message": get_message(MESSAGES, "excel_creation_error")}), 500
+        return None, None, "excel_creation_error", 500
+
+    return shipments, shipment_payroll_code, "", 200
+
+
+@shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
+@token_required
+def export_shipments_excel() -> Tuple[Response, int]:
+    shipments, shipment_payroll_code, error_key, status = fetch_shipments_export_data()
+    if shipments is None:
+        return jsonify({"message": get_message(MESSAGES, error_key)}), status
 
     # dict for subtotals
     subtotal_groups: dict[str, str | int] = {}
@@ -1293,3 +1322,256 @@ def export_shipments_excel() -> Tuple[Response, int]:
     logger.info("Shipment Excel file exported: %s", shipment_payroll_code)
 
     return response, 200
+
+
+@shipment_bp.route("/api/shipments/export-pdf", methods=["GET"])
+@token_required
+def export_shipments_pdf() -> Tuple[Response, int]:
+    shipments, shipment_payroll_code, error_key, status = fetch_shipments_export_data()
+    if shipments is None:
+        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+
+    try:
+        pdf_file = render_shipments_pdf(shipments)
+    except LayoutError as e:
+        logger.error("export Shipments pdf, render error: %s", e)
+        return jsonify({"message": get_message(MESSAGES, "pdf_creation_error")}), 500
+
+    # Get translated filename component
+    collection_term = get_message(MESSAGES, "collection")
+
+    # Create client response with PDF file
+    response = make_response(pdf_file)
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename={collection_term}_{shipment_payroll_code or "todos"}.pdf'
+    )
+    logger.info("Shipment PDF file exported: %s", shipment_payroll_code)
+
+    return response, 200
+
+
+def render_shipments_pdf(shipments: List[Shipment]) -> bytes:
+    """Render the collection sheet (planilla de cobranza) as a PDF file.
+
+    Mirrors the Excel export, but every Excel formula is calculated here
+    because a PDF can only hold the resulting values.
+    """
+    locale = get_locale()
+
+    # Same column layout as the Excel export, widths in Excel character units
+    column_widths = [
+        2.64,
+        11.00,
+        20.55,
+        9.09,
+        11.82,
+        18.64,
+        17.64,
+        9.91,
+        9.91,
+        10.91,
+        11.09,
+        7.18,
+        6.27,
+        6.36,
+        6.27,
+        14.64,
+    ]
+    last_column = len(column_widths) - 1
+    subtotal_label_end_column = 8
+
+    header_row: List[Any] = [
+        pdf_cell(get_message(MESSAGES, key), bold=True, align="center")
+        for key in [
+            "num",
+            "date",
+            "driver",
+            "plate",
+            "product",
+            "origin",
+            "destination",
+            "dispatch",
+            "ticket",
+            "origin_weight",
+            "destination_weight",
+            "difference",
+            "tolerance",
+            "difference_tolerance",
+            "price",
+            "total",
+        ]
+    ]
+
+    table_data: List[List[Any]] = [header_row]
+    subtotal_row_indexes: List[int] = []
+
+    subtotal_text = get_message(MESSAGES, "subtotal")
+    empty_totals = {
+        "origin_weight": Decimal(0),
+        "destination_weight": Decimal(0),
+        "difference": Decimal(0),
+        "tolerance": Decimal(0),
+        "difference_tolerance": Decimal(0),
+        "total": Decimal(0),
+    }
+
+    def totals_row(label: str, totals: dict[str, Decimal]) -> List[Any]:
+        return (
+            [pdf_cell(label, bold=True, align="center")]
+            + [""] * subtotal_label_end_column
+            + [
+                pdf_cell(format_number(totals[key], locale), bold=True, align="right")
+                for key in [
+                    "origin_weight",
+                    "destination_weight",
+                    "difference",
+                    "tolerance",
+                    "difference_tolerance",
+                ]
+            ]
+            + [
+                "",
+                pdf_cell(
+                    format_number(totals["total"], locale), bold=True, align="right"
+                ),
+            ]
+        )
+
+    group_totals = empty_totals.copy()
+    grand_totals = empty_totals.copy()
+    product_totals: dict[str, Decimal] = {}
+    current_group: Optional[str] = None
+    index = 1
+
+    for position, shipment in enumerate(shipments):
+        group = f"R{shipment.route_code}|P{shipment.product_code}"
+
+        if current_group is not None and group != current_group:
+            table_data.append(totals_row(subtotal_text, group_totals))
+            subtotal_row_indexes.append(len(table_data) - 1)
+            group_totals = empty_totals.copy()
+
+        current_group = group
+
+        difference = shipment.destination_weight - shipment.origin_weight
+        tolerance = round_amount(shipment.destination_weight * Decimal("0.002"))
+        difference_tolerance = tolerance + difference
+        total = round_amount(shipment.destination_weight * shipment.price)
+
+        table_data.append(
+            [
+                pdf_cell(index, align="center"),
+                pdf_cell(shipment.shipment_date.strftime("%d/%m/%Y")),
+                pdf_cell(shipment.driver_name),
+                pdf_cell(shipment.truck_plate),
+                pdf_cell(shipment.product_name),
+                pdf_cell(shipment.origin),
+                pdf_cell(shipment.destination),
+                pdf_cell(shipment.dispatch_code),
+                pdf_cell(shipment.receipt_code),
+                pdf_cell(format_number(shipment.origin_weight, locale), align="right"),
+                pdf_cell(
+                    format_number(shipment.destination_weight, locale), align="right"
+                ),
+                pdf_cell(format_number(difference, locale), align="right"),
+                pdf_cell(format_number(tolerance, locale), align="right"),
+                pdf_cell(format_number(difference_tolerance, locale), align="right"),
+                pdf_cell(
+                    format_number(shipment.price, locale, decimals=2), align="right"
+                ),
+                pdf_cell(format_number(total, locale), align="right"),
+            ]
+        )
+
+        row_values = {
+            "origin_weight": shipment.origin_weight,
+            "destination_weight": shipment.destination_weight,
+            "difference": difference,
+            "tolerance": tolerance,
+            "difference_tolerance": difference_tolerance,
+            "total": total,
+        }
+        for key, value in row_values.items():
+            group_totals[key] += value
+            grand_totals[key] += value
+
+        product_totals[shipment.product_name] = (
+            product_totals.get(shipment.product_name, Decimal(0)) + total
+        )
+
+        # The last shipment closes the last group
+        if position == len(shipments) - 1:
+            table_data.append(totals_row(subtotal_text, group_totals))
+            subtotal_row_indexes.append(len(table_data) - 1)
+
+        index += 1
+
+    table_data.append(totals_row(get_message(MESSAGES, "total_row"), grand_totals))
+    total_row_index = len(table_data) - 1
+
+    # VAT row, the Excel export divides the grand total by 11
+    vat_row: List[Any] = [""] * last_column + [
+        pdf_cell(
+            format_number(grand_totals["total"] / 11, locale, decimals=2), align="right"
+        )
+    ]
+    table_data.append(vat_row)
+    vat_row_index = len(table_data) - 1
+
+    for product, product_total in product_totals.items():
+        table_data.append(
+            [""] * (last_column - 1)
+            + [
+                pdf_cell(product),
+                pdf_cell(format_number(product_total, locale), align="right"),
+            ]
+        )
+
+    table = Table(table_data, colWidths=scale_widths(column_widths), repeatRows=1)
+
+    style: List[Any] = [
+        ("GRID", (0, 0), (-1, total_row_index), 0.4, GRID_COLOR),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 1),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("BACKGROUND", (0, 0), (-1, 0), HEADER_BACKGROUND),
+        ("BACKGROUND", (0, total_row_index), (-1, total_row_index), HEADER_BACKGROUND),
+        ("SPAN", (0, total_row_index), (subtotal_label_end_column, total_row_index)),
+        (
+            "GRID",
+            (last_column, vat_row_index),
+            (last_column, vat_row_index),
+            0.4,
+            GRID_COLOR,
+        ),
+        (
+            "GRID",
+            (last_column - 1, vat_row_index + 1),
+            (last_column, -1),
+            0.4,
+            GRID_COLOR,
+        ),
+    ]
+    for row_index in subtotal_row_indexes:
+        style.append(
+            ("BACKGROUND", (0, row_index), (-1, row_index), SUBTOTAL_BACKGROUND)
+        )
+        style.append(("SPAN", (0, row_index), (subtotal_label_end_column, row_index)))
+
+    table.setStyle(TableStyle(style))
+
+    company_name = get_message(MESSAGES, "company_name")
+
+    return build_pdf(
+        [
+            Paragraph(company_name, ACCENT_TITLE_STYLE),
+            Spacer(1, 6),
+            Paragraph(datetime.now().strftime("%d/%m/%Y"), SUBTITLE_STYLE),
+            Spacer(1, 6),
+            table,
+        ],
+        company_name,
+    )

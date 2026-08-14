@@ -1,6 +1,10 @@
 import io
 
 from datetime import datetime
+from decimal import Decimal
+
+from typing import Any
+from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -33,6 +37,12 @@ from openpyxl.styles import Font
 from openpyxl.styles import numbers
 from openpyxl.utils import get_column_letter
 
+from reportlab.platypus import Paragraph
+from reportlab.platypus import Spacer
+from reportlab.platypus import Table
+from reportlab.platypus import TableStyle
+from reportlab.platypus.doctemplate import LayoutError
+
 
 from num2words import num2words
 
@@ -49,6 +59,17 @@ from models.shipment_expense import ShipmentExpense
 
 from utils.locale import get_locale
 from utils.locale import get_message
+
+from utils.pdf import build_pdf
+from utils.pdf import cell as pdf_cell
+from utils.pdf import format_number
+from utils.pdf import round_amount
+from utils.pdf import scale_widths
+from utils.pdf import CONTENT_WIDTH
+from utils.pdf import GRID_COLOR
+from utils.pdf import HEADER_BACKGROUND
+from utils.pdf import SUBTITLE_STYLE
+from utils.pdf import TITLE_STYLE
 
 driver_payroll_bp = Blueprint("driver_payroll", __name__)
 
@@ -95,6 +116,7 @@ MESSAGES = {
         "expenses": "EXPENSES (ALLOWANCE/FUEL)",
         "num": "No.",
         "product": "Prod.",
+        "dispatch_num": "Dispatch No.",
         "receipt_num": "Receipt No.",
         "origin": "Origin",
         "destination": "Destination",
@@ -157,6 +179,7 @@ MESSAGES = {
         "expenses": "GASTOS (VIATICO/GASOIL)",
         "num": "N°",
         "product": "Prod.",
+        "dispatch_num": "Remision N°",
         "receipt_num": "Recepcion N°",
         "origin": "Origen",
         "destination": "Destino",
@@ -719,11 +742,24 @@ def export_driver_payroll_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
 
 
-@driver_payroll_bp.route(
-    "/api/driver-payroll/export-excel/<int:driver_payroll_code>", methods=["GET"]
-)
-@token_required
-def exportar_driver_payroll(driver_payroll_code: int):
+class DriverPayrollExportData(NamedTuple):
+    """Records needed to render a settlement (liquidacion) export."""
+
+    driver_payroll: DriverPayroll
+    driver: Driver
+    shipments: List[Shipment]
+    shipment_expenses_no_receipt: List[ShipmentExpense]
+    shipment_expenses_receipt: List[ShipmentExpense]
+
+
+def fetch_driver_payroll_export_data(
+    driver_payroll_code: int,
+) -> Tuple[Optional[DriverPayrollExportData], str, int]:
+    """Fetch the settlement records shared by the Excel and PDF exports.
+
+    Returns the data with an empty message key and 200, or None with the
+    message key and HTTP status of the failure.
+    """
     try:
         driver_payroll_stmt = select(DriverPayroll).where(
             DriverPayroll.payroll_code == driver_payroll_code,
@@ -733,7 +769,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         driver_payroll: Optional[DriverPayroll] = db_session.scalar(driver_payroll_stmt)
         if driver_payroll is None:
             logger.error("fetch table DriverPayroll, not found")
-            return jsonify({"message": get_message(MESSAGES, "payroll_not_found")}), 404
+            return None, "payroll_not_found", 404
 
         logger.info("fetch table DriverPayroll, found: %s", driver_payroll.payroll_code)
         logger.debug("fetch table DriverPayroll, found: %s", driver_payroll)
@@ -746,7 +782,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         driver: Optional[Driver] = db_session.scalar(driver_stmt)
         if driver is None:
             logger.error("fetch table Driver, not found")
-            return jsonify({"message": get_message(MESSAGES, "driver_not_found")}), 404
+            return None, "driver_not_found", 404
 
         logger.debug("fetch table Driver, found: %s", driver)
 
@@ -759,7 +795,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
             )
             .order_by(Shipment.shipment_date, Shipment.shipment_code)
         )
-        shipments: Sequence[Shipment] = db_session.scalars(shipments_stmt).all()
+        shipments: List[Shipment] = list(db_session.scalars(shipments_stmt).all())
 
         shipment_expenses_no_receipt_stmt = (
             select(ShipmentExpense)
@@ -771,9 +807,9 @@ def exportar_driver_payroll(driver_payroll_code: int):
             )
             .order_by(ShipmentExpense.expense_date, ShipmentExpense.expense_code)
         )
-        shipment_expenses_no_receipt: Sequence[ShipmentExpense] = db_session.scalars(
-            shipment_expenses_no_receipt_stmt
-        ).all()
+        shipment_expenses_no_receipt: List[ShipmentExpense] = list(
+            db_session.scalars(shipment_expenses_no_receipt_stmt).all()
+        )
 
         shipment_expenses_receipt_stmt = (
             select(ShipmentExpense)
@@ -785,24 +821,72 @@ def exportar_driver_payroll(driver_payroll_code: int):
             )
             .order_by(ShipmentExpense.expense_date, ShipmentExpense.expense_code)
         )
-        shipment_expenses_receipt: Sequence[ShipmentExpense] = db_session.scalars(
-            shipment_expenses_receipt_stmt
-        ).all()
+        shipment_expenses_receipt: List[ShipmentExpense] = list(
+            db_session.scalars(shipment_expenses_receipt_stmt).all()
+        )
 
     except SQLAlchemyError as e:
         logger.error("fetch table DriverPayroll, error: %s", e)
-        return jsonify({"message": get_message(MESSAGES, "transaction_error")}), 500
+        return None, "transaction_error", 500
+
+    return (
+        DriverPayrollExportData(
+            driver_payroll,
+            driver,
+            shipments,
+            shipment_expenses_no_receipt,
+            shipment_expenses_receipt,
+        ),
+        "",
+        200,
+    )
+
+
+def build_driver_payroll_export_filename(
+    driver_payroll: DriverPayroll, driver: Driver, extension: str
+) -> str:
+    """Build the download filename shared by the settlement exports."""
+    name = (driver.driver_name or "") + " " + (driver.driver_surname or "")
+    date = driver_payroll.payroll_timestamp.date().strftime("%d/%m/%Y")
+
+    # Use translated settlement term in filename
+    settlement_term = get_message(MESSAGES, "payroll_file")
+    return f"{name.strip()}_{settlement_term}_{date}.{extension}"
+
+
+@driver_payroll_bp.route(
+    "/api/driver-payroll/export-excel/<int:driver_payroll_code>", methods=["GET"]
+)
+@token_required
+def exportar_driver_payroll(driver_payroll_code: int):
+    export_data, error_key, status = fetch_driver_payroll_export_data(
+        driver_payroll_code
+    )
+    if export_data is None:
+        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+
+    driver_payroll = export_data.driver_payroll
+    driver = export_data.driver
 
     max_len = max(
-        len(shipments),
-        len(shipment_expenses_no_receipt),
-        len(shipment_expenses_receipt),
+        len(export_data.shipments),
+        len(export_data.shipment_expenses_no_receipt),
+        len(export_data.shipment_expenses_receipt),
     )
 
     # Fill the lists to have the same length with None if necessary
+    shipments: List[Optional[Shipment]] = list(export_data.shipments)
     shipments += [None] * (max_len - len(shipments))
+
+    shipment_expenses_no_receipt: List[Optional[ShipmentExpense]] = list(
+        export_data.shipment_expenses_no_receipt
+    )
     shipment_expenses_no_receipt += [None] * (
         max_len - len(shipment_expenses_no_receipt)
+    )
+
+    shipment_expenses_receipt: List[Optional[ShipmentExpense]] = list(
+        export_data.shipment_expenses_receipt
     )
     shipment_expenses_receipt += [None] * (max_len - len(shipment_expenses_receipt))
 
@@ -819,21 +903,22 @@ def exportar_driver_payroll(driver_payroll_code: int):
         "code": {"letter": "A", "number": 1},
         "shipment_date": {"letter": "B", "number": 2},
         "product": {"letter": "C", "number": 3},
-        "ticket_number": {"letter": "D", "number": 4},
-        "origin": {"letter": "E", "number": 5},
-        "destination": {"letter": "F", "number": 6},
-        "origin_weight": {"letter": "G", "number": 7},
-        "destination_weight": {"letter": "H", "number": 8},
-        "difference": {"letter": "I", "number": 9},
-        "price_weight": {"letter": "J", "number": 10},
-        "shipment_amount": {"letter": "K", "number": 11},
-        "untaxed_expense_date": {"letter": "L", "number": 12},
-        "untaxed_expense_reason": {"letter": "M", "number": 13},
-        "untaxed_expense_amount": {"letter": "N", "number": 14},
-        "taxed_expense_date": {"letter": "O", "number": 15},
-        "taxed_expense_receipt": {"letter": "P", "number": 16},
-        "taxed_expense_reason": {"letter": "Q", "number": 17},
-        "taxed_expense_amount": {"letter": "R", "number": 18},
+        "dispatch_number": {"letter": "D", "number": 4},
+        "ticket_number": {"letter": "E", "number": 5},
+        "origin": {"letter": "F", "number": 6},
+        "destination": {"letter": "G", "number": 7},
+        "origin_weight": {"letter": "H", "number": 8},
+        "destination_weight": {"letter": "I", "number": 9},
+        "difference": {"letter": "J", "number": 10},
+        "price_weight": {"letter": "K", "number": 11},
+        "shipment_amount": {"letter": "L", "number": 12},
+        "untaxed_expense_date": {"letter": "M", "number": 13},
+        "untaxed_expense_reason": {"letter": "N", "number": 14},
+        "untaxed_expense_amount": {"letter": "O", "number": 15},
+        "taxed_expense_date": {"letter": "P", "number": 16},
+        "taxed_expense_receipt": {"letter": "Q", "number": 17},
+        "taxed_expense_reason": {"letter": "R", "number": 18},
+        "taxed_expense_amount": {"letter": "S", "number": 19},
     }
 
     columns_length = len(columns)
@@ -857,6 +942,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
     subtotal_sin_boleta = f"=SUM(${untaxed_expense_amount_column}6:${untaxed_expense_amount_column}{last_row})"
     subtotal_con_boleta = f"=SUM(${taxed_expense_amount_column}6:${taxed_expense_amount_column}{last_row})"
     subtotales = [
+        None,
         None,
         None,
         None,
@@ -898,6 +984,7 @@ def exportar_driver_payroll(driver_payroll_code: int):
         f"=SUM(${shipment_amount_column}6:${shipment_amount_column}{last_row})"
     )
     total = [
+        None,
         None,
         None,
         None,
@@ -960,18 +1047,373 @@ def exportar_driver_payroll(driver_payroll_code: int):
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    name = (driver.driver_name or "") + " " + (driver.driver_surname or "")
-    date = driver_payroll.payroll_timestamp.date().strftime("%d/%m/%Y")
-
-    # Use translated settlement term in filename
-    settlement_term = get_message(MESSAGES, "payroll_file")
-    response.headers["Content-Disposition"] = (
-        f"attachment; filename={name.strip()}_{settlement_term}_{date}.xlsx"
-    )
+    filename = build_driver_payroll_export_filename(driver_payroll, driver, "xlsx")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     logger.info(
         "Liquidacion %s %s exportada", driver.driver_code, driver_payroll.payroll_code
     )
     return response
+
+
+@driver_payroll_bp.route(
+    "/api/driver-payroll/export-pdf/<int:driver_payroll_code>", methods=["GET"]
+)
+@token_required
+def exportar_driver_payroll_pdf(driver_payroll_code: int):
+    export_data, error_key, status = fetch_driver_payroll_export_data(
+        driver_payroll_code
+    )
+    if export_data is None:
+        return jsonify({"message": get_message(MESSAGES, error_key)}), status
+
+    driver_payroll = export_data.driver_payroll
+    driver = export_data.driver
+
+    try:
+        pdf_file = render_driver_payroll_pdf(export_data)
+    except LayoutError as e:
+        logger.error("export DriverPayroll pdf, render error: %s", e)
+        return jsonify({"message": get_message(MESSAGES, "export_error")}), 500
+
+    response = make_response(pdf_file)
+    response.headers["Content-Type"] = "application/pdf"
+
+    filename = build_driver_payroll_export_filename(driver_payroll, driver, "pdf")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    logger.info(
+        "Liquidacion %s %s exportada a PDF",
+        driver.driver_code,
+        driver_payroll.payroll_code,
+    )
+    return response
+
+
+def render_driver_payroll_pdf(export_data: DriverPayrollExportData) -> bytes:
+    """Render the settlement (liquidacion) as a PDF file.
+
+    Mirrors the Excel export, but every Excel formula is calculated here
+    because a PDF can only hold the resulting values.
+    """
+    driver = export_data.driver
+    shipments = export_data.shipments
+    shipment_expenses_no_receipt = export_data.shipment_expenses_no_receipt
+    shipment_expenses_receipt = export_data.shipment_expenses_receipt
+
+    locale = get_locale()
+
+    # Same column layout as the Excel export, widths in Excel character units
+    column_widths = [
+        2.64,
+        10.6,
+        5.00,
+        9.00,
+        9.00,
+        16,
+        16,
+        9,
+        9,
+        5,
+        7.60,
+        10.27,
+        10.82,
+        7.0,
+        10.27,
+        10.82,
+        8.5,
+        7.0,
+        10.82,
+    ]
+    last_column = len(column_widths) - 1
+    last_shipment_column = 11  # shipment_amount
+    first_expense_column = 12  # untaxed_expense_date
+
+    driver_text = get_message(MESSAGES, "driver")
+    plate_text = get_message(MESSAGES, "plate")
+    date_text = get_message(MESSAGES, "date")
+    driver_name = (driver.driver_name or "") + " " + (driver.driver_surname or "")
+
+    title_row: List[Any] = [
+        Paragraph(get_message(MESSAGES, "settlement"), TITLE_STYLE)
+    ] + [""] * last_column
+    driver_row: List[Any] = [
+        Paragraph(
+            f"{driver_text}: {driver_name.strip()}&nbsp;&nbsp;&nbsp;&nbsp;"
+            f"{plate_text}: {driver.truck_plate}&nbsp;&nbsp;&nbsp;&nbsp;"
+            f'{date_text}: {datetime.now().strftime("%d/%m/%Y")}',
+            SUBTITLE_STYLE,
+        )
+    ] + [""] * last_column
+    division_row: List[Any] = (
+        [pdf_cell(get_message(MESSAGES, "shipments"), bold=True, align="center")]
+        + [""] * last_shipment_column
+        + [pdf_cell(get_message(MESSAGES, "expenses"), bold=True, align="center")]
+        + [""] * (last_column - first_expense_column)
+    )
+    header_row: List[Any] = [
+        pdf_cell(get_message(MESSAGES, key), bold=True, align="center")
+        for key in [
+            "num",
+            "date",
+            "product",
+            "dispatch_num",
+            "receipt_num",
+            "origin",
+            "destination",
+            "origin_kg",
+            "destination_kg",
+            "diff",
+            "price_per_kg",
+            "amount",
+            "date",
+            "reason",
+            "amount",
+            "date",
+            "receipt_num",
+            "reason",
+            "amount",
+        ]
+    ]
+
+    table_data: List[List[Any]] = [title_row, driver_row, division_row, header_row]
+
+    total_shipments = Decimal(0)
+    subtotal_no_receipt = Decimal(0)
+    subtotal_receipt = Decimal(0)
+
+    max_len = max(
+        len(shipments),
+        len(shipment_expenses_no_receipt),
+        len(shipment_expenses_receipt),
+    )
+
+    for index in range(max_len):
+        row: List[Any] = [pdf_cell(index + 1, align="center")]
+
+        if index < len(shipments):
+            shipment = shipments[index]
+            amount = round_amount(shipment.destination_weight * shipment.payroll_price)
+            total_shipments += amount
+
+            row.extend(
+                [
+                    pdf_cell(shipment.shipment_date.strftime("%d/%m/%Y")),
+                    pdf_cell(shipment.product_name),
+                    pdf_cell(shipment.dispatch_code),
+                    pdf_cell(shipment.receipt_code),
+                    pdf_cell(shipment.origin),
+                    pdf_cell(shipment.destination),
+                    pdf_cell(
+                        format_number(shipment.origin_weight, locale), align="right"
+                    ),
+                    pdf_cell(
+                        format_number(shipment.destination_weight, locale),
+                        align="right",
+                    ),
+                    pdf_cell(
+                        format_number(
+                            shipment.destination_weight - shipment.origin_weight, locale
+                        ),
+                        align="right",
+                    ),
+                    pdf_cell(
+                        format_number(shipment.payroll_price, locale, decimals=2),
+                        align="right",
+                    ),
+                    pdf_cell(format_number(amount, locale), align="right"),
+                ]
+            )
+        else:
+            row.extend([""] * 11)
+
+        if index < len(shipment_expenses_no_receipt):
+            no_receipt = shipment_expenses_no_receipt[index]
+            subtotal_no_receipt += no_receipt.amount
+
+            row.extend(
+                [
+                    pdf_cell(no_receipt.expense_date.strftime("%d/%m/%Y")),
+                    pdf_cell(no_receipt.reason),
+                    pdf_cell(format_number(no_receipt.amount, locale), align="right"),
+                ]
+            )
+        else:
+            row.extend([""] * 3)
+
+        if index < len(shipment_expenses_receipt):
+            receipt = shipment_expenses_receipt[index]
+            subtotal_receipt += receipt.amount
+
+            row.extend(
+                [
+                    pdf_cell(receipt.expense_date.strftime("%d/%m/%Y")),
+                    pdf_cell(receipt.receipt),
+                    pdf_cell(receipt.reason),
+                    pdf_cell(format_number(receipt.amount, locale), align="right"),
+                ]
+            )
+        else:
+            row.extend([""] * 4)
+
+        table_data.append(row)
+
+    total_expenses = subtotal_no_receipt + subtotal_receipt
+    total_to_collect = total_shipments - total_expenses
+    total_to_invoice = total_shipments - subtotal_receipt
+
+    subtotal_text = get_message(MESSAGES, "subtotal")
+    subtotal_row: List[Any] = [""] * 12 + [
+        pdf_cell(subtotal_text, bold=True),
+        "",
+        pdf_cell(format_number(subtotal_no_receipt, locale), bold=True, align="right"),
+        pdf_cell(subtotal_text, bold=True),
+        "",
+        "",
+        pdf_cell(format_number(subtotal_receipt, locale), bold=True, align="right"),
+    ]
+    table_data.append(subtotal_row)
+
+    total_row: List[Any] = (
+        [""] * 9
+        + [
+            pdf_cell(
+                get_message(MESSAGES, "total_shipments"), bold=True, align="right"
+            ),
+            "",
+            pdf_cell(format_number(total_shipments, locale), bold=True, align="right"),
+            pdf_cell(get_message(MESSAGES, "total_expenses"), bold=True),
+        ]
+        + [""] * 5
+        + [pdf_cell(format_number(total_expenses, locale), bold=True, align="right")]
+    )
+    table_data.append(total_row)
+
+    header_rows = len(table_data) - max_len - 2
+    subtotal_row_index = len(table_data) - 2
+    total_row_index = len(table_data) - 1
+
+    table = Table(
+        table_data,
+        colWidths=scale_widths(column_widths),
+        repeatRows=header_rows,
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.4, GRID_COLOR),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                # Title, driver information and section titles
+                ("SPAN", (0, 0), (last_column, 0)),
+                ("SPAN", (0, 1), (last_column, 1)),
+                ("SPAN", (0, 2), (last_shipment_column, 2)),
+                ("SPAN", (first_expense_column, 2), (last_column, 2)),
+                ("BACKGROUND", (0, 3), (-1, 3), HEADER_BACKGROUND),
+                # Subtotals and totals
+                ("SPAN", (12, subtotal_row_index), (13, subtotal_row_index)),
+                ("SPAN", (15, subtotal_row_index), (17, subtotal_row_index)),
+                ("SPAN", (9, total_row_index), (10, total_row_index)),
+                ("SPAN", (12, total_row_index), (17, total_row_index)),
+            ]
+        )
+    )
+
+    totals_table = render_driver_payroll_pdf_totals(
+        locale, total_to_collect, total_to_invoice
+    )
+
+    return build_pdf(
+        [table, Spacer(1, 8), totals_table],
+        get_message(MESSAGES, "settlement"),
+    )
+
+
+def render_driver_payroll_pdf_totals(
+    locale: str, total_to_collect: Decimal, total_to_invoice: Decimal
+) -> Table:
+    """Render the totals and invoice summary block of the settlement PDF."""
+    vat_10 = total_to_invoice / 11
+    total_in_words = num2words(
+        total_to_invoice, lang="en" if locale == "en" else "es"
+    ).capitalize()
+    total_label = get_message(MESSAGES, "total")
+
+    zero = format_number(0, locale)
+    invoice_amount = format_number(total_to_invoice, locale)
+
+    rows: List[List[Any]] = [
+        [
+            pdf_cell(get_message(MESSAGES, "total_to_collect"), bold=True),
+            "",
+            "",
+            pdf_cell(format_number(total_to_collect, locale), bold=True, align="right"),
+        ],
+        [
+            pdf_cell(get_message(MESSAGES, "total_to_invoice"), bold=True),
+            "",
+            "",
+            pdf_cell(invoice_amount, bold=True, align="right"),
+        ],
+        [pdf_cell(get_message(MESSAGES, "invoice_to")), "", "", ""],
+        [
+            pdf_cell(get_message(MESSAGES, "description"), bold=True),
+            pdf_cell(get_message(MESSAGES, "exempt"), bold=True, align="right"),
+            pdf_cell(get_message(MESSAGES, "vat_5"), bold=True, align="right"),
+            pdf_cell(get_message(MESSAGES, "vat_10"), bold=True, align="right"),
+        ],
+        [
+            pdf_cell(get_message(MESSAGES, "shipping_service")),
+            pdf_cell(zero, align="right"),
+            pdf_cell(zero, align="right"),
+            pdf_cell(invoice_amount, align="right"),
+        ],
+        [
+            pdf_cell(get_message(MESSAGES, "subtotal"), bold=True),
+            pdf_cell(zero, align="right"),
+            pdf_cell(zero, align="right"),
+            pdf_cell(invoice_amount, align="right"),
+        ],
+        [
+            pdf_cell(total_label, bold=True),
+            "",
+            "",
+            pdf_cell(invoice_amount, bold=True, align="right"),
+        ],
+        [
+            pdf_cell(get_message(MESSAGES, "vat_10"), bold=True),
+            "",
+            "",
+            pdf_cell(format_number(vat_10, locale), bold=True, align="right"),
+        ],
+        [pdf_cell(f"{total_label}: {total_in_words}", bold=True), "", "", ""],
+    ]
+
+    totals_table = Table(
+        rows, colWidths=[CONTENT_WIDTH * ratio for ratio in (0.30, 0.10, 0.10, 0.12)]
+    )
+    totals_table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.4, GRID_COLOR),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("SPAN", (0, 0), (2, 0)),
+                ("SPAN", (0, 1), (2, 1)),
+                ("SPAN", (0, 2), (3, 2)),
+                ("SPAN", (0, 6), (2, 6)),
+                ("SPAN", (0, 7), (2, 7)),
+                ("SPAN", (0, 8), (3, 8)),
+            ]
+        )
+    )
+    totals_table.hAlign = "RIGHT"
+
+    return totals_table
 
 
 def render_driver_payroll_headers(
@@ -984,6 +1426,7 @@ def render_driver_payroll_headers(
     sheet.column_dimensions[columns["code"]["letter"]].width = 2.64
     sheet.column_dimensions[columns["shipment_date"]["letter"]].width = 10.6
     sheet.column_dimensions[columns["product"]["letter"]].width = 5.00
+    sheet.column_dimensions[columns["dispatch_number"]["letter"]].width = 9.00
     sheet.column_dimensions[columns["ticket_number"]["letter"]].width = 9.00
     sheet.column_dimensions[columns["origin"]["letter"]].width = 16
     sheet.column_dimensions[columns["destination"]["letter"]].width = 16
@@ -1060,6 +1503,7 @@ def render_driver_payroll_headers(
             None,
             None,
             None,
+            None,
             get_message(MESSAGES, "expenses"),
             None,
             None,
@@ -1105,6 +1549,7 @@ def render_driver_payroll_headers(
         get_message(MESSAGES, "num"),
         get_message(MESSAGES, "date"),
         get_message(MESSAGES, "product"),
+        get_message(MESSAGES, "dispatch_num"),
         get_message(MESSAGES, "receipt_num"),
         get_message(MESSAGES, "origin"),
         get_message(MESSAGES, "destination"),
@@ -1134,7 +1579,9 @@ def render_driver_payroll_headers(
 def render_driver_payroll_shipment_expense(
     sheet: Worksheet,
     columns: dict[str, dict[str, str | int]],
-    results: Iterator[tuple[Shipment, ShipmentExpense, ShipmentExpense]],
+    results: Iterator[
+        tuple[Optional[Shipment], Optional[ShipmentExpense], Optional[ShipmentExpense]]
+    ],
     border: Border,
 ):
     origin_weight_column = columns["origin_weight"]["letter"]
@@ -1153,6 +1600,7 @@ def render_driver_payroll_shipment_expense(
             shipment_row = [
                 shipment.shipment_date.strftime("%d/%m/%Y"),
                 shipment.product_name,
+                shipment.dispatch_code,
                 shipment.receipt_code,
                 shipment.origin,
                 shipment.destination,
@@ -1166,7 +1614,7 @@ def render_driver_payroll_shipment_expense(
             row.extend(shipment_row)
 
         else:
-            row.extend([None] * 10)
+            row.extend([None] * 11)
 
         if no_receipt:
             no_receipt_row = [
@@ -1208,19 +1656,26 @@ def render_driver_payroll_totals(
     columns: dict[str, dict[str, str | int]],
     border: Border,
     last_row: int,
-    shipments: Sequence[Shipment],
-    shipment_expenses_receipt: Sequence[ShipmentExpense],
+    shipments: Sequence[Optional[Shipment]],
+    shipment_expenses_receipt: Sequence[Optional[ShipmentExpense]],
 ):
     price_weight_column = columns["price_weight"]["letter"]
     shipment_amount_column = columns["shipment_amount"]["letter"]
     taxed_expense_amount_column = columns["taxed_expense_amount"]["letter"]
 
-    totals_start_column = 7
-    totals_end_column = 12
-    title_end_column = 9
+    totals_start_column = int(columns["origin_weight"]["number"])
+    totals_end_column = int(columns["untaxed_expense_date"]["number"])
+    title_end_column = int(columns["difference"]["number"])
+
+    # The invoice summary table below reuses the shipment columns:
+    # 'Exenta' sits on the price_weight column and 'IVA 10%' on the
+    # untaxed_expense_date column
+    exempt_column = columns["price_weight"]["letter"]
+    vat_10_column = columns["untaxed_expense_date"]["letter"]
 
     # PAYROLL TOTAL with translation
     total_cobrar = [
+        None,
         None,
         None,
         None,
@@ -1261,6 +1716,7 @@ def render_driver_payroll_totals(
             cell.number_format = "#,##0"
 
     total_facturar = [
+        None,
         None,
         None,
         None,
@@ -1308,6 +1764,7 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
+            None,
             get_message(MESSAGES, "invoice_to"),
             None,
             None,
@@ -1330,6 +1787,7 @@ def render_driver_payroll_totals(
     sheet.append([])
     sheet.append(
         [
+            None,
             None,
             None,
             None,
@@ -1359,6 +1817,7 @@ def render_driver_payroll_totals(
 
     sheet.append(
         [
+            None,
             None,
             None,
             None,
@@ -1413,12 +1872,13 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
+            None,
             get_message(MESSAGES, "subtotal"),
             None,
             None,
-            f"=+J{last_row + 9}",
+            f"=+${exempt_column}{last_row + 9}",
             0,
-            f"=+L{last_row + 9}",
+            f"=+${vat_10_column}{last_row + 9}",
             None,
         ]
     )
@@ -1445,12 +1905,13 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
+            None,
             get_message(MESSAGES, "total"),
             None,
             None,
             None,
             None,
-            f"=+J{last_row + 11}+L{last_row + 11}",
+            f"=+${exempt_column}{last_row + 11}+${vat_10_column}{last_row + 11}",
             None,
         ]
     )
@@ -1480,9 +1941,10 @@ def render_driver_payroll_totals(
             None,
             None,
             None,
+            None,
             get_message(MESSAGES, "vat_10"),
             None,
-            f"=+L{last_row + 12}/11",
+            f"=+${vat_10_column}{last_row + 12}/11",
             None,
         ]
     )
@@ -1529,6 +1991,7 @@ def render_driver_payroll_totals(
     total_label = get_message(MESSAGES, "total")
     sheet.append(
         [
+            None,
             None,
             None,
             None,
