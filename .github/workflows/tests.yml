@@ -11,6 +11,10 @@ on:
   workflow_dispatch:
   workflow_call:
 
+# The suite only reads the code, it publishes nothing
+permissions:
+  contents: read
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
