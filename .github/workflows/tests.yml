@@ -1,4 +1,5 @@
 # Run the test suite on every push and pull request.
+# The release workflow calls this one, so nothing is published untested.
 # MySQL comes as a service container and LibreOffice is installed so the PDF
 # exports are converted for real, the same way the production image does it.
 name: tests
@@ -8,6 +9,7 @@ on:
     branches: ["**"]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   pytest:
