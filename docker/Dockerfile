@@ -21,6 +21,7 @@ RUN apt-get -y update && apt-get -y upgrade && \
     apt-get -y install pkg-config && \
     apt-get -y install gcc python3-dev && \
     apt-get -y install default-libmysqlclient-dev && \
+    apt-get -y install --no-install-recommends libreoffice-calc-nogui fonts-liberation && \
     rm -rf /var/lib/apt/lists/* && \
     pip install -r requirements-common.txt --no-cache-dir && \
     pip install -r requirements-prod.txt --no-cache-dir

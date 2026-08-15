@@ -41,7 +41,15 @@ from models.shipment import Shipment
 from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
 from models.shipment_payroll import ShipmentPayroll
+
+from utils.excel import force_text_cells
+
+from utils.locale import get_locale
 from utils.locale import get_message
+
+from utils.pdf import excel_to_pdf
+from utils.pdf import set_print_page_setup
+from utils.pdf import PdfConversionError
 
 shipment_bp = Blueprint("shipment", __name__)
 
@@ -72,6 +80,7 @@ MESSAGES = {
         "shipment_not_found_for_delete": "Error deleting shipment: shipment not found",
         "excel_creation_error": "Error creating Excel file",
         "excel_no_data": "Error creating Excel file, no data",
+        "pdf_creation_error": "Error creating PDF file",
         # Success messages
         "shipment_added": "Shipment added successfully",
         "shipment_updated": "Shipment updated successfully",
@@ -122,6 +131,7 @@ MESSAGES = {
         "shipment_not_found_for_delete": "Error al eliminar Carga: Carga no encontrada",
         "excel_creation_error": "Error al crear archivo Excel",
         "excel_no_data": "Error al crear archivo Excel, sin datos",
+        "pdf_creation_error": "Error al crear archivo PDF",
         # Success messages
         "shipment_added": "Carga agregada exitosamente",
         "shipment_updated": "Carga actualizada exitosamente",
@@ -822,9 +832,14 @@ def delete_shipment_list() -> Tuple[Response, int]:
         return jsonify({"message": get_message(MESSAGES, "delete_shipment_error")}), 500
 
 
-@shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
-@token_required
-def export_shipments_excel() -> Tuple[Response, int]:
+def fetch_shipments_export_data() -> (
+    Tuple[List[Shipment], Optional[int], Optional[Tuple[Response, int]]]
+):
+    """Fetch the shipments to export, shared by the Excel and PDF exports.
+
+    Reads the optional 'shipment_payroll_code' query param. Returns the
+    shipments and the payroll code, or None and the response to send back.
+    """
     shipment_payroll_code_param: str | None = request.args.get("shipment_payroll_code")
     shipment_payroll_code = None
 
@@ -846,19 +861,35 @@ def export_shipments_excel() -> Tuple[Response, int]:
                     "ShipmentPayroll with code %s not found", shipment_payroll_code
                 )
                 return (
-                    jsonify(
-                        {"message": get_message(MESSAGES, "shipment_payroll_not_found")}
+                    [],
+                    None,
+                    (
+                        jsonify(
+                            {
+                                "message": get_message(
+                                    MESSAGES, "shipment_payroll_not_found"
+                                )
+                            }
+                        ),
+                        404,
                     ),
-                    404,
                 )
 
         except ValueError:
             logger.error("Invalid 'shipment_payroll_code' parameter: not an integer")
             return (
-                jsonify(
-                    {"message": get_message(MESSAGES, "invalid_shipment_payroll_param")}
+                [],
+                None,
+                (
+                    jsonify(
+                        {
+                            "message": get_message(
+                                MESSAGES, "invalid_shipment_payroll_param"
+                            )
+                        }
+                    ),
+                    400,
                 ),
-                400,
             )
 
     try:
@@ -881,16 +912,29 @@ def export_shipments_excel() -> Tuple[Response, int]:
             stmt_shipment = stmt_shipment.where(
                 Shipment.shipment_payroll_code == shipment_payroll_code
             )
-        shipments: Sequence[Shipment] = db_session.scalars(stmt_shipment).all()
+        shipments: List[Shipment] = list(db_session.scalars(stmt_shipment).all())
 
-        if shipments is None or len(shipments) <= 0:
+        if len(shipments) <= 0:
             logger.error("export Shipments, fetch Shipments returned empty list")
-            return jsonify({"message": get_message(MESSAGES, "excel_no_data")}), 500
+            return (
+                [],
+                None,
+                (jsonify({"message": get_message(MESSAGES, "excel_no_data")}), 500),
+            )
 
     except SQLAlchemyError as e:
         logger.error("export Shipments, fetch Shipments error: %s", e)
-        return jsonify({"message": get_message(MESSAGES, "excel_creation_error")}), 500
+        return (
+            [],
+            None,
+            (jsonify({"message": get_message(MESSAGES, "excel_creation_error")}), 500),
+        )
 
+    return shipments, shipment_payroll_code, None
+
+
+def build_shipments_workbook(shipments: List[Shipment]) -> Workbook:
+    """Build the collection sheet workbook, exported as Excel and as PDF."""
     # dict for subtotals
     subtotal_groups: dict[str, str | int] = {}
     default_group = {
@@ -929,8 +973,6 @@ def export_shipments_excel() -> Tuple[Response, int]:
 
         group_counter += 1
 
-    # Create Excel file in memory
-    output = io.BytesIO()
     workbook = Workbook()
     sheet = workbook.active
 
@@ -948,7 +990,8 @@ def export_shipments_excel() -> Tuple[Response, int]:
     sheet.column_dimensions["L"].width = 7.18
     sheet.column_dimensions["M"].width = 6.27
     sheet.column_dimensions["N"].width = 6.36
-    sheet.column_dimensions["O"].width = 6.27
+    # Wide enough for the price with decimals, it printed as ### at 6.27
+    sheet.column_dimensions["O"].width = 9.00
     sheet.column_dimensions["P"].width = 14.64
 
     # Add a blank row
@@ -1050,6 +1093,7 @@ def export_shipments_excel() -> Tuple[Response, int]:
             f"=ROUND(K{counter}*O{counter}, 0)",
         ]
         sheet.append(row)
+        force_text_cells(sheet, range(3, 10))
 
         for col in range(9, 17):
             cell = sheet.cell(row=sheet.max_row, column=col)
@@ -1272,11 +1316,26 @@ def export_shipments_excel() -> Tuple[Response, int]:
                 subtotal,
             ]
         )
+        force_text_cells(sheet, [15])
         cell = sheet.cell(row=sheet.max_row, column=16)
         cell.number_format = "#,##0"
 
+    # Print the wide table in landscape, repeating the header row on every page
+    set_print_page_setup(sheet, repeat_rows="6:6")
+
+    return workbook
+
+
+@shipment_bp.route("/api/shipments/export-excel", methods=["GET"])
+@token_required
+def export_shipments_excel() -> Tuple[Response, int]:
+    shipments, shipment_payroll_code, error_response = fetch_shipments_export_data()
+    if error_response is not None:
+        return error_response
+
     # Save Excel file to output stream
-    workbook.save(output)
+    output = io.BytesIO()
+    build_shipments_workbook(shipments).save(output)
     output.seek(0)
 
     # Get translated filename component
@@ -1291,5 +1350,33 @@ def export_shipments_excel() -> Tuple[Response, int]:
         f'attachment; filename={collection_term}_{shipment_payroll_code or "todos"}.xlsx'
     )
     logger.info("Shipment Excel file exported: %s", shipment_payroll_code)
+
+    return response, 200
+
+
+@shipment_bp.route("/api/shipments/export-pdf", methods=["GET"])
+@token_required
+def export_shipments_pdf() -> Tuple[Response, int]:
+    shipments, shipment_payroll_code, error_response = fetch_shipments_export_data()
+    if error_response is not None:
+        return error_response
+
+    # Same Excel file as the Excel export, converted to PDF
+    try:
+        pdf_file = excel_to_pdf(build_shipments_workbook(shipments), get_locale())
+    except PdfConversionError as e:
+        logger.error("export Shipments pdf, conversion error: %s", e)
+        return jsonify({"message": get_message(MESSAGES, "pdf_creation_error")}), 500
+
+    # Get translated filename component
+    collection_term = get_message(MESSAGES, "collection")
+
+    # Create client response with PDF file
+    response = make_response(pdf_file)
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename={collection_term}_{shipment_payroll_code or "todos"}.pdf'
+    )
+    logger.info("Shipment PDF file exported: %s", shipment_payroll_code)
 
     return response, 200

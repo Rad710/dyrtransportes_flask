@@ -1,4 +1,5 @@
 # Build the API image and push it to GHCR. The VM pulls — it never builds.
+# The test suite runs first, the image is only published when it passes.
 # Trigger: push a version tag (git tag v1.0.0 && git push --tags) or run from the Actions tab.
 name: release
 
@@ -15,7 +16,12 @@ env:
   IMAGE: ghcr.io/rad710/dyrtransportes-flask # owner must be lowercase for GHCR
 
 jobs:
+  # Same suite as the tests workflow, reused instead of duplicated
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   build-push:
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

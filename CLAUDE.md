@@ -13,6 +13,7 @@ DYR Transportes is a transportation management system backend built with Flask a
 - **Migrations:** Alembic 1.17
 - **Auth:** PyJWT (HS256 JWT tokens)
 - **Excel Export:** openpyxl
+- **PDF Export:** LibreOffice headless (`soffice`), converts the Excel exports
 - **Localization:** num2words (Spanish number-to-word conversion)
 - **Production Server:** uWSGI
 - **Type Checking:** mypy
@@ -83,6 +84,7 @@ dyrtransportes_flask/
     │   └── planilla_formato.xlsx    # Excel template for payroll reports
     └── utils/
         ├── locale.py                # i18n: Accept-Language header parsing, message lookup
+        ├── pdf.py                   # Excel to PDF conversion via LibreOffice
         └── security.py              # Password hashing (PBKDF2), email/password validation
 ```
 
@@ -199,6 +201,23 @@ Most CRUD modules include an Excel export endpoint. The pattern is:
 3. Write headers and data rows with styling (borders, number formats)
 4. Return via `make_response()` with `Content-Disposition: attachment` and MIME type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 
+### PDF Export Pattern
+
+PDF exports (`/api/.../export-pdf`) are the Excel export converted, the same as
+choosing "print as PDF" in Excel. There is no second layout to maintain:
+1. The workbook building lives in a `build_*_workbook()` function returning the
+   `Workbook`, shared by the Excel and the PDF endpoint
+2. The builder ends with `set_print_page_setup()` (landscape, fit to width,
+   repeated header rows), the page setup a user would set before printing
+3. The PDF endpoint calls `excel_to_pdf(workbook, get_locale())` from
+   `utils/pdf.py`, which runs LibreOffice headless; LibreOffice calculates the
+   formulas left in the cells and formats numbers with the client's locale
+4. Return via `make_response()` with `Content-Disposition: attachment` and MIME
+   type `application/pdf`
+
+LibreOffice (`libreoffice-calc-nogui`) must be installed in the image; the
+binary can be overridden with the `SOFFICE_PATH` environment variable.
+
 ### CRUD Endpoint Pattern
 
 Each API module follows a consistent pattern:
@@ -246,12 +265,39 @@ The production container runs uWSGI on port 8080. The compose stack includes:
 
 ## Testing
 
-There is no test suite currently. Use `mypy` for static type checking and `pylint` for linting:
+The suite runs with pytest and lives in `tests/`:
+
+```
+tests/
+├── conftest.py            # test database, app, client, auth and data factories
+├── helpers.py             # helpers shared by the tests, never import from conftest
+├── unit/                  # utils and model validators, no database
+├── integration/           # the API against a real MySQL: CRUD, auth, scoping
+└── functional/            # exports, PDF conversion, formula injection, migrations
+```
 
 ```bash
-mypy src/
-pylint src/
+# Test database (data only lives in the container)
+docker compose -f deploy/docker-compose.test.yml up -d
+
+pytest                       # everything
+pytest tests/unit            # no database needed
+pytest -m "not pdf"          # skip what needs LibreOffice
+pytest --cov=src             # with coverage
+
+./script/run_tests.sh        # database + dependencies + pytest
 ```
+
+Conventions:
+- Tests that touch the database are marked `@pytest.mark.db` and **skip
+  themselves** when MySQL is unreachable; those needing LibreOffice are marked
+  `@pytest.mark.pdf`
+- `conftest.py` sets the DB_* variables before importing the app, which builds
+  its engine at import time. The database is `dyrtransportes_test`, never the
+  development one, and every table is truncated between tests
+- Records are created through the API with the `api` factory fixture, so the
+  tests exercise the endpoints instead of writing rows behind their back
+- Static checks stay the same: `mypy src/` and `pylint src/`
 
 ---
 
