@@ -18,9 +18,10 @@ pytestmark = [
 
 
 def pdf_text(data: bytes) -> str:
-    """Text of the first page, needs pypdfium2 which is a test only dependency."""
-    pdfium = pytest.importorskip("pypdfium2")
+    """Text of the first page, read with pypdfium2 (a dev dependency)."""
     import tempfile
+
+    import pypdfium2 as pdfium
 
     with tempfile.NamedTemporaryFile(suffix=".pdf") as pdf_file:
         pdf_file.write(data)
