@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
@@ -13,6 +14,14 @@ SOFFICE_PATH = os.getenv("SOFFICE_PATH", "soffice")
 
 # A conversion of a big payroll takes a few seconds, kill it if it hangs
 CONVERSION_TIMEOUT_SECONDS = 120
+
+# Every conversion runs a LibreOffice process of its own, which costs a few
+# hundred MB. Only a few run at a time so exports cannot exhaust the server,
+# the rest of the requests wait their turn
+MAX_CONCURRENT_CONVERSIONS = int(os.getenv("PDF_MAX_CONCURRENT_CONVERSIONS", "2"))
+CONVERSION_QUEUE_TIMEOUT_SECONDS = 60
+
+_conversion_slots = threading.BoundedSemaphore(MAX_CONCURRENT_CONVERSIONS)
 
 # LibreOffice formats the numbers of the printout with the locale it runs in
 CONVERSION_LOCALES = {"es": "es_PY.UTF-8", "en": "en_US.UTF-8"}
@@ -51,6 +60,16 @@ def excel_to_pdf(workbook: Workbook, locale: str = "es") -> bytes:
     LibreOffice calculates the formulas the export leaves in the cells and
     formats the numbers with the client's locale.
     """
+    if not _conversion_slots.acquire(timeout=CONVERSION_QUEUE_TIMEOUT_SECONDS):
+        raise PdfConversionError("PDF conversion is busy, too many exports at once")
+
+    try:
+        return _convert_with_soffice(workbook, locale)
+    finally:
+        _conversion_slots.release()
+
+
+def _convert_with_soffice(workbook: Workbook, locale: str) -> bytes:
     with tempfile.TemporaryDirectory() as work_dir:
         excel_path = os.path.join(work_dir, "export.xlsx")
         pdf_path = os.path.join(work_dir, "export.pdf")

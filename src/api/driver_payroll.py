@@ -48,6 +48,8 @@ from models.driver import Driver
 from models.shipment import Shipment
 from models.shipment_expense import ShipmentExpense
 
+from utils.excel import force_text_cells
+
 from utils.locale import get_locale
 from utils.locale import get_message
 
@@ -1311,6 +1313,9 @@ def render_driver_payroll_shipment_expense(
             row.extend([None] * 4)
 
         sheet.append(row)
+        # product, dispatch, receipt, origin, destination and the expense
+        # reasons and receipt are typed by users
+        force_text_cells(sheet, [3, 4, 5, 6, 7, 14, 17, 18])
 
         for col in range(1, len(columns) + 1):
             cell = sheet.cell(row=sheet.max_row, column=col)

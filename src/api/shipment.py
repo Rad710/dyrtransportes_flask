@@ -42,6 +42,8 @@ from models.api_models import shipment_list_to_grouped_shipments_list
 from models.driver_payroll import DriverPayroll
 from models.shipment_payroll import ShipmentPayroll
 
+from utils.excel import force_text_cells
+
 from utils.locale import get_locale
 from utils.locale import get_message
 
@@ -1091,6 +1093,7 @@ def build_shipments_workbook(shipments: List[Shipment]) -> Workbook:
             f"=ROUND(K{counter}*O{counter}, 0)",
         ]
         sheet.append(row)
+        force_text_cells(sheet, range(3, 10))
 
         for col in range(9, 17):
             cell = sheet.cell(row=sheet.max_row, column=col)
@@ -1313,6 +1316,7 @@ def build_shipments_workbook(shipments: List[Shipment]) -> Workbook:
                 subtotal,
             ]
         )
+        force_text_cells(sheet, [15])
         cell = sheet.cell(row=sheet.max_row, column=16)
         cell.number_format = "#,##0"
 
