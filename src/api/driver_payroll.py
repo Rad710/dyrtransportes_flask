@@ -1109,7 +1109,7 @@ def render_driver_payroll_headers(
     sheet.column_dimensions[columns["destination_weight"]["letter"]].width = 9
     sheet.column_dimensions[columns["difference"]["letter"]].width = 5
     sheet.column_dimensions[columns["price_weight"]["letter"]].width = 7.60
-    sheet.column_dimensions[columns["shipment_amount"]["letter"]].width = 10.27
+    sheet.column_dimensions[columns["shipment_amount"]["letter"]].width = 12.00
     sheet.column_dimensions[columns["untaxed_expense_date"]["letter"]].width = 10.82
     sheet.column_dimensions[columns["untaxed_expense_reason"]["letter"]].width = 7.0
     sheet.column_dimensions[columns["untaxed_expense_amount"]["letter"]].width = 10.27
