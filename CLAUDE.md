@@ -265,12 +265,39 @@ The production container runs uWSGI on port 8080. The compose stack includes:
 
 ## Testing
 
-There is no test suite currently. Use `mypy` for static type checking and `pylint` for linting:
+The suite runs with pytest and lives in `tests/`:
+
+```
+tests/
+├── conftest.py            # test database, app, client, auth and data factories
+├── helpers.py             # helpers shared by the tests, never import from conftest
+├── unit/                  # utils and model validators, no database
+├── integration/           # the API against a real MySQL: CRUD, auth, scoping
+└── functional/            # exports, PDF conversion, formula injection, migrations
+```
 
 ```bash
-mypy src/
-pylint src/
+# Test database (data only lives in the container)
+docker compose -f deploy/docker-compose.test.yml up -d
+
+pytest                       # everything
+pytest tests/unit            # no database needed
+pytest -m "not pdf"          # skip what needs LibreOffice
+pytest --cov=src             # with coverage
+
+./script/run_tests.sh        # database + dependencies + pytest
 ```
+
+Conventions:
+- Tests that touch the database are marked `@pytest.mark.db` and **skip
+  themselves** when MySQL is unreachable; those needing LibreOffice are marked
+  `@pytest.mark.pdf`
+- `conftest.py` sets the DB_* variables before importing the app, which builds
+  its engine at import time. The database is `dyrtransportes_test`, never the
+  development one, and every table is truncated between tests
+- Records are created through the API with the `api` factory fixture, so the
+  tests exercise the endpoints instead of writing rows behind their back
+- Static checks stay the same: `mypy src/` and `pylint src/`
 
 ---
 
