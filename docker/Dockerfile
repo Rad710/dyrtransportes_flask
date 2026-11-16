@@ -6,7 +6,7 @@
 # docker buildx build --builder=my_builder --platform linux/amd64,linux/arm64 -t 192.168.100.15/dyrtransportes/dyrtransportes-flask:1.10.0 -f docker/Dockerfile --push .
 
 
-FROM python:3.13.2-slim-bookworm
+FROM python:3.13.18-slim-bookworm
 
 EXPOSE 8080
 
